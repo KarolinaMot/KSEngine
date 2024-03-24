@@ -95,6 +95,9 @@
     <ClInclude Include="include\resources\ResourceModule.hpp" />
     <ClInclude Include="include\utils\Log.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\platform\PC\device\DeviceModule.cpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

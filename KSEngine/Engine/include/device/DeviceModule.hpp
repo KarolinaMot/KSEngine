@@ -3,6 +3,7 @@
 #include <resources/ResourceHandle.hpp>
 #include <memory>
 
+
 namespace KSE {
 
 //Module for handling platform specific windowing and input
@@ -15,9 +16,14 @@ public:
 
 	void SwapWindowBuffers(ResourceHandle<Framebuffer> rendered_frame);
 
+	void NewFrame();
+	void EndFrame();
 	//TODO: add input here or on another InputModule
 
 private:
+	void InitializeWindow();
+	void InitializeDevice();
+
 	class Impl;
 	std::unique_ptr<Impl> impl;
 };
