@@ -5,6 +5,9 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <device/DeviceModule.hpp>
+
+using namespace KSE;
 
 class TimeModule : public KSE::IModule {
 public:
@@ -47,5 +50,6 @@ int main()
     return KSE::EngineClass()
         .AddSystem<TestSystem>()
         .AddModule<TimeModule>()
+        .AddModule<DeviceModule>()
         .Run();
 }
