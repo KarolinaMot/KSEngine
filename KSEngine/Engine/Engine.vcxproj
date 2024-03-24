@@ -85,13 +85,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="source\Engine.cpp" />
-  </ItemGroup>
-  <ItemGroup>
+    <ClInclude Include="include\device\DeviceModule.hpp" />
     <ClInclude Include="include\IModule.hpp" />
     <ClInclude Include="include\Engine.hpp" />
     <ClInclude Include="include\ISystem.hpp" />
+    <ClInclude Include="include\rendering\AllocatorModule.hpp" />
+    <ClInclude Include="include\rendering\RendererModule.hpp" />
     <ClInclude Include="include\resources\ResourceHandle.hpp" />
+    <ClInclude Include="include\resources\ResourceModule.hpp" />
     <ClInclude Include="include\utils\Log.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

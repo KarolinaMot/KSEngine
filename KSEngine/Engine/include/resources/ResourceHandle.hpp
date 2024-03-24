@@ -19,9 +19,9 @@ private:
 class Mesh;
 class Image;
 class Model;
-class Model;
 
 //Platform Specific
 class Buffer;
 class Texture;
 class Framebuffer;
+class Shader;
