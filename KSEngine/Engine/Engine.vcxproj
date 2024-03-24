@@ -97,6 +97,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\platform\PC\device\DeviceModule.cpp" />
+    <Text Include="bin\x64\Debug\Text.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\Engine.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
