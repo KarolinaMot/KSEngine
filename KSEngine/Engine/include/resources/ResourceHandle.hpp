@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 
+namespace KSE {
+
 template<typename T>
 class ResourceHandle {
 public:
@@ -25,3 +27,5 @@ class Buffer;
 class Texture;
 class Framebuffer;
 class Shader;
+
+}

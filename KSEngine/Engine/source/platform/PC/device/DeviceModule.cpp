@@ -40,11 +40,11 @@ void KSE::DeviceModule::EndFrame()
 
 void KSE::DeviceModule::InitializeWindow()
 {
-    LOG(LogType::INFO, "Initializing GLFW");
+    LOG(LogSeverity::INFO, "Initializing GLFW");
 
     if (!glfwInit())
     {
-        LOG(LogType::ERROR, "GLFW could not be initialized");
+        LOG(LogSeverity::ERROR, "GLFW could not be initialized");
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -70,7 +70,7 @@ void KSE::DeviceModule::InitializeWindow()
 
     if (impl->mWindow == nullptr)
     {
-        LOG(LogType::ERROR, "GLFW window could not be created");
+        LOG(LogSeverity::ERROR, "GLFW window could not be created");
     }
 
     glfwMakeContextCurrent(impl->mWindow);

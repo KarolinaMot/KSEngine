@@ -91,12 +91,22 @@
     <ClInclude Include="include\ISystem.hpp" />
     <ClInclude Include="include\rendering\AllocatorModule.hpp" />
     <ClInclude Include="include\rendering\RendererModule.hpp" />
+    <ClInclude Include="include\resources\image\Image.hpp" />
+    <ClInclude Include="include\resources\image\ImageBuilder.hpp" />
+    <ClInclude Include="include\resources\image\ImageFormat.hpp" />
+    <ClInclude Include="include\resources\material\Material.hpp" />
+    <ClInclude Include="include\resources\mesh\Mesh.hpp" />
+    <ClInclude Include="include\resources\model\Model.hpp" />
     <ClInclude Include="include\resources\ResourceHandle.hpp" />
     <ClInclude Include="include\resources\ResourceModule.hpp" />
+    <ClInclude Include="include\utils\FileIO.hpp" />
     <ClInclude Include="include\utils\Log.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\resources\image\ImageFormat.cpp" />
+    <ClCompile Include="source\resources\image\ImageBuilder.cpp" />
     <ClCompile Include="source\platform\PC\device\DeviceModule.cpp" />
+    <ClCompile Include="source\utils\FileIO.cpp" />
     <Text Include="bin\x64\Debug\Text.txt" />
   </ItemGroup>
   <ItemGroup>
