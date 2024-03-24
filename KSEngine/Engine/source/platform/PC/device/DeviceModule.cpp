@@ -51,6 +51,7 @@ void KSE::DeviceModule::InitializeWindow()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+    impl = std::make_unique<Impl>();
     impl->mMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(impl->mMonitor);
 

@@ -7,6 +7,8 @@
 #include <chrono>
 #include <device/DeviceModule.hpp>
 
+using namespace KSE;
+
 class TimeModule : public KSE::IModule {
 public:
     TimeModule(KSE::EngineClass& e) : KSE::IModule(e) { ResetFrameTime(); }
