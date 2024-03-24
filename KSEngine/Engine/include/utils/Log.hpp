@@ -4,7 +4,7 @@
 
 namespace KSE {
 
-enum class LogType {
+enum class LogSeverity {
 	INFO, //Use for debugging and general info
 	WARN, //Use when something is out of place, but still recoverable
 	ERROR //Use when crashing is what needs to happen
@@ -17,7 +17,7 @@ public:
 
 	//Use macros for invoking this function
 	template<typename FormatString, typename... Args>
-	static void Message(LogType type, const char* source_file, uint32_t line_number, FormatString&& fmt, Args&&... args)
+	static void Message(LogSeverity type, const char* source_file, uint32_t line_number, FormatString&& fmt, Args&&... args)
 	{
 		*output 
 			<< format_message_type(type)
@@ -30,11 +30,11 @@ private:
 	inline static std::ostream* output = &std::cout;
 
 	//Type message
-	static constexpr const char* format_message_type(LogType type) {
+	static constexpr const char* format_message_type(LogSeverity type) {
 		switch (type) {
-		case LogType::INFO: return "\033[32m" "INFO: " "\033[0m";
-		case LogType::WARN: return "\033[33m" "WARN:" "\033[0m";
-		case LogType::ERROR: return "\033[31m" "ERROR:" "\033[0m";
+		case LogSeverity::INFO: return "\033[32m" "INFO: " "\033[0m";
+		case LogSeverity::WARN: return "\033[33m" "WARN:" "\033[0m";
+		case LogSeverity::ERROR: return "\033[31m" "ERROR:" "\033[0m";
 		default: return "";
 		}
 	}

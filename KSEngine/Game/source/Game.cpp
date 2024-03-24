@@ -39,7 +39,7 @@ public:
 
         auto tick_time = time->GetDeltaTime();
         time->ResetFrameTime();
-        LOG(KSE::LogType::ERROR, "Seconds since last tick {}", tick_time.count());
+        LOG(KSE::LogSeverity::ERROR, "Seconds since last tick {}", tick_time.count());
     }
 };
 
