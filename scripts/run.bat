@@ -1,0 +1,1 @@
+start bin/Win64/Debug/Revita.exe

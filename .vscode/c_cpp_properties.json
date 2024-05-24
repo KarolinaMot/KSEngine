@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "name": "CMake",
+            "configurationProvider": "ms-vscode.cmake-tools",
+            "compileCommands": "bin/Win64/Debug/compile_commands.json",
+            "intelliSenseMode": "clang-x64",
+            "cppStandard": "c++17",
+            "cStandard": "c11"
+        }
+    ],
+    "version": 4
+}
