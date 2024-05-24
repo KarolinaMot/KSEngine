@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.15)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-project(Revita)
+project(KSEngine)
 
 # CONFIGURATION
 add_library(CompilerSettings INTERFACE)
@@ -25,5 +25,5 @@ add_subdirectory(external/GLFW)
 
 # MAIN PROJECT
 
-add_executable(Revita main.cpp)
-target_link_libraries(Revita PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw)
+add_executable(KSEngine main.cpp)
+target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw)
