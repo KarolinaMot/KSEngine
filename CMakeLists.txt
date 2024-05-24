@@ -22,8 +22,9 @@ target_compile_features(CompilerSettings INTERFACE cxx_std_20)
 add_subdirectory(engine)
 add_subdirectory(external/glm)
 add_subdirectory(external/GLFW)
+add_subdirectory(external/dx12)
 
 # MAIN PROJECT
 
 add_executable(KSEngine main.cpp)
-target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw)
+target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw PUBLIC dx12)
