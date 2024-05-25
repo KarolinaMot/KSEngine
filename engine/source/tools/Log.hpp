@@ -4,46 +4,51 @@
 
 namespace Log {
 
-enum class Severity {
-  NONE, // Applies no formatting or colours
-  INFO, // Use for debugging and general info
-  WARN, // Use when something is out of place, but still recoverable
-  ERROR // Use when crashing is what needs to happen
-};
+  enum class Severity
+  {
+    NONE, // Applies no formatting or colours
+    INFO, // Use for debugging and general info
+    WARN, // Use when something is out of place, but still recoverable
+    FATAL // Use when crashing is what needs to happen
+  };
 
-namespace detail {
+  namespace detail
+  {
 
-inline std::ostream *output = &std::cout;
+    inline std::ostream *output = &std::cout;
 
-// Text Colours
-static constexpr auto green = "\033[32m";
-static constexpr auto yellow = "\033[33m";
-static constexpr auto red = "\033[31m";
-static constexpr auto reset = "\033[0m";
+    // Text Colours
+    static constexpr auto green = "\033[32m";
+    static constexpr auto yellow = "\033[33m";
+    static constexpr auto red = "\033[31m";
+    static constexpr auto reset = "\033[0m";
 
-// Type message
-inline const char *format_message_type(Severity type) {
-  switch (type) {
-  case Severity::INFO:
-    return "\033[32m"
-           "INFO: "
-           "\033[0m";
-  case Severity::WARN:
-    return "\033[33m"
-           "WARN:"
-           "\033[0m";
-  case Severity::ERROR:
-    return "\033[31m"
-           "ERROR:"
-           "\033[0m";
-  default:
-    return "";
-  }
-}
+    // Type message
+    inline const char *format_message_type(Severity type)
+    {
+      switch (type)
+      {
+      case Severity::INFO:
+        return "\033[32m"
+               "INFO: "
+               "\033[0m";
+      case Severity::WARN:
+        return "\033[33m"
+               "WARN:"
+               "\033[0m";
+      case Severity::FATAL:
+        return "\033[31m"
+               "ERROR:"
+               "\033[0m";
+      default:
+        return "";
+      }
+    }
 
-inline std::string reduce_path(const std::string &in_path) {
-  return in_path.substr(in_path.find("KSEngine"));
-}
+    inline std::string reduce_path(const std::string &in_path)
+    {
+      return in_path.substr(in_path.find("KSEngine"));
+    }
 
 } // namespace detail
 

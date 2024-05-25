@@ -3,14 +3,14 @@
 #include <iostream>
 #include <tools/Log.hpp>
 
-int main() {
-
+int main()
+{
   KS::Device device = KS::Device(KS::DeviceInitParams{});
 
-  std::string in;
-  while (in != std::string("exit")) {
-    LOG(Log::Severity::ERROR, "Error here");
-    std::cin >> in;
+  while (device.IsWindowOpen())
+  {
+    device.NewFrame();
+    device.EndFrame();
   }
 
   return 0;

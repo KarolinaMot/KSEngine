@@ -1,4 +1,5 @@
-add_library(dx12 INTERFACE "d3dx12.h")
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS "*.h")
+add_library(dx12 INTERFACE ${headers})
 
 # Define the DLL file to be copied
 set(DLL_DIR "${CMAKE_SOURCE_DIR}/external/dx12/${CMAKE_BUILD_TYPE}")
