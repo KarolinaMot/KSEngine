@@ -27,6 +27,7 @@ std::optional<std::string> KS::FileIO::ReadTextFile(const std::string &path) {
     std::string out(size, '\0');
     stream.value().seekg(0);
     stream.value().read(out.data(), size);
+    return out;
   } else {
     return std::nullopt;
   }
@@ -40,6 +41,7 @@ KS::FileIO::ReadBinaryFile(const std::string &path) {
     std::vector<char> out(size, '\0');
     stream.value().seekg(0);
     stream.value().read(out.data(), size);
+    return out;
   } else {
     return std::nullopt;
   }

@@ -1,5 +1,7 @@
 #include "DXSignature.hpp"
 #include <code_utility.hpp>
+#include <tools/Log.hpp>
+
 
 ComPtr<ID3D12RootSignature> DXSignatureBuilder::Build(ComPtr<ID3D12Device5> device, LPCWSTR name) const
 {
@@ -19,8 +21,9 @@ ComPtr<ID3D12RootSignature> DXSignatureBuilder::Build(ComPtr<ID3D12Device5> devi
 
 	if (FAILED(hr))
 	{
-		printf((const char *)errBlob->GetBufferPointer());
-		assert(false && "Failed to serialize root signature");
+          LOG(Log::Severity::WARN, "{}",
+              (const char *)errBlob->GetBufferPointer());
+          assert(false && "Failed to serialize root signature");
 	}
 
 	ComPtr<ID3D12RootSignature> signature;

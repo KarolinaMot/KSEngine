@@ -11,8 +11,7 @@ set(CLANG "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
 set(MSVC "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
 
 target_compile_options(CompilerSettings INTERFACE
-  "$<${CLANG}:-Wall;-Wextra;>"
-  "$<${MSVC}:-W3>"
+  "$<${CLANG}:-Wall;>"
 )
 target_compile_features(CompilerSettings INTERFACE cxx_std_20)
 
