@@ -3,6 +3,7 @@
 #include "renderer/DX12/DXResource.hpp"
 #include "renderer/DX12/DXDescHeap.hpp"
 #include "renderer/DX12/DXHeapHandle.hpp"
+#include "renderer/DX12/DXCommandQueue.hpp"
 #include "../tools/Log.hpp"
 #include <vector>
 #include <thread>
@@ -14,12 +15,9 @@ public:
     void InitializeDevice(const DeviceInitParams &params);
     UINT GetFramebufferIndex();
 
-    void StartRecordingCommands(int frameIndex);
-    void SubmitCommands(int frameIndex);
-    void BindSwapchainRT(int frameIndex);
+    void BindSwapchainRT();
     void StartFrame(int frameIndex, glm::vec4 clearColor);
-    void EndFrame(int frameIndex);
-    void WaitForFence(ComPtr<ID3D12Fence> fence, UINT64 &fenceValue, HANDLE &fenceEvent);
+    void EndFrame();
 
     enum DXResources
     {
@@ -44,13 +42,12 @@ public:
     ComPtr<ID3D12Device5> m_device;
     ComPtr<IDXGISwapChain3> m_swapchain;
 
-    ComPtr<ID3D12CommandQueue> m_command_queue;
+    std::unique_ptr<DXCommandQueue> m_command_queue;
     ComPtr<ID3D12CommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT];
     ComPtr<ID3D12GraphicsCommandList4> m_command_list;
-
-    ComPtr<ID3D12Fence> m_fence[FRAME_BUFFER_COUNT];
-    HANDLE m_fence_event;
-    UINT64 m_fence_value[FRAME_BUFFER_COUNT];
+    int m_fence_values[FRAME_BUFFER_COUNT];
+    int m_cpu_frame = 0;
+    int m_gpu_frame = 0;
 
     std::unique_ptr<DXResource> m_resources[NUM_RESOURCES];
     std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
@@ -92,7 +89,7 @@ void KS::Device::NewFrame()
 void KS::Device::EndFrame()
 {
     glfwSwapBuffers(m_impl->m_window);
-    m_impl->EndFrame(m_frame_index);
+    m_impl->EndFrame();
     glfwPollEvents();
 }
 
@@ -148,59 +145,44 @@ UINT KS::Device::Impl::GetFramebufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-void KS::Device::Impl::StartRecordingCommands(int frameIndex)
-{
-    if (FAILED(m_command_allocator[frameIndex]->Reset()))
-    {
-        LOG(Log::Severity::FATAL, "Failed to reset command allocator");
-    }
-
-    if (FAILED(m_command_list->Reset(m_command_allocator[frameIndex].Get(), nullptr)))
-    {
-        LOG(Log::Severity::FATAL, "Failed to reset command list");
-    }
-}
-
-void KS::Device::Impl::SubmitCommands(int frameIndex)
-{
-    // CLOSE COMMAND LIST
-    m_command_list->Close();
-    ID3D12CommandList *ppCommandLists[] = {m_command_list.Get()};
-    m_command_queue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    m_fence_value[frameIndex]++;
-    HRESULT hr = m_command_queue->Signal(m_fence[frameIndex].Get(), m_fence_value[frameIndex]);
-
-    if (FAILED(hr))
-    {
-        LOG(Log::Severity::FATAL, "Failed to signal fence");
-    }
-}
-
-void KS::Device::Impl::BindSwapchainRT(int frameIndex)
+void KS::Device::Impl::BindSwapchainRT()
 {
     m_command_list->RSSetViewports(1, &m_viewport);
     m_command_list->RSSetScissorRects(1, &m_scissor_rect);
     m_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    m_resources[frameIndex]->ChangeState(m_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_descriptor_heaps[RT_HEAP]->BindRenderTargets(m_command_list, &m_rt_handle[frameIndex], m_depth_handle);
+    m_resources[m_cpu_frame]->ChangeState(m_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_descriptor_heaps[RT_HEAP]->BindRenderTargets(m_command_list, &m_rt_handle[m_cpu_frame], m_depth_handle);
 }
 
 void KS::Device::Impl::StartFrame(int frameIndex, glm::vec4 clearColor)
 {
-    StartRecordingCommands(frameIndex);
-    BindSwapchainRT(frameIndex);
+    m_gpu_frame = frameIndex;
+    m_cpu_frame = (frameIndex + 1) % FRAME_BUFFER_COUNT;
 
-    m_descriptor_heaps[RT_HEAP]->ClearRenderTarget(m_command_list, m_rt_handle[frameIndex], &clearColor[0]);
+    if (FAILED(m_command_allocator[m_cpu_frame]->Reset()))
+    {
+        LOG(Log::Severity::FATAL, "Failed to reset command allocator");
+    }
+
+    if (FAILED(m_command_list->Reset(m_command_allocator[m_cpu_frame].Get(), nullptr)))
+    {
+        LOG(Log::Severity::FATAL, "Failed to reset command list");
+    }
+
+    BindSwapchainRT();
+
+    m_descriptor_heaps[RT_HEAP]->ClearRenderTarget(m_command_list, m_rt_handle[m_cpu_frame], &clearColor[0]);
     m_descriptor_heaps[DEPTH_HEAP]->ClearDepthStencil(m_command_list, m_depth_handle);
 }
 
-void KS::Device::Impl::EndFrame(int frameIndex)
+void KS::Device::Impl::EndFrame()
 {
-    m_resources[frameIndex]->ChangeState(m_command_list, D3D12_RESOURCE_STATE_PRESENT);
+    m_resources[m_cpu_frame]->ChangeState(m_command_list, D3D12_RESOURCE_STATE_PRESENT);
 
-    SubmitCommands(frameIndex);
+    // CLOSE COMMAND LIST
+    m_command_list->Close();
+    ID3D12CommandList *ppCommandLists[] = {m_command_list.Get()};
 
     // PRESENT
     if (FAILED(m_swapchain->Present(0, 0)))
@@ -208,21 +190,8 @@ void KS::Device::Impl::EndFrame(int frameIndex)
         LOG(Log::Severity::FATAL, "Failed to present");
     }
 
-    WaitForFence(m_fence[frameIndex], m_fence_value[frameIndex], m_fence_event);
-}
-
-void KS::Device::Impl::WaitForFence(ComPtr<ID3D12Fence> fence, UINT64 &fenceValue, HANDLE &fenceEvent)
-{
-    UINT64 completedValue = fence->GetCompletedValue();
-    if (completedValue < fenceValue)
-    {
-        if (FAILED(fence->SetEventOnCompletion(fenceValue, fenceEvent)))
-        {
-            LOG(Log::Severity::FATAL, "Failed to set fence event on completion.");
-        }
-        WaitForSingleObject(fenceEvent, INFINITE);
-    }
-    fenceValue++;
+    m_fence_values[m_cpu_frame] = m_command_queue->ExecuteCommandLists(ppCommandLists, 1);
+    m_command_queue->WaitForFenceValue(m_fence_values[m_gpu_frame]);
 }
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void *pContext)
@@ -357,12 +326,7 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams &params)
     }
 
     // CREATE COMMAND QUEUE
-    D3D12_COMMAND_QUEUE_DESC cqDesc = {};
-    hr = m_device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&m_command_queue));
-    if (FAILED(hr))
-    {
-        LOG(Log::Severity::FATAL, "Failed to create command queue");
-    }
+    m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
 
     // CREATE COMMAND ALLOCATOR
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
@@ -381,24 +345,6 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams &params)
         LOG(Log::Severity::FATAL, "Failed to create command list");
     }
     m_command_list->SetName(L"Main command list");
-
-    // CREATE FENCES
-    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
-    {
-        hr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence[i]));
-        if (FAILED(hr))
-        {
-            LOG(Log::Severity::FATAL, "Failed to create fence");
-        }
-        m_fence_value[i] = 0;
-    }
-
-    // CREATE FENCE EVENT
-    m_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    if (m_fence_event == nullptr)
-    {
-        LOG(Log::Severity::FATAL, "Failed to create fence event");
-    }
 
     // CREATE SWAPCHAIN
     DXGI_MODE_DESC backBufferDesc = {};
@@ -421,7 +367,7 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams &params)
     swapChainDesc.Windowed = true;
 
     IDXGISwapChain *tempSwapChain;
-    hr = dxgiFactory->CreateSwapChain(m_command_queue.Get(), &swapChainDesc, &tempSwapChain);
+    hr = dxgiFactory->CreateSwapChain(m_command_queue->Get(), &swapChainDesc, &tempSwapChain);
     if (FAILED(hr))
     {
         LOG(Log::Severity::FATAL, "Failed to create swap chain");
@@ -466,5 +412,7 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams &params)
     m_resources[DEPTH_STENCIL_RSC]->ChangeState(m_command_list, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     m_depth_handle = m_descriptor_heaps[DEPTH_HEAP]->AllocateDepthStencil(m_resources[DEPTH_STENCIL_RSC].get(), m_device.Get(), &depthStencilDesc);
 
-    SubmitCommands(0);
+    m_command_list->Close();
+    ID3D12CommandList *ppCommandLists[] = {m_command_list.Get()};
+    m_fence_values[0] = m_command_queue->ExecuteCommandLists(ppCommandLists, 1);
 }

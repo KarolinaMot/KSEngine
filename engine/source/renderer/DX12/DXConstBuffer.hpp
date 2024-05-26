@@ -14,7 +14,7 @@ public:
 	void BindToCompute(const ComPtr<ID3D12GraphicsCommandList4> &command, int rootParameterIndex, int offsetIndex, int frameIndexs) const;
 
 	const size_t GetBufferPerObjectAlignedSize() { return mBufferPerObjectAlignedSize; }
-	const size_t GetGPUPointer(int slot, int bufferIndex); /*{return buffer[bufferIndex]->GetResource()->GetGPUVirtualAddress() + (bufferPerObjectAlignedSize * slot); }*/
+	const size_t GetGPUPointer(int slot, int bufferIndex);
 
 private:
 	std::vector<std::unique_ptr<DXResource>> mBuffers;
