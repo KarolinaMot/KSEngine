@@ -8,8 +8,6 @@ int main()
   KS::Device device = KS::Device(KS::DeviceInitParams{});
   KS::FileIO filesystem = KS::FileIO();
 
-  filesystem.WriteTextFile("text.txt", "Hello World");
-
   while (device.IsWindowOpen())
   {
     device.NewFrame();
