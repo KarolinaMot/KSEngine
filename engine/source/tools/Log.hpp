@@ -56,14 +56,16 @@ template <typename FormatString, typename... Args>
 inline void Message(Severity type, FormatString &&fmt, Args &&...args) {
   *detail::output << detail::format_message_type(type)
                   << std::vformat(fmt, std::make_format_args(
-                                           std::forward<Args>(args)...))
-                  << "\n"
-                  << "\n";
+                                           std::forward<Args>(args)...));
 }
+
+inline void Break() { *detail::output << "\n"; }
 
 } // namespace Log
 
 #define LOG(severity, message, ...)                                            \
-  Log::Message(severity, " {} at Line {}: {}",                                 \
-               Log::detail::reduce_path(__FILE__), __LINE__, message,          \
-               __VA_ARGS__)
+  Log::Message(severity,                                                       \
+               "{} at Line {}: ", Log::detail::reduce_path(__FILE__),          \
+               __LINE__);                                                      \
+  Log::Message(Log::Severity::NONE, message, __VA_ARGS__);                     \
+  Log::Break()
