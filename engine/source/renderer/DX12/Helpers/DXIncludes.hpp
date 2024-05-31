@@ -1,3 +1,4 @@
+#pragma once
 #include <dx12/directx/d3d12.h>
 
 // DirectX 12 specific headers.
@@ -13,3 +14,9 @@
 using namespace Microsoft::WRL;
 
 #define FRAME_BUFFER_COUNT 2
+
+inline void CheckDX(HRESULT result) {
+  if (FAILED(result)) {
+    throw;
+  }
+}
