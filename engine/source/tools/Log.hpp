@@ -63,9 +63,11 @@ inline void Break() { *detail::output << "\n"; }
 
 } // namespace Log
 
-#define LOG(severity, message, ...)                                            \
-  Log::Message(severity,                                                       \
-               "{} at Line {}: ", Log::detail::reduce_path(__FILE__),          \
-               __LINE__);                                                      \
-  Log::Message(Log::Severity::NONE, message, __VA_ARGS__);                     \
-  Log::Break()
+#define LOG(severity, message, ...)                                     \
+  {                                                                     \
+    Log::Message(severity,                                              \
+                 "{} at Line {}: ", Log::detail::reduce_path(__FILE__), \
+                 __LINE__);                                             \
+    Log::Message(Log::Severity::NONE, message, __VA_ARGS__);            \
+    Log::Break();                                                       \
+  }

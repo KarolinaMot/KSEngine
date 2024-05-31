@@ -9,6 +9,7 @@ class DXConstBuffer
 public:
 	DXConstBuffer() {};
 	DXConstBuffer(const ComPtr<ID3D12Device5> &device, size_t dataSize, int numOfObjects, const char *bufferDebugName, int frameNumber);
+	~DXConstBuffer();
 	void Update(const void *data, size_t dataSize, int offsetIndex, int frameIndex);
 	void Bind(const ComPtr<ID3D12GraphicsCommandList4> &command, int rootParameterIndex, int offsetIndex, int frameIndexs) const;
 	void BindToCompute(const ComPtr<ID3D12GraphicsCommandList4> &command, int rootParameterIndex, int offsetIndex, int frameIndexs) const;

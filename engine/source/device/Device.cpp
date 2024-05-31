@@ -1,9 +1,9 @@
 #include "Device.hpp"
-#include "renderer/DX12/DXIncludes.hpp"
-#include "renderer/DX12/DXResource.hpp"
-#include "renderer/DX12/DXDescHeap.hpp"
-#include "renderer/DX12/DXHeapHandle.hpp"
-#include "renderer/DX12/DXCommandQueue.hpp"
+#include "renderer/DX12/Helpers/DXIncludes.hpp"
+#include "renderer/DX12/Helpers/DXResource.hpp"
+#include "renderer/DX12/Helpers/DXDescHeap.hpp"
+#include "renderer/DX12/Helpers/DXHeapHandle.hpp"
+#include "renderer/DX12/Helpers/DXCommandQueue.hpp"
 #include "../tools/Log.hpp"
 #include <vector>
 #include <thread>
@@ -74,9 +74,14 @@ KS::Device::~Device()
     glfwDestroyWindow(m_impl->m_window);
 }
 
-void *KS::Device::GetDevice()
+void *KS::Device::GetDevice() const
 {
     return m_impl->m_device.Get();
+}
+
+void *KS::Device::GetCommandList() const
+{
+    return m_impl->m_command_list.Get();
 }
 
 void KS::Device::NewFrame()
@@ -100,8 +105,6 @@ void window_close_callback(GLFWwindow *window)
 
 void KS::Device::Impl::InitializeWindow(const DeviceInitParams &params)
 {
-    std::cout << "Initializing window..." << std::endl;
-
     if (!glfwInit())
     {
         LOG(Log::Severity::FATAL, "GLFW could not be initialized");

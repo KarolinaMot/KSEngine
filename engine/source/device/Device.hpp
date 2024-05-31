@@ -23,11 +23,16 @@ public:
   Device(const DeviceInitParams &params);
   ~Device();
 
-  void *GetDevice();
+  void *GetDevice() const;
+  void *GetCommandList() const;
 
   inline bool IsWindowOpen() const { return m_window_open; }
   void NewFrame();
   void EndFrame();
+
+  unsigned int GetFrameIndex() const { return m_frame_index; }
+  int GetWidth() const { return m_prev_width; }
+  int GetHeight() const { return m_prev_height; }
 
   NON_COPYABLE(Device);
   NON_MOVABLE(Device);

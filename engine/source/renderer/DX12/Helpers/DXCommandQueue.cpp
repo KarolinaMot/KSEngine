@@ -1,5 +1,5 @@
 #include "DXCommandQueue.hpp"
-#include "../../tools/Log.hpp"
+#include "../../../tools/Log.hpp"
 
 KS::DXCommandQueue::DXCommandQueue(const ComPtr<ID3D12Device5> &device, LPCWSTR commandQueueName)
 {

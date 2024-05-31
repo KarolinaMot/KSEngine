@@ -1,6 +1,6 @@
 #include "DXDescHeap.hpp"
 #include "DXHeapHandle.hpp"
-#include "../../device/Device.hpp"
+#include "device/Device.hpp"
 
 DXDescHeap::DXDescHeap(ComPtr<ID3D12Device5> device, int numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, LPCWSTR name, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
 {
