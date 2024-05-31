@@ -53,7 +53,7 @@ ComPtr<ID3D12PipelineState> DXPipelineBuilder::Build(ComPtr<ID3D12Device5> devic
 	if (FAILED(hr))
 	{
 		MessageBox(NULL, "Failed to create pipeline", "FATAL ERROR!", MB_ICONERROR | MB_OK);
-		assert(false && "Failed to create pipeline");
+		ASSERT(false && "Failed to create pipeline");
 	}
 	pipeline->SetName(name);
 

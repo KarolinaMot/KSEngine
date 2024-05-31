@@ -1,3 +1,5 @@
+#pragma once
+
 #include <chrono>
 #include <code_utility.hpp>
 #include <fstream>

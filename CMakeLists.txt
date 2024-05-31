@@ -22,8 +22,9 @@ add_subdirectory(engine)
 add_subdirectory(external/glm)
 add_subdirectory(external/GLFW)
 add_subdirectory(external/dx12)
+add_subdirectory(external/entt)
 
 # MAIN PROJECT
 
 add_executable(KSEngine main.cpp)
-target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw PUBLIC dx12)
+target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt)

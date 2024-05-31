@@ -6,12 +6,12 @@
   "configurations": [
     {
       "name": "Debug C++ Executable",
-      "type": "lldb",
+      "type": "cppvsdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/Win64/Debug/KSEngine.exe", // Specify the path to your executable
       "cwd": "${workspaceFolder}", // Current working directory
       "preLaunchTask": "Build", // Name of the task to run before launching the debugger
-      "terminal": "external"
+      "console": "externalTerminal"
     }
   ]
 }

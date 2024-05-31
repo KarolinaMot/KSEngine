@@ -19,8 +19,8 @@ DXConstBuffer::DXConstBuffer(const ComPtr<ID3D12Device5> &device, size_t dataSiz
 		CD3DX12_RANGE readRange(0, 0);
 		HRESULT hr = mBuffers[i]->GetResource()->Map(0, &readRange, reinterpret_cast<void **>(&mBufferGPUAddress[i]));
 		if (FAILED(hr))
-			assert(false && "Buffer mapping failed");
-	}
+                  ASSERT(false && "Buffer mapping failed");
+        }
 }
 
 void DXConstBuffer::Update(const void *data, size_t dataSize, int offsetIndex, int frameIndex)

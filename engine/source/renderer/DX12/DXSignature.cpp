@@ -23,7 +23,7 @@ ComPtr<ID3D12RootSignature> DXSignatureBuilder::Build(ComPtr<ID3D12Device5> devi
 	{
           LOG(Log::Severity::WARN, "{}",
               (const char *)errBlob->GetBufferPointer());
-          assert(false && "Failed to serialize root signature");
+          ASSERT(false && "Failed to serialize root signature");
 	}
 
 	ComPtr<ID3D12RootSignature> signature;
@@ -31,7 +31,7 @@ ComPtr<ID3D12RootSignature> DXSignatureBuilder::Build(ComPtr<ID3D12Device5> devi
 	if (FAILED(hr))
 	{
 		MessageBox(NULL, "Failed to initialize root signature", "FATAL ERROR!", MB_ICONERROR | MB_OK);
-		assert(false && "Failed to initialize root signature");
+		ASSERT(false && "Failed to initialize root signature");
 	}
 	signature->SetName(name);
 	return signature;
