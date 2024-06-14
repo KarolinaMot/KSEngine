@@ -2,7 +2,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "../../../external/glm/glm.hpp"
+#include <glm/glm.hpp>
 
 namespace KS
 {

@@ -17,14 +17,19 @@ target_compile_features(CompilerSettings INTERFACE cxx_std_20)
 
 # set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
 
+# MAIN FILES
+
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "source/*.cpp")
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS "source/*.hpp")
+
 # EXTERNAL DIRECTORIES
-add_subdirectory(engine)
-add_subdirectory(external/glm)
 add_subdirectory(external/GLFW)
 add_subdirectory(external/dx12)
 add_subdirectory(external/entt)
+add_subdirectory(external/glm)
 
 # MAIN PROJECT
 
-add_executable(KSEngine main.cpp)
-target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC Engine PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt)
+add_executable(KSEngine ${sources} ${headers})
+target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt)
+target_include_directories(KSEngine PUBLIC source PUBLIC external)

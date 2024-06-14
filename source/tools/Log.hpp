@@ -1,4 +1,3 @@
-
 #include <format>
 #include <iostream>
 
@@ -55,8 +54,7 @@ namespace Log {
 template <typename FormatString, typename... Args>
 inline void Message(Severity type, FormatString &&fmt, Args &&...args) {
   *detail::output << detail::format_message_type(type)
-                  << std::vformat(fmt, std::make_format_args(
-                                           std::forward<Args>(args)...));
+                  << std::vformat(std::forward<FormatString>(fmt), std::make_format_args(args...));
 }
 
 inline void Break() { *detail::output << "\n"; }

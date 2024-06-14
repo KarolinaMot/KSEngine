@@ -11,7 +11,7 @@ class DXFactory {
 public:
   DXFactory(bool debug) {
 
-    debug = debug;
+    debug_mode = debug;
     UINT factory_flags{};
 
     // Enable debug layer

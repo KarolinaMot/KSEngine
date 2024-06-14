@@ -8,7 +8,7 @@
       "name": "Debug C++ Executable",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/bin/Win64/Debug/KSEngine.exe", // Specify the path to your executable
+      "program": "${workspaceFolder}/build/Win64/Debug/KSEngine.exe", // Specify the path to your executable
       "cwd": "${workspaceFolder}", // Current working directory
       "preLaunchTask": "Build", // Name of the task to run before launching the debugger
       "console": "externalTerminal"
