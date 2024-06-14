@@ -87,6 +87,11 @@ void *KS::Device::GetCommandList() const
     return m_impl->m_command_list.Get();
 }
 
+void* KS::Device::GetWindowHandle() const
+{
+    return m_impl->m_window;
+}
+
 void KS::Device::NewFrame()
 {
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
@@ -98,7 +103,6 @@ void KS::Device::EndFrame()
 {
     glfwSwapBuffers(m_impl->m_window);
     m_impl->EndFrame();
-    glfwPollEvents();
 }
 
 void window_close_callback(GLFWwindow *window)
@@ -123,8 +127,8 @@ void KS::Device::Impl::InitializeWindow(const DeviceInitParams &params)
     auto maxScreenWidth = mode->width;
     auto maxScreenHeight = mode->height;
 
-    m_viewport.Width = 1920;
-    m_viewport.Height = 1080;
+    m_viewport.Width = params.window_width;
+    m_viewport.Height = params.window_height;
 
     std::string applicationName = params.name;
     if (applicationName.empty())
