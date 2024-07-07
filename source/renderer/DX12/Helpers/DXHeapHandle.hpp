@@ -54,6 +54,8 @@ public:
     DXHeapHandle(const DXHeapHandle &) = delete;
     DXHeapHandle &operator=(const DXHeapHandle &) = delete;
 
+    bool IsValid() const { return mIndex != -1; }
+
 private:
     DXHeapHandle(uint32_t index, std::weak_ptr<DXDescHeap> descHeap)
         : mIndex(index), mDescHeap(descHeap) {};

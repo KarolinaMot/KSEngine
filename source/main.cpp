@@ -1,6 +1,6 @@
 #include <code_utility.hpp>
 #include <compare>
-#include <device/device.hpp>
+#include <device/Device.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <entt/entity/registry.hpp>
 #include <fileio/FileIO.hpp>
@@ -63,7 +63,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
         camera.eulerAngles += eulerDelta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
-        LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
+        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
 
         auto rotation = glm::quat(camera.eulerAngles);
         auto translation = transform.GetLocalTranslation();
@@ -73,6 +73,8 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
         return camera.GenerateCamera(transform.GetWorldMatrix());
     }
+
+    return KS::Camera {};
 }
 
 int main()
@@ -110,8 +112,8 @@ int main()
         auto& registry = ecs->GetWorld();
         auto e = registry.create();
 
-        auto& transform = registry.emplace<KS::ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
-        auto& camera = registry.emplace<KS::ComponentFirstPersonCamera>(e);
+        registry.emplace<KS::ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
+        registry.emplace<KS::ComponentFirstPersonCamera>(e);
     }
 
     while (device->IsWindowOpen()) {

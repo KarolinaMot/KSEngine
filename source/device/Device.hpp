@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <vector>
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
@@ -12,42 +13,44 @@
 namespace KS {
 
 struct DeviceInitParams {
-  std::string name = "KS Engine";
-  uint32_t window_width = 1600;
-  uint32_t window_height = 900;
-  bool debug_context = true;
-  glm::vec4 clear_color = glm::vec4(0.25f, 0.25f, 0.25f, 1.f);
+    std::string name = "KS Engine";
+    uint32_t window_width = 1600;
+    uint32_t window_height = 900;
+    bool debug_context = true;
+    glm::vec4 clear_color = glm::vec4(0.25f, 0.25f, 0.25f, 1.f);
 };
-
+class Buffer;
 class Device {
 public:
-  Device(const DeviceInitParams &params);
-  ~Device();
+    Device(const DeviceInitParams& params);
+    ~Device();
 
-  void *GetDevice() const;
-  void *GetCommandList() const;
-  void* GetWindowHandle() const;
+    void* GetDevice() const;
+    void* GetCommandList() const;
+    void* GetResourceHeap() const;
+    void* GetWindowHandle() const;
 
-  inline bool IsWindowOpen() const { return m_window_open; }
-  void NewFrame();
-  void EndFrame();
+    inline bool IsWindowOpen() const { return m_window_open; }
+    void NewFrame();
+    void EndFrame();
 
-  unsigned int GetFrameIndex() const { return m_frame_index; }
-  int GetWidth() const { return m_prev_width; }
-  int GetHeight() const { return m_prev_height; }
+    unsigned int GetFrameIndex() const { return m_frame_index; }
+    int GetWidth() const { return m_prev_width; }
+    int GetHeight() const { return m_prev_height; }
+    void TrackResource(std::shared_ptr<Buffer> buffer);
 
-  NON_COPYABLE(Device);
-  NON_MOVABLE(Device);
+    NON_COPYABLE(Device);
+    NON_MOVABLE(Device);
 
 private:
-  class Impl;
-  std::unique_ptr<Impl> m_impl;
-  bool m_window_open{};
-  unsigned int m_frame_index = 0;
-  bool m_fullscreen = false;
-  int m_prev_width, m_prev_height;
-
-  glm::vec4 m_clear_color;
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
+    bool m_window_open {};
+    unsigned int m_frame_index = 0;
+    bool m_fullscreen = false;
+    int m_prev_width, m_prev_height;
+    std::vector<std::shared_ptr<Buffer>> m_frame_resources[2];
+    glm::vec4 m_clear_color;
 };
 
 } // namespace KS

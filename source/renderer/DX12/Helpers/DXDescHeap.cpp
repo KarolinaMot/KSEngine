@@ -110,7 +110,6 @@ DXHeapHandle DXDescHeap::AllocateUAV(DXResource *resource, D3D12_UNORDERED_ACCES
 
 	if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 	{
-		// LOG(LogCore, Warning, "Trying to allocate an SRV in the wrong heap");
 		assert(false && "Trying to allocate an SRV in the wrong heap");
 		return DXHeapHandle();
 	}

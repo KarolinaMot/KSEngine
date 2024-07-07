@@ -5,6 +5,7 @@
 
 namespace KS
 {
+    class Buffer;
     struct ModelMat
     {
         glm::mat4 mModel;
@@ -19,10 +20,14 @@ namespace KS
     public:
         MeshRenderer(const Device &device, std::shared_ptr<Shader> shader);
         ~MeshRenderer();
-        void Render(const Device &device, int cpuFrameIndex) override;
+        void Render(Device& device, int cpuFrameIndex) override;
 
     private:
-        class Impl;
-        std::unique_ptr<Impl> m_impl;
+        std::shared_ptr<Buffer> mQuadVResource;
+        std::shared_ptr<Buffer> mQuadUVResource;
+        std::shared_ptr<Buffer> mIndicesResource;
+
+        std::shared_ptr<Buffer> mModelMatBuffer;
+        std::shared_ptr<Buffer> mColorBuffer;
     };
 } // namespace KS

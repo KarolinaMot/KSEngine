@@ -5,9 +5,11 @@
 DXConstBuffer::DXConstBuffer(const ComPtr<ID3D12Device5> &device, size_t dataSize, int numberOfObjects, const char *bufferDebugName, int frameNumber)
 {
 	mBufferPerObjectAlignedSize = (dataSize + 255) & ~255;
-	mBufferSize = mBufferPerObjectAlignedSize * numberOfObjects;
+	mNumOfElements = numberOfObjects;
+	mBufferSize = mBufferPerObjectAlignedSize * mNumOfElements;
 
 	mBuffers.resize(frameNumber);
+	name = bufferDebugName;
 
 	for (int i = 0; i < frameNumber; i++)
 	{
@@ -19,28 +21,50 @@ DXConstBuffer::DXConstBuffer(const ComPtr<ID3D12Device5> &device, size_t dataSiz
 		CD3DX12_RANGE readRange(0, 0);
 		HRESULT hr = mBuffers[i]->GetResource()->Map(0, &readRange, reinterpret_cast<void **>(&mBufferGPUAddress[i]));
 		if (FAILED(hr))
-                  ASSERT(false && "Buffer mapping failed");
-        }
+			ASSERT(false && "Buffer mapping failed");
+	}
 }
 
 DXConstBuffer::~DXConstBuffer()
 {
 }
 
-void DXConstBuffer::Update(const void *data, size_t dataSize, int offsetIndex, int frameIndex)
+void DXConstBuffer::Update(const void* data, size_t dataSize, int offsetIndex, int frameIndex)
 {
 	// ASSERT_LOG(mBufferPerObjectAlignedSize * offsetIndex + dataSize <= mBufferSize, "No more room in buffer");
 	memcpy(mBufferGPUAddress[frameIndex] + (mBufferPerObjectAlignedSize * offsetIndex), data, dataSize);
 }
 
-void DXConstBuffer::Bind(const ComPtr<ID3D12GraphicsCommandList4> &commandList, int rootParameterIndex, int offsetIndex, int frameIndex) const
+void DXConstBuffer::BindToGraphics(ID3D12GraphicsCommandList4* commandList, int rootParameterIndex, int offsetIndex, int frameIndex) const
 {
 	commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, mBuffers[frameIndex]->GetResource()->GetGPUVirtualAddress() + (mBufferPerObjectAlignedSize * offsetIndex));
 }
 
-void DXConstBuffer::BindToCompute(const ComPtr<ID3D12GraphicsCommandList4> &command, int rootParameterIndex, int offsetIndex, int frameIndex) const
+void DXConstBuffer::BindToCompute(ID3D12GraphicsCommandList4* command, int rootParameterIndex, int offsetIndex, int frameIndex) const
 {
 	command->SetComputeRootConstantBufferView(rootParameterIndex, mBuffers[frameIndex]->GetResource()->GetGPUVirtualAddress() + (mBufferPerObjectAlignedSize * offsetIndex));
+}
+
+void DXConstBuffer::Resize(const ComPtr<ID3D12Device5> &device, int newNumOfElements)
+{
+	if (mNumOfElements == newNumOfElements)
+		return;
+
+	mNumOfElements = newNumOfElements;
+	mBufferSize = mBufferPerObjectAlignedSize * mNumOfElements;
+
+	for (int i = 0; i < mBuffers.size(); i++)
+	{
+		auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(mBufferSize));
+
+		mBuffers[i] = std::make_unique<DXResource>(device, heapProperties, resourceDesc, nullptr, name, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+		CD3DX12_RANGE readRange(0, 0);
+		HRESULT hr = mBuffers[i]->GetResource()->Map(0, &readRange, reinterpret_cast<void **>(&mBufferGPUAddress[i]));
+		if (FAILED(hr))
+			ASSERT(false && "Buffer mapping failed");
+	}
 }
 
 const size_t DXConstBuffer::GetGPUPointer(int slot, int bufferIndex)
