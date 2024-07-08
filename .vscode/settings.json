@@ -85,6 +85,9 @@
     "codecvt": "cpp",
     "filesystem": "cpp",
     "cinttypes": "cpp",
-    "numeric": "cpp"
+    "numeric": "cpp",
+    "any": "cpp",
+    "condition_variable": "cpp",
+    "random": "cpp"
 }
 }

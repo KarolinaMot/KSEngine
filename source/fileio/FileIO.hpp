@@ -2,69 +2,53 @@
 
 #include <chrono>
 #include <code_utility.hpp>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <vector>
 
 namespace KS {
 
-// TODO: currently just a class with functions, can be used later for platform
-// dependent file stuff
 /// @brief File interface system for opening and closing files
-class FileIO {
-public:
-  using FileTime = std::chrono::time_point<std::chrono::file_clock>;
+namespace FileIO
+{
+    constexpr int DEFAULT_READ_FLAGS = std::ios::in | std::ios::binary;
+    constexpr int DEFAULT_WRITE_FLAGS = std::ios::out | std::ios::trunc | std::ios::binary;
 
-  FileIO() = default;
-  ~FileIO() = default;
+    using FileTime = std::chrono::time_point<std::chrono::file_clock>;
+    using Path = std::filesystem::path;
 
-  NON_COPYABLE(FileIO);
-  NON_MOVABLE(FileIO);
+    /// <summary>
+    /// Open a file stream for reading. Specify 0 or std::ios::flags
+    /// </summary>
+    std::optional<std::ifstream> OpenReadStream(const Path& path,
+        int flags = DEFAULT_READ_FLAGS);
 
-  /// <summary>
-  /// Open a file stream for reading. Specify 0 or std::ios::flags
-  /// </summary>
-  std::optional<std::ifstream> OpenReadStream(const std::string &path,
-                                              int flags);
+    /// <summary>
+    /// Open a file stream for writing. Specify 0 or std::ios::flags
+    /// </summary>
+    std::optional<std::ofstream> OpenWriteStream(const Path& path,
+        int flags = DEFAULT_WRITE_FLAGS);
 
-  /// <summary>
-  /// Open a file stream for writing. Specify 0 or std::ios::flags
-  /// </summary>
-  std::optional<std::ofstream> OpenWriteStream(const std::string &path,
-                                               int flags);
+    /// <summary>
+    /// Dumps all bytes of a stream into a vector
+    /// </summary>
+    std::vector<char> DumpFullStream(std::istream& stream);
 
-  /// <summary>
-  /// Read a text file into a string. Nullopt if file does not exist
-  /// </summary>
-  std::optional<std::string> ReadTextFile(const std::string &path);
+    /// <summary>
+    /// Check if a file exists.
+    /// </summary>
+    bool Exists(const Path& path);
 
-  /// <summary>
-  /// Read a binary file into a string. Nullopt if file does not exist
-  /// </summary>
-  std::optional<std::vector<char>> ReadBinaryFile(const std::string &path);
+    /// <summary>
+    /// Check if a file exists.
+    /// </summary>
+    bool MakeDirectory(const Path& path);
 
-  /// <summary>
-  /// Write a string to a text file. The file is created if it does not exist.
-  /// Returns true if the file was written successfully.
-  /// </summary>
-  bool WriteTextFile(const std::string &path, const std::string &content);
-
-  /// <summary>
-  /// Write a string to a binary file. The file is created if it does not exist.
-  /// Returns true if the file was written successfully.
-  /// </summary>
-  bool WriteBinaryFile(const std::string &path,
-                       const std::vector<char> &content);
-
-  /// <summary>
-  /// Check if a file exists.
-  /// </summary>
-  bool Exists(const std::string &path);
-
-  /// <summary>
-  /// Check the last time a file was modified. Nullopt if file doesn't exist
-  /// </summary>
-  std::optional<FileTime> GetLastModifiedTime(const std::string &path);
+    /// <summary>
+    /// Check the last time a file was modified. Nullopt if file doesn't exist
+    /// </summary>
+    std::optional<FileTime> GetLastModifiedTime(const Path& path);
 };
 
 } // namespace KS

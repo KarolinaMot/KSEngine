@@ -1,5 +1,6 @@
 #include <code_utility.hpp>
 #include <compare>
+#include <containers/SlotMap.hpp>
 #include <device/Device.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <entt/entity/registry.hpp>
@@ -12,13 +13,15 @@
 #include <renderer/Renderer.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputsBuilder.hpp>
-#include <resources/Manager.hpp>
 #include <tools/Log.hpp>
-#include <types/Text.hpp>
 #include <vector>
 
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
 #include <components/ComponentCamera.hpp>
 #include <components/ComponentTransform.hpp>
+
+#include <resources/Model.hpp>
 
 KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& registry, float dt)
 {
@@ -28,7 +31,8 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
     auto [x, y] = input->GetMouseDelta();
     glm::vec3 eulerDelta {};
 
-    if (input->GetMouseButton(KS::MouseButton::Right) == KS::InputState::Pressed) {
+    if (input->GetMouseButton(KS::MouseButton::Right) == KS::InputState::Pressed)
+    {
         eulerDelta.y = x * MOUSE_SENSITIVITY;
         eulerDelta.x = y * MOUSE_SENSITIVITY;
         eulerDelta.x = glm::clamp(eulerDelta.x, -glm::radians(89.9f), glm::radians(89.9f));
@@ -53,12 +57,14 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
     if (input->GetKeyboard(KS::KeyboardKey::Q) == KS::InputState::Pressed)
         movement_dir -= KS::World::UP;
 
-    if (glm::length(movement_dir) != 0.0f) {
+    if (glm::length(movement_dir) != 0.0f)
+    {
         movement_dir = glm::normalize(movement_dir);
     }
 
     auto view = registry.view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
-    for (auto&& [e, camera, transform] : view.each()) {
+    for (auto&& [e, camera, transform] : view.each())
+    {
 
         camera.eulerAngles += eulerDelta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
@@ -79,14 +85,26 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
+    KS::Tests::TestSlotMap();
+
+    if (auto str = KS::ModelImporter::ImportFromFile("assets/models/BigTree.glb"))
+    {
+
+        auto stream = KS::FileIO::OpenReadStream(str.value()).value();
+        KS::JSONLoader loader { stream };
+
+        KS::Model test_model {};
+        loader(test_model);
+
+        int i = 0;
+    }
+
     KS::DeviceInitParams params {};
     params.window_width = 1280;
     params.window_height = 720;
 
     auto device = std::make_shared<KS::Device>(params);
-    auto filesystem = std::make_shared<KS::FileIO>();
     auto ecs = std::make_shared<KS::EntityComponentSystem>();
-    auto resources = std::make_shared<KS::ResourceManager>();
     auto input = std::make_shared<KS::RawInput>(device);
 
     device->NewFrame();
@@ -116,7 +134,8 @@ int main()
         registry.emplace<KS::ComponentFirstPersonCamera>(e);
     }
 
-    while (device->IsWindowOpen()) {
+    while (device->IsWindowOpen())
+    {
         input->ProcessInput();
         device->NewFrame();
 
@@ -130,5 +149,5 @@ int main()
         device->EndFrame();
     }
 
-  return 0;
+    return 0;
 }

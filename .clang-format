@@ -85,7 +85,7 @@ BreakAfterAttributes: Leave
 BreakAfterJavaFieldAnnotations: false
 BreakArrays: true
 BreakBeforeBinaryOperators: All
-BreakBeforeBraces: WebKit
+BreakBeforeBraces: Allman
 BreakBeforeConceptDeclarations: Always
 BreakBeforeInlineASMColon: OnlyMultiline
 BreakBeforeTernaryOperators: true

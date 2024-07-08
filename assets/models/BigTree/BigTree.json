@@ -1,0 +1,337 @@
+{
+    "value0": {
+        "cereal_class_version": 0,
+        "Nodes": [
+            {
+                "Transform": {
+                    "value0": {
+                        "value0": 1.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": 0.0
+                    },
+                    "value1": {
+                        "value0": 0.0,
+                        "value1": 1.0,
+                        "value2": 0.0,
+                        "value3": 0.0
+                    },
+                    "value2": {
+                        "value0": 0.0,
+                        "value1": 0.0,
+                        "value2": 1.0,
+                        "value3": 0.0
+                    },
+                    "value3": {
+                        "value0": 0.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": 1.0
+                    }
+                },
+                "MeshAndMaterial": []
+            },
+            {
+                "Transform": {
+                    "value0": {
+                        "value0": 1.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": -0.3199999928474426
+                    },
+                    "value1": {
+                        "value0": 0.0,
+                        "value1": -1.1920928955078126e-7,
+                        "value2": -0.9999999403953552,
+                        "value3": -1.8899999856948853
+                    },
+                    "value2": {
+                        "value0": 0.0,
+                        "value1": 0.9999999403953552,
+                        "value2": -1.1920928955078126e-7,
+                        "value3": -0.019999999552965165
+                    },
+                    "value3": {
+                        "value0": 0.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": 1.0
+                    }
+                },
+                "MeshAndMaterial": [
+                    {
+                        "first": 0,
+                        "second": 0
+                    },
+                    {
+                        "first": 1,
+                        "second": 1
+                    }
+                ]
+            },
+            {
+                "Transform": {
+                    "value0": {
+                        "value0": 0.6411791443824768,
+                        "value1": 0.1960281878709793,
+                        "value2": 0.20115239918231965,
+                        "value3": 0.0
+                    },
+                    "value1": {
+                        "value0": -0.20466022193431855,
+                        "value1": 0.6694133281707764,
+                        "value2": 0.0,
+                        "value3": 0.0
+                    },
+                    "value2": {
+                        "value0": -0.192362979054451,
+                        "value1": -0.058811262249946597,
+                        "value2": 0.6704757213592529,
+                        "value3": 0.0
+                    },
+                    "value3": {
+                        "value0": 0.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": 1.0
+                    }
+                },
+                "MeshAndMaterial": [
+                    {
+                        "first": 2,
+                        "second": 2
+                    }
+                ]
+            }
+        ],
+        "Meshes": [
+            {
+                "value0": "assets\\models\\BigTree\\meshes\\Mesh.016-0.bin"
+            },
+            {
+                "value0": "assets\\models\\BigTree\\meshes\\Mesh.016-1.bin"
+            },
+            {
+                "value0": "assets\\models\\BigTree\\meshes\\Cube.001.bin"
+            }
+        ],
+        "Materials": [
+            {
+                "cereal_class_version": 0,
+                "Parameters": [
+                    {
+                        "key": "BASE_COLOUR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "BASE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": {
+                                "value0": "assets\\models\\BigTree\\textures\\Oak_bark.png"
+                            }
+                        }
+                    },
+                    {
+                        "key": "DOUBLE_SIDED",
+                        "value": {
+                            "index": 0,
+                            "data": true
+                        }
+                    },
+                    {
+                        "key": "NEA_FACTOR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 0.5,
+                                "value3": 0.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "ORM_FACTORS",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 0.858578622341156,
+                                "value2": 1.0,
+                                "value3": 0.0
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "Parameters": [
+                    {
+                        "key": "BASE_COLOUR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "BASE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": {
+                                "value0": "assets\\models\\BigTree\\textures\\oak_leaves.png"
+                            }
+                        }
+                    },
+                    {
+                        "key": "DOUBLE_SIDED",
+                        "value": {
+                            "index": 0,
+                            "data": true
+                        }
+                    },
+                    {
+                        "key": "NEA_FACTOR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 0.5,
+                                "value3": 0.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "ORM_FACTORS",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 0.858578622341156,
+                                "value2": 1.0,
+                                "value3": 0.0
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "Parameters": [
+                    {
+                        "key": "BASE_COLOUR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "BASE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": {
+                                "value0": "assets\\models\\BigTree\\textures\\Untitled.png"
+                            }
+                        }
+                    },
+                    {
+                        "key": "DOUBLE_SIDED",
+                        "value": {
+                            "index": 0,
+                            "data": true
+                        }
+                    },
+                    {
+                        "key": "NEA_FACTOR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 0.5,
+                                "value3": 0.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "ORM_FACTORS",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 0.5,
+                                "value2": 0.0,
+                                "value3": 0.0
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "Parameters": [
+                    {
+                        "key": "BASE_COLOUR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "DOUBLE_SIDED",
+                        "value": {
+                            "index": 0,
+                            "data": false
+                        }
+                    },
+                    {
+                        "key": "NEA_FACTOR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 0.5,
+                                "value3": 0.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "ORM_FACTORS",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 0.0
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
