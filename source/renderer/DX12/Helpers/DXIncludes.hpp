@@ -1,4 +1,12 @@
 #pragma once
+
+// WINDOWS STUFF
+#define NOMINMAX
+
+#include <Windows.h>
+#include <wrl.h>
+using namespace Microsoft::WRL;
+
 #include <dx12/directx/d3d12.h>
 
 // DirectX 12 specific headers.
@@ -7,16 +15,12 @@
 
 #include <dx12/directx/d3dx12.h>
 
-// WINDOWS STUFF
-#define NOMINMAX
-#include <wrl.h>
-#include <Windows.h>
-using namespace Microsoft::WRL;
-
 #define FRAME_BUFFER_COUNT 2
 
-inline void CheckDX(HRESULT result) {
-  if (FAILED(result)) {
-    throw;
-  }
+inline void CheckDX(HRESULT result)
+{
+    if (FAILED(result))
+    {
+        throw;
+    }
 }

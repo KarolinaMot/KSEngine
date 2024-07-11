@@ -1,34 +1,29 @@
-#include <code_utility.hpp>
-#include <compare>
-#include <containers/SlotMap.hpp>
+#include <components/ComponentCamera.hpp>
+#include <components/ComponentTransform.hpp>
 #include <device/Device.hpp>
 #include <ecs/EntityComponentSystem.hpp>
-#include <entt/entity/registry.hpp>
 #include <fileio/FileIO.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <input/Input.hpp>
+#include <input/RawInput.hpp>
 #include <input/mapping/InputContext.hpp>
 #include <input/raw_input/RawInputCollector.hpp>
 #include <iostream>
+#include <math/Geometry.hpp>
 #include <memory>
+#include <renderer/ModelRenderer.hpp>
 #include <renderer/Renderer.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputsBuilder.hpp>
-#include <tools/Log.hpp>
-#include <vector>
-
-#include <cereal/archives/binary.hpp>
-#include <cereal/archives/json.hpp>
-#include <components/ComponentCamera.hpp>
-#include <components/ComponentTransform.hpp>
-
 #include <resources/Model.hpp>
+#include <tools/Log.hpp>
+#include <tools/Timer.hpp>
 
 KS::Camera FreeCamSystem(entt::registry& registry, float dt)
 {
     constexpr float MOUSE_SENSITIVITY = 0.003f;
-    constexpr float CAM_SPEED = 0.1f;
+    constexpr float CAM_SPEED = 0.003f;
 
     // auto [x, y] = input->GetMouseDelta();
     glm::vec3 eulerDelta {};
@@ -99,17 +94,7 @@ KS::InputContext MakeDefaultInputContext()
 
 int main()
 {
-    KS::Tests::TestSlotMap();
-
-    if (auto str = KS::ModelImporter::ImportFromFile("assets/models/BigTree.glb"))
-    {
-
-        auto stream = KS::FileIO::OpenReadStream(str.value()).value();
-        KS::JSONLoader loader { stream };
-
-        KS::Model test_model {};
-        loader(test_model);
-    }
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/ElGato.glb").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;
@@ -124,11 +109,13 @@ int main()
 
     device->NewFrame();
 
-    std::shared_ptr<KS::ShaderInputs>
-        mainInputs = KS::ShaderInputsBuilder()
-                         .AddStruct(KS::ShaderInputVisibility::VERTEX, "camera_matrix")
-                         .AddStruct(KS::ShaderInputVisibility::VERTEX, "model_matrix")
-                         .Build(*device, "MAIN SIGNATURE");
+    std::shared_ptr<KS::ShaderInputs> mainInputs = KS::ShaderInputsBuilder()
+                                                       .AddStruct(KS::ShaderInputVisibility::VERTEX, "camera_matrix")
+                                                       .AddStruct(KS::ShaderInputVisibility::VERTEX, "model_matrix")
+                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "base_tex")
+                                                       .AddStaticSampler(KS::ShaderInputVisibility::PIXEL, KS::SamplerDesc {})
+                                                       .Build(*device, "MAIN SIGNATURE");
+
     std::string shaderPath = "assets/shaders/Main.hlsl";
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,
@@ -141,13 +128,16 @@ int main()
 
     device->EndFrame();
 
-    { // Create camera entity
+    // Scene Setup
+    {
         auto& registry = ecs->GetWorld();
         auto e = registry.create();
 
         registry.emplace<KS::ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
         registry.emplace<KS::ComponentFirstPersonCamera>(e);
     }
+
+    KS::Timer frametimer {};
 
     while (device->IsWindowOpen())
     {
@@ -162,19 +152,27 @@ int main()
             input.pop();
         }
 
-        LOG(Log::Severity::INFO, "{}", input_result.GetAxis("MOVE_HORIZONTAL"));
+        auto dt = frametimer.Tick();
+        auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count());
 
         device->NewFrame();
 
-        auto camera = FreeCamSystem(ecs->GetWorld(), 0.16f);
-
         auto renderParams = KS::RendererRenderParams();
+
         renderParams.cpuFrame = device->GetFrameIndex();
         renderParams.projectionMatrix = camera.GetProjection();
         renderParams.viewMatrix = camera.GetView();
+
+        auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
+        glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
+        transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
+        model_renderer->QueueModel(model, transform);
+
         renderer.Render(*device, renderParams);
         device->EndFrame();
     }
+
+    device->Flush();
 
     return 0;
 }

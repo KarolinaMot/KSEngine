@@ -1,18 +1,19 @@
 #include "Device.hpp"
-#include "renderer/DX12/Helpers/DXIncludes.hpp"
-#include "renderer/DX12/Helpers/DXResource.hpp"
+#include "renderer/Buffer.hpp"
 #include "renderer/DX12/Helpers/DXDescHeap.hpp"
 #include "renderer/DX12/Helpers/DXHeapHandle.hpp"
-#include "renderer/DX12/Helpers/DXCommandQueue.hpp"
-#include "renderer/Buffer.hpp"
+#include "renderer/DX12/Helpers/DXIncludes.hpp"
+#include "renderer/DX12/Helpers/DXResource.hpp"
+#include <concurrency/CommandQueue.hpp>
 #include <tools/Log.hpp>
 
 #include "DX12/DXFactory.hpp"
 
-#include <vector>
 #include <thread>
+#include <vector>
 
-class KS::Device::Impl {
+class KS::Device::Impl
+{
 public:
     void InitializeWindow(const DeviceInitParams& params);
     void InitializeDevice(const DeviceInitParams& params);
@@ -22,13 +23,15 @@ public:
     void StartFrame(int frameIndex, glm::vec4 clearColor);
     void EndFrame();
 
-    enum DXResources {
+    enum DXResources
+    {
         RT,
         DEPTH_STENCIL_RSC = FRAME_BUFFER_COUNT,
         NUM_RESOURCES
     };
 
-    enum DXHeaps {
+    enum DXHeaps
+    {
         RT_HEAP,
         DEPTH_HEAP,
         RESOURCE_HEAP,
@@ -43,10 +46,10 @@ public:
     ComPtr<ID3D12Device5> m_device;
     ComPtr<IDXGISwapChain3> m_swapchain;
 
-    std::unique_ptr<DXCommandQueue> m_command_queue;
+    std::unique_ptr<CommandQueue> m_command_queue;
     ComPtr<ID3D12CommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT];
     ComPtr<ID3D12GraphicsCommandList4> m_command_list;
-    int m_fence_values[FRAME_BUFFER_COUNT];
+    GPUFuture m_fence_values[FRAME_BUFFER_COUNT];
     int m_cpu_frame = 0;
     int m_gpu_frame = 0;
 
@@ -108,9 +111,14 @@ void KS::Device::EndFrame()
     m_frame_resources[m_impl->m_gpu_frame].clear();
 }
 
-void KS::Device::TrackResource(std::shared_ptr<Buffer> buffer)
+void KS::Device::TrackResource(std::shared_ptr<void> buffer)
 {
     m_frame_resources[m_frame_index].push_back(buffer);
+}
+
+void KS::Device::Flush()
+{
+    m_impl->m_command_queue->Flush();
 }
 
 void window_close_callback(GLFWwindow* window)
@@ -120,7 +128,8 @@ void window_close_callback(GLFWwindow* window)
 
 void KS::Device::Impl::InitializeWindow(const DeviceInitParams& params)
 {
-    if (!glfwInit()) {
+    if (!glfwInit())
+    {
         LOG(Log::Severity::FATAL, "GLFW could not be initialized");
     }
 
@@ -134,14 +143,16 @@ void KS::Device::Impl::InitializeWindow(const DeviceInitParams& params)
     m_viewport.Height = params.window_height;
 
     std::string applicationName = params.name;
-    if (applicationName.empty()) {
+    if (applicationName.empty())
+    {
         applicationName += "Unnamed application";
     }
 
     glfwWindowHint(GLFW_RESIZABLE, 1);
     m_window = glfwCreateWindow(static_cast<int>(m_viewport.Width), static_cast<int>(m_viewport.Height), applicationName.c_str(), nullptr, nullptr);
 
-    if (m_window == nullptr) {
+    if (m_window == nullptr)
+    {
         LOG(Log::Severity::FATAL, "GLFW window could not be created.");
     }
 
@@ -170,11 +181,16 @@ void KS::Device::Impl::StartFrame(int frameIndex, glm::vec4 clearColor)
     m_gpu_frame = frameIndex;
     m_cpu_frame = (frameIndex + 1) % FRAME_BUFFER_COUNT;
 
-    if (FAILED(m_command_allocator[m_cpu_frame]->Reset())) {
+    // Wait until the current swapchain is available;
+    m_fence_values->Wait();
+
+    if (FAILED(m_command_allocator[m_cpu_frame]->Reset()))
+    {
         LOG(Log::Severity::FATAL, "Failed to reset command allocator");
     }
 
-    if (FAILED(m_command_list->Reset(m_command_allocator[m_cpu_frame].Get(), nullptr))) {
+    if (FAILED(m_command_list->Reset(m_command_allocator[m_cpu_frame].Get(), nullptr)))
+    {
         LOG(Log::Severity::FATAL, "Failed to reset command list");
     }
 
@@ -193,17 +209,19 @@ void KS::Device::Impl::EndFrame()
     ID3D12CommandList* ppCommandLists[] = { m_command_list.Get() };
 
     // PRESENT
-    if (FAILED(m_swapchain->Present(0, 0))) {
+    if (FAILED(m_swapchain->Present(0, 0)))
+    {
         LOG(Log::Severity::FATAL, "Failed to present");
     }
 
     m_fence_values[m_cpu_frame] = m_command_queue->ExecuteCommandLists(ppCommandLists, 1);
-    m_command_queue->WaitForFenceValue(m_fence_values[m_gpu_frame]);
+    // m_command_queue->WaitForFenceValue(m_fence_values[m_gpu_frame]);
 }
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
 {
-    switch (Severity) {
+    switch (Severity)
+    {
     case D3D12_MESSAGE_SEVERITY_CORRUPTION:
         LOG(Log::Severity::FATAL, pDescription);
         break;
@@ -226,7 +244,8 @@ void SetupDebugOutputToConsole(ComPtr<ID3D12Device5> device)
 {
     ComPtr<ID3D12InfoQueue1> infoQueue;
     HRESULT hr = device->QueryInterface(IID_PPV_ARGS(&infoQueue));
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         LOG(Log::Severity::FATAL, "Failed to query interface");
     }
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
@@ -245,7 +264,8 @@ void SetupDebugOutputToConsole(ComPtr<ID3D12Device5> device)
 
     DWORD callbackCookie = 0;
     hr = infoQueue->RegisterMessageCallback(DebugOutputCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &callbackCookie);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         LOG(Log::Severity::FATAL, "Failed to set message callback");
     }
 }
@@ -257,10 +277,11 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
     bool uncappedFPS = factory->SupportsTearing();
 
     // CREATE DEVICE
-    auto device = factory->CreateDevice(
-        DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, [](CD3DX12FeatureSupport features) {
-            return features.MaxSupportedFeatureLevel() >= D3D_FEATURE_LEVEL_12_0;
-        });
+
+    auto selection_criteria = [](CD3DX12FeatureSupport features)
+    { return features.MaxSupportedFeatureLevel() >= D3D_FEATURE_LEVEL_12_0; };
+
+    auto device = factory->CreateDevice(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, selection_criteria).value();
 
     CheckDX(device.As(&m_device));
 
@@ -276,18 +297,21 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
 
     HRESULT hr;
 
-    if (params.debug_context) {
+    if (params.debug_context)
+    {
         SetupDebugOutputToConsole(m_device);
     }
 
     // CREATE COMMAND QUEUE
-    m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
+    m_command_queue = std::make_unique<CommandQueue>(m_device, L"Main command queue");
 
     // CREATE COMMAND ALLOCATOR
-    for (int i = 0; i < FRAME_BUFFER_COUNT; i++) {
+    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+    {
         hr = m_device->CreateCommandAllocator(
             D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_command_allocator[i]));
-        if (FAILED(hr)) {
+        if (FAILED(hr))
+        {
             LOG(Log::Severity::FATAL, "Failed to create command allocator");
         }
     }
@@ -296,7 +320,8 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
     hr = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
         m_command_allocator[0].Get(), NULL,
         IID_PPV_ARGS(&m_command_list));
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         LOG(Log::Severity::FATAL, "Failed to create command list");
     }
     m_command_list->SetName(L"Main command list");
@@ -337,10 +362,12 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
 
     m_command_list->Close();
     ID3D12CommandList* ppCommandLists[] = { m_command_list.Get() };
-    m_fence_values[0] = m_command_queue->ExecuteCommandLists(ppCommandLists, 1);
-    m_command_queue->WaitForFenceValue(m_fence_values[0]);
 
-    HWND HWNDwindow = reinterpret_cast<HWND>(glfwGetWin32Window(m_window));
+    auto frame_setup = m_command_queue->ExecuteCommandLists(ppCommandLists, 1);
+    frame_setup.Wait();
+
+    HWND HWNDwindow
+        = reinterpret_cast<HWND>(glfwGetWin32Window(m_window));
 
     // Create Swapchain
 
@@ -369,17 +396,20 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
     hr = factory->Handle()->CreateSwapChainForHwnd(
         m_command_queue->Get(), HWNDwindow, &swapchain_info, nullptr, nullptr,
         &tempSwapChain);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         LOG(Log::Severity::FATAL, "Failed to create swap chain");
     }
     tempSwapChain.As(&m_swapchain);
 
     // CREATE RENDER TARGETS
-    for (int i = 0; i < FRAME_BUFFER_COUNT; i++) {
+    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+    {
         m_resources[RT + i] = std::make_unique<DXResource>();
         ComPtr<ID3D12Resource> res;
         hr = m_swapchain->GetBuffer(i, IID_PPV_ARGS(&res));
-        if (FAILED(hr)) {
+        if (FAILED(hr))
+        {
             LOG(Log::Severity::FATAL, "Failed to get swapchain buffer");
         }
         m_resources[RT + i]->SetResource(res);

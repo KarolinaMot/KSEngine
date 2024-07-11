@@ -3,7 +3,8 @@
 KS::Camera KS::ComponentFirstPersonCamera::GenerateCamera(const glm::mat4& world_matrix) const
 {
     Camera Result;
-    if (isOrtho) {
+    if (isOrtho)
+    {
         Result = Camera::Orthographic(
             world_matrix[3],
             world_matrix[3] + world_matrix * glm::vec4(World::FORWARD, 0.0f),
@@ -11,7 +12,9 @@ KS::Camera KS::ComponentFirstPersonCamera::GenerateCamera(const glm::mat4& world
             extentSize,
             nearPlane,
             farPlane);
-    } else {
+    }
+    else
+    {
         Result = Camera::Perspective(
             world_matrix[3],
             world_matrix[3] + world_matrix * glm::vec4(World::FORWARD, 0.0f),

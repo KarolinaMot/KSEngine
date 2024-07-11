@@ -1,8 +1,8 @@
 #include "../Shader.hpp"
+#include "../ShaderInputs.hpp"
+#include "Device/Device.hpp"
 #include "Helpers/DXIncludes.hpp"
 #include "Helpers/DXPipeline.hpp"
-#include "Device/Device.hpp"
-#include "../ShaderInputs.hpp"
 
 class KS::Shader::Impl
 {
@@ -10,7 +10,7 @@ public:
     ComPtr<ID3D12PipelineState> m_pipeline;
 };
 
-KS::Shader::Shader(const Device &device, ShaderType shaderType, std::shared_ptr<ShaderInputs> shaderInput, std::string path)
+KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputs> shaderInput, std::string path)
 {
     m_shader_input = shaderInput;
     m_shader_type = shaderType;
@@ -21,18 +21,18 @@ KS::Shader::Shader(const Device &device, ShaderType shaderType, std::shared_ptr<
 
     m_impl->m_pipeline = DXPipelineBuilder()
                              .AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0)
-                             .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, 3)
+                             .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, 1)
                              .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM)
                              .SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize())
-                             .Build(reinterpret_cast<ID3D12Device5 *>(device.GetDevice()),
-                                    reinterpret_cast<ID3D12RootSignature *>(m_shader_input->GetSignature()),
-                                    L"RENDER PIPELINE");
+                             .Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()),
+                                 reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature()),
+                                 L"RENDER PIPELINE");
 }
 
 KS::Shader::~Shader()
 {
 }
-void *KS::Shader::GetPipeline() const
+void* KS::Shader::GetPipeline() const
 {
     return m_impl->m_pipeline.Get();
 }

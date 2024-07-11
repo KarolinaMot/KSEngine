@@ -48,11 +48,11 @@ public:
 
     // Warning: can be null, check pointer before using
     template <typename T>
-    T* GetParameter(const std::string& key) const
+    const T* GetParameter(const std::string& key) const
     {
         if (auto it = input_parameters.find(key); it != input_parameters.end())
         {
-            return std::get_if<T>(it->second);
+            return std::get_if<T>(&it->second);
         }
     }
 

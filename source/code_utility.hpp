@@ -2,13 +2,13 @@
 
 // Delete Macros
 
-#define NON_COPYABLE(name)                                                     \
-  name(const name &other) = delete;                                            \
-  name &operator=(const name &other) = delete
+#define NON_COPYABLE(name)            \
+    name(const name& other) = delete; \
+    name& operator=(const name& other) = delete
 
-#define NON_MOVABLE(name)                                                      \
-  name(name &&other) = delete;                                                 \
-  name &operator=(name &&other) = delete
+#define NON_MOVABLE(name)        \
+    name(name&& other) = delete; \
+    name& operator=(name&& other) = delete
 
 // Debug macros
 #if not defined(NDEBUG)
@@ -19,7 +19,7 @@
 
 #else
 
-#define ASSERT(expr)     // empty
+#define ASSERT(expr) // empty
 #define DEBUG_ONLY(expr) // empty
 
 #endif

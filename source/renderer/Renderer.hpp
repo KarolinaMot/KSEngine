@@ -1,43 +1,45 @@
 #pragma once
-#include <string>
-#include <memory>
-#include <vector>
 #include <glm/glm.hpp>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace KS
 {
-    class Device;
-    class SubRenderer;
-    class Shader;
-    class Buffer;
-    struct RendererInitParams
+class Device;
+class SubRenderer;
+class Shader;
+class Buffer;
+struct RendererInitParams
+{
+    std::vector<std::shared_ptr<Shader>> shaders;
+};
+
+struct RendererRenderParams
+{
+    glm::mat4x4 projectionMatrix;
+    glm::mat4x4 viewMatrix;
+    int cpuFrame;
+};
+
+class Renderer
+{
+public:
+    Renderer(const Device& device, const RendererInitParams& params);
+    ~Renderer();
+
+    void Render(Device& device, const RendererRenderParams& params);
+
+    struct CameraMats
     {
-        std::vector<std::shared_ptr<Shader>> shaders;
+        glm::mat4x4 m_view = glm::mat4x4(1.f);
+        glm::mat4x4 m_proj = glm::mat4x4(1.f);
+        glm::mat4x4 m_camera = glm::mat4x4(1.f);
     };
 
-    struct RendererRenderParams
-    {
-        glm::mat4x4 projectionMatrix;
-        glm::mat4x4 viewMatrix;
-        int cpuFrame;
-    };
+    std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
 
-    class Renderer
-    {
-    public:
-        Renderer(const Device &device, const RendererInitParams &params);
-        ~Renderer();
-
-        void Render(Device& device, const RendererRenderParams& params);
-
-        struct CameraMats {
-            glm::mat4x4 m_view = glm::mat4x4(1.f);
-            glm::mat4x4 m_proj = glm::mat4x4(1.f);
-            glm::mat4x4 m_camera = glm::mat4x4(1.f);
-        };
-
-    private:
-        std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
-        std::shared_ptr<Buffer> m_camera_buffer;
-    };
+private:
+    std::shared_ptr<Buffer> m_camera_buffer;
+};
 }
