@@ -1,5 +1,7 @@
 #pragma once
+#include "mapping/InputContext.hpp"
 #include "mapping/InputData.hpp"
+#include "raw_input/RawInputCollector.hpp"
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -42,4 +44,40 @@ private:
     std::unordered_map<std::string, AxisCache> axis_cache;
 };
 
+class InputManager
+{
+public:
+    InputManager(const Device& device)
+        : raw_input(device)
+    {
+    }
+
+    InputContext GetInputContext() const { return input_context; }
+
+    void SetInputContext(const InputContext& new_context)
+    {
+        input_context = new_context;
+    }
+
+    const FrameInputResult& ProcessInput()
+    {
+        auto all_events = raw_input.ProcessInput();
+        auto input = input_context.ConvertInput(std::move(all_events));
+
+        processed_input.StartFrame();
+        while (input.size())
+        {
+            auto& v = input.front();
+            processed_input.Process(v);
+            input.pop();
+        }
+
+        return processed_input;
+    }
+
+private:
+    RawInputCollector raw_input;
+    InputContext input_context;
+    FrameInputResult processed_input;
+};
 }

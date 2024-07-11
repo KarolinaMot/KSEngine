@@ -6,8 +6,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <input/Input.hpp>
-#include <input/mapping/InputContext.hpp>
-#include <input/raw_input/RawInputCollector.hpp>
 #include <iostream>
 #include <math/Geometry.hpp>
 #include <memory>
@@ -39,14 +37,6 @@ KS::Camera FreeCamSystem(entt::registry& registry, const KS::FrameInputResult& i
 
     float dx = input.GetAxisDelta(InputActionNames::MOUSE_POS_HORIZONTAL);
     float dy = input.GetAxisDelta(InputActionNames::MOUSE_POS_VERTICAL);
-
-    // float dx = input.GetAxisDelta(InputActionNames::HORIZONTAL_MOVEMENT);
-    // float dy = input.GetAxisDelta(InputActionNames::VERTICAL_MOVEMENT);
-
-    if (dx != 0.0f || dy != 0.0f)
-    {
-        LOG(Log::Severity::INFO, "{} {}", dx, dy);
-    }
 
     glm::vec3 euler_delta {};
 
@@ -92,8 +82,8 @@ KS::InputContext MakeDefaultInputContext()
     using namespace KS::InputMapping;
 
     return KS::InputContext()
-        .AddBinding(InputActionNames::MOUSE_POS_HORIZONTAL, { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f })
-        .AddBinding(InputActionNames::MOUSE_POS_HORIZONTAL, { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f })
+        .AddBinding(InputActionNames::HORIZONTAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f })
+        .AddBinding(InputActionNames::HORIZONTAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f })
 
         .AddBinding(InputActionNames::VERTICAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::W }, ToAxis { 1.0f })
         .AddBinding(InputActionNames::VERTICAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::S }, ToAxis { -1.0f })
@@ -118,9 +108,34 @@ int main()
     auto device = std::make_shared<KS::Device>(params);
     auto ecs = std::make_shared<KS::EntityComponentSystem>();
 
-    auto raw_input = KS::RawInputCollector(*device);
-    auto input_mapper = MakeDefaultInputContext();
-    auto input_result = KS::FrameInputResult();
+    // Input setup
+    auto input_manager = KS::InputManager(*device);
+    {
+        std::string mapping_file = "config.json";
+        if (KS::FileIO::Exists(mapping_file))
+        {
+            if (auto in = KS::FileIO::OpenReadStream(mapping_file, 0))
+            {
+
+                KS::InputContext context;
+                KS::JSONLoader j { in.value() };
+                j(context);
+
+                input_manager.SetInputContext(context);
+            }
+        }
+        else
+        {
+            auto context = MakeDefaultInputContext();
+            input_manager.SetInputContext(context);
+
+            if (auto out = KS::FileIO::OpenWriteStream(mapping_file, std::ios::trunc))
+            {
+                KS::JSONSaver j { out.value() };
+                j(context);
+            }
+        }
+    }
 
     device->NewFrame();
 
@@ -156,19 +171,9 @@ int main()
 
     while (device->IsWindowOpen())
     {
-        auto all_events = raw_input.ProcessInput();
-        auto input = input_mapper.ConvertInput(std::move(all_events));
-
-        input_result.StartFrame();
-        while (input.size())
-        {
-            auto& v = input.front();
-            input_result.Process(v);
-            input.pop();
-        }
-
         auto dt = frametimer.Tick();
-        auto camera = FreeCamSystem(ecs->GetWorld(), input_result, dt.count());
+        auto frame_input = input_manager.ProcessInput();
+        auto camera = FreeCamSystem(ecs->GetWorld(), frame_input, dt.count());
 
         device->NewFrame();
 

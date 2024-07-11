@@ -54,6 +54,7 @@ public:
         {
             return std::get_if<T>(&it->second);
         }
+        return nullptr;
     }
 
 private:
