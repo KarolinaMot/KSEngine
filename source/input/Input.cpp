@@ -1,0 +1,89 @@
+#include "Input.hpp"
+
+void KS::FrameInputResult::StartFrame()
+{
+    actions.clear();
+
+    for (auto& [name, axis] : axis_cache)
+    {
+        axis.second = axis.first;
+        axis.first = 0.0f;
+    }
+}
+
+void KS::FrameInputResult::Process(const InputData& event)
+{
+    auto& action = event.first;
+    auto& value = event.second;
+
+    switch (value.GetType())
+    {
+    case InputValue::Type::ACTION:
+    {
+        actions.emplace(action);
+    }
+    break;
+    case InputValue::Type::STATE:
+    {
+        state_cache[action] = std::get<bool>(value.value);
+    }
+    break;
+    case InputValue::Type::AXIS:
+    {
+        auto val = std::get<float>(value.value);
+
+        if (auto it = axis_cache.find(action); it != axis_cache.end())
+        {
+            axis_cache.at(action).first += val;
+        }
+        else
+        {
+            axis_cache.emplace(action, std::make_pair(val, val));
+        }
+    }
+    break;
+    default:
+        break;
+    }
+}
+
+void KS::FrameInputResult::Reset()
+{
+    actions.clear();
+    state_cache.clear();
+    axis_cache.clear();
+}
+
+float KS::FrameInputResult::GetAxis(const std::string& action_name) const
+{
+    if (auto it = axis_cache.find(action_name); it != axis_cache.end())
+    {
+        return it->second.first;
+    }
+    return 0.0f;
+}
+
+float KS::FrameInputResult::GetAxisDelta(const std::string& action_name) const
+{
+    if (auto it = axis_cache.find(action_name); it != axis_cache.end())
+    {
+        return it->second.first - it->second.second;
+    }
+    return 0.0f;
+}
+
+bool KS::FrameInputResult::GetAction(const std::string& action_name) const
+{
+    if (actions.count(action_name))
+        return true;
+    return false;
+}
+
+std::optional<bool> KS::FrameInputResult::GetState(const std::string& action_name) const
+{
+    if (auto it = state_cache.find(action_name); it != state_cache.end())
+    {
+        return it->second;
+    }
+    return std::nullopt;
+}

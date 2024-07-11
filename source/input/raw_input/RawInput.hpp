@@ -4,61 +4,55 @@
 #include <optional>
 #include <variant>
 
-namespace KS
+namespace KS::RawInput
 {
 
-struct RawInputCode
+struct Code
 {
     template <typename E>
-    RawInputCode(InputSource source, E input_enum)
+    Code(RawInput::Source source, E input_enum)
         : source(source)
         , code(static_cast<uint32_t>(input_enum))
     {
     }
 
-    InputSource source {};
+    RawInput::Source source {};
     uint32_t code {};
 
-    bool operator==(const RawInputCode& other) const
+    bool operator==(const Code& other) const
     {
         return source == other.source && code == other.code;
     }
+
+    bool operator<(const Code& other) const
+    {
+        if (source == other.source)
+        {
+            return static_cast<uint32_t>(code) < static_cast<uint32_t>(other.code);
+        }
+
+        return static_cast<uint32_t>(code) < static_cast<uint32_t>(other.code);
+    }
 };
 
-class RawInputValue
+enum class State
 {
-public:
-    std::optional<bool> GetState() const
-    {
-        if (std::holds_alternative<bool>(value))
-        {
-            return std::get<bool>(value);
-        }
-        return std::nullopt;
-    }
-
-    std::optional<float> GetRange() const
-    {
-        if (std::holds_alternative<float>(value))
-        {
-            return std::get<float>(value);
-        }
-        return std::nullopt;
-    }
-
-private:
-    std::variant<bool, float> value;
+    ACTIVE,
+    PRESS_DOWN,
+    PRESS_UP
 };
 
+using Value = std::variant<State, float>;
+using Data = std::pair<Code, Value>;
 }
 
 namespace std
 {
 
 template <>
-struct hash<KS::RawInputCode>
+struct hash<KS::RawInput::Code>
 {
-    size_t operator()(const KS::RawInputCode& k) const
+    size_t operator()(const KS::RawInput::Code& k) const
     {
         return ((size_t)(k.source) << 32) | (size_t)(k.code);
     }

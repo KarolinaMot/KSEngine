@@ -23,3 +23,14 @@
 #define DEBUG_ONLY(expr) // empty
 
 #endif
+
+// Very useful templates
+
+namespace KS
+{
+template <class... Ts>
+struct Overload : Ts...
+{
+    using Ts::operator()...;
+};
+}

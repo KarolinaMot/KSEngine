@@ -7,7 +7,9 @@
 #include <fileio/FileIO.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <input/RawInput.hpp>
+#include <input/Input.hpp>
+#include <input/mapping/InputContext.hpp>
+#include <input/raw_input/RawInputCollector.hpp>
 #include <iostream>
 #include <memory>
 #include <renderer/Renderer.hpp>
@@ -23,44 +25,44 @@
 
 #include <resources/Model.hpp>
 
-KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& registry, float dt)
+KS::Camera FreeCamSystem(entt::registry& registry, float dt)
 {
     constexpr float MOUSE_SENSITIVITY = 0.003f;
     constexpr float CAM_SPEED = 0.1f;
 
-    auto [x, y] = input->GetMouseDelta();
+    // auto [x, y] = input->GetMouseDelta();
     glm::vec3 eulerDelta {};
 
-    if (input->GetMouseButton(KS::MouseButton::Right) == KS::InputState::Pressed)
-    {
-        eulerDelta.y = x * MOUSE_SENSITIVITY;
-        eulerDelta.x = y * MOUSE_SENSITIVITY;
-        eulerDelta.x = glm::clamp(eulerDelta.x, -glm::radians(89.9f), glm::radians(89.9f));
-    }
+    // if (input->GetMouseButton(KS::MouseButton::Right) == KS::InputState::Pressed)
+    // {
+    //     eulerDelta.y = x * MOUSE_SENSITIVITY;
+    //     eulerDelta.x = y * MOUSE_SENSITIVITY;
+    //     eulerDelta.x = glm::clamp(eulerDelta.x, -glm::radians(89.9f), glm::radians(89.9f));
+    // }
 
     glm::vec3 movement_dir {};
-    if (input->GetKeyboard(KS::KeyboardKey::W) == KS::InputState::Pressed)
-        movement_dir += KS::World::FORWARD;
+    // if (input->GetKeyboard(KS::KeyboardKey::W) == KS::InputState::Pressed)
+    //     movement_dir += KS::World::FORWARD;
 
-    if (input->GetKeyboard(KS::KeyboardKey::S) == KS::InputState::Pressed)
-        movement_dir -= KS::World::FORWARD;
+    // if (input->GetKeyboard(KS::KeyboardKey::S) == KS::InputState::Pressed)
+    //     movement_dir -= KS::World::FORWARD;
 
-    if (input->GetKeyboard(KS::KeyboardKey::D) == KS::InputState::Pressed)
-        movement_dir += KS::World::RIGHT;
+    // if (input->GetKeyboard(KS::KeyboardKey::D) == KS::InputState::Pressed)
+    //     movement_dir += KS::World::RIGHT;
 
-    if (input->GetKeyboard(KS::KeyboardKey::A) == KS::InputState::Pressed)
-        movement_dir -= KS::World::RIGHT;
+    // if (input->GetKeyboard(KS::KeyboardKey::A) == KS::InputState::Pressed)
+    //     movement_dir -= KS::World::RIGHT;
 
-    if (input->GetKeyboard(KS::KeyboardKey::E) == KS::InputState::Pressed)
-        movement_dir += KS::World::UP;
+    // if (input->GetKeyboard(KS::KeyboardKey::E) == KS::InputState::Pressed)
+    //     movement_dir += KS::World::UP;
 
-    if (input->GetKeyboard(KS::KeyboardKey::Q) == KS::InputState::Pressed)
-        movement_dir -= KS::World::UP;
+    // if (input->GetKeyboard(KS::KeyboardKey::Q) == KS::InputState::Pressed)
+    //     movement_dir -= KS::World::UP;
 
-    if (glm::length(movement_dir) != 0.0f)
-    {
-        movement_dir = glm::normalize(movement_dir);
-    }
+    // if (glm::length(movement_dir) != 0.0f)
+    // {
+    //     movement_dir = glm::normalize(movement_dir);
+    // }
 
     auto view = registry.view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
     for (auto&& [e, camera, transform] : view.each())
@@ -83,6 +85,18 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
     return KS::Camera {};
 }
 
+KS::InputContext MakeDefaultInputContext()
+{
+    using namespace KS::RawInput;
+    using namespace KS::InputMapping;
+
+    KS::InputContext out;
+    out.AddBinding("MOVE_HORIZONTAL", { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f });
+    out.AddBinding("MOVE_HORIZONTAL", { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f });
+
+    return out;
+}
+
 int main()
 {
     KS::Tests::TestSlotMap();
@@ -95,8 +109,6 @@ int main()
 
         KS::Model test_model {};
         loader(test_model);
-
-        int i = 0;
     }
 
     KS::DeviceInitParams params {};
@@ -105,7 +117,10 @@ int main()
 
     auto device = std::make_shared<KS::Device>(params);
     auto ecs = std::make_shared<KS::EntityComponentSystem>();
-    auto input = std::make_shared<KS::RawInput>(device);
+
+    auto raw_input = KS::RawInputCollector(*device);
+    auto input_mapper = MakeDefaultInputContext();
+    auto input_result = KS::FrameInputResult();
 
     device->NewFrame();
 
@@ -136,10 +151,22 @@ int main()
 
     while (device->IsWindowOpen())
     {
-        input->ProcessInput();
+        auto all_events = raw_input.ProcessInput();
+        auto input = input_mapper.ConvertInput(std::move(all_events));
+
+        input_result.StartFrame();
+        while (input.size())
+        {
+            auto& v = input.front();
+            input_result.Process(v);
+            input.pop();
+        }
+
+        LOG(Log::Severity::INFO, "{}", input_result.GetAxis("MOVE_HORIZONTAL"));
+
         device->NewFrame();
 
-        auto camera = FreeCamSystem(input, ecs->GetWorld(), 0.16f);
+        auto camera = FreeCamSystem(ecs->GetWorld(), 0.16f);
 
         auto renderParams = KS::RendererRenderParams();
         renderParams.cpuFrame = device->GetFrameIndex();

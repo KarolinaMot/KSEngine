@@ -1,7 +1,7 @@
 #pragma once
 #include "RawInput.hpp"
-#include <code_utility.hpp>
-
+#include <queue>
+#include <unordered_map>
 
 namespace KS
 {
@@ -9,22 +9,16 @@ namespace KS
 class Device;
 
 /// @brief TODO: only supports keyboard and is PC only
-class RawInput
+class RawInputCollector
 {
 public:
-    RawInput(const Device& device);
-    ~RawInput();
+    RawInputCollector(const Device& device);
 
-    std::queue<RawInputValue> ProcessInput();
+    void AddRawInput(RawInput::Data input);
+    std::queue<RawInput::Data> ProcessInput();
 
-    // InputState GetKeyboard(KeyboardKey key) const;
-    // InputState GetMouseButton(MouseButton button) const;
-    // std::pair<float, float> GetMousePos() const;
-    // std::pair<float, float> GetMouseDelta() const;
-
-    class Impl; // public because of user pointers
 private:
-    std::unique_ptr<Impl> m_Impl;
-    std::weak_ptr<Device> m_Device;
+    std::queue<RawInput::Data> collected {};
+    std::unordered_map<RawInput::Code, bool> press_cache {};
 };
 }

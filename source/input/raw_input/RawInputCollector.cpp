@@ -1,42 +1,41 @@
 #include "RawInputCollector.hpp"
-
-#include <device
-
-class KS::RawInput::Impl
-{
-public:
-    std::unordered_map<KeyboardKey, InputState> keys;
-    std::unordered_map<MouseButton, InputState> mouse_buttons;
-
-    float mouseX {}, mouseY {};
-    float deltaX {}, deltaY {};
-    float mouseScrollX {}, mouseScrollY {};
-};
+#include <device/Device.hpp>
 
 namespace KS::detail
 {
 
-KS::RawInput::Impl* GetUser(GLFWwindow* window)
+KS::RawInputCollector* GetUser(GLFWwindow* window)
 {
-    return static_cast<KS::RawInput::Impl*>(glfwGetWindowUserPointer(window));
+    return static_cast<KS::RawInputCollector*>(glfwGetWindowUserPointer(window));
 }
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
     if (auto* data = GetUser(window))
     {
-        data->mouseX = static_cast<float>(xpos);
-        data->mouseY = static_cast<float>(ypos);
+        RawInput::Code code_horizontal { RawInput::Source::MOUSE_POSITION, RawInput::Direction::HORIZONTAL };
+        RawInput::Code code_vertical { RawInput::Source::MOUSE_POSITION, RawInput::Direction::VERTICAL };
+
+        RawInput::Value horizontal_val { static_cast<float>(xpos) };
+        RawInput::Value vertical_val { static_cast<float>(ypos) };
+
+        data->AddRawInput({ code_horizontal, horizontal_val });
+        data->AddRawInput({ code_vertical, vertical_val });
     }
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-
     if (auto* data = GetUser(window))
     {
-        data->mouseScrollX += static_cast<float>(xoffset);
-        data->mouseScrollY += static_cast<float>(yoffset);
+        RawInput::Code code_horizontal { RawInput::Source::MOUSE_SCROLL, RawInput::Direction::HORIZONTAL };
+        RawInput::Code code_vertical { RawInput::Source::MOUSE_SCROLL, RawInput::Direction::VERTICAL };
+
+        RawInput::Value horizontal_val { static_cast<float>(xoffset) };
+        RawInput::Value vertical_val { static_cast<float>(yoffset) };
+
+        data->AddRawInput({ code_horizontal, horizontal_val });
+        data->AddRawInput({ code_vertical, vertical_val });
     }
 }
 
@@ -44,16 +43,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 {
     if (auto* data = GetUser(window))
     {
-        auto& key_entry = data->keys[static_cast<KeyboardKey>(key)];
+        RawInput::Code code { RawInput::Source::KEYBOARD, key };
 
         if (action == GLFW_PRESS)
         {
-            key_entry = InputState::Down;
+            data->AddRawInput({ code, RawInput::Value(RawInput::State::PRESS_DOWN) });
         }
 
         if (action == GLFW_RELEASE)
         {
-            key_entry = InputState::Release;
+            data->AddRawInput({ code, RawInput::Value(RawInput::State::PRESS_UP) });
         }
     }
 }
@@ -62,30 +61,27 @@ void mousebutton_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (auto* data = GetUser(window))
     {
-        auto& button_entry = data->mouse_buttons[static_cast<MouseButton>(button)];
+        RawInput::Code code { RawInput::Source::MOUSE_BUTTONS, button };
 
         if (action == GLFW_PRESS)
         {
-            button_entry = InputState::Down;
+            data->AddRawInput({ code, RawInput::Value(RawInput::State::PRESS_DOWN) });
         }
 
         if (action == GLFW_RELEASE)
         {
-            button_entry = InputState::Release;
+            data->AddRawInput({ code, RawInput::Value(RawInput::State::PRESS_UP) });
         }
     }
 }
 
 }
 
-KS::RawInput::RawInput(const Device& device)
+KS::RawInputCollector::RawInputCollector(const Device& device)
 {
-    m_Impl = std::make_unique<Impl>();
-    m_Device = device;
+    GLFWwindow* window_handle = static_cast<GLFWwindow*>(device.GetWindowHandle());
 
-    GLFWwindow* window_handle = static_cast<GLFWwindow*>(device->GetWindowHandle());
-
-    glfwSetWindowUserPointer(window_handle, m_Impl.get());
+    glfwSetWindowUserPointer(window_handle, this);
     glfwSetCursorPosCallback(window_handle, detail::cursor_position_callback);
     glfwSetKeyCallback(window_handle, detail::key_callback);
     glfwSetScrollCallback(window_handle, detail::scroll_callback);
@@ -97,63 +93,40 @@ KS::RawInput::RawInput(const Device& device)
     }
 }
 
-KS::RawInput::~RawInput()
-    KS::RawInput::RawInput(const Device& device)
+void KS::RawInputCollector::AddRawInput(RawInput::Data input)
 {
-}
-{
-}
+    collected.emplace(input);
 
-std::queue<KS::RawInputValue> KS::RawInput::ProcessInput()
-{
-    // Down keys -> Pressed keys
-    // Pressed Keys ->
-    // for (auto&& [key, state] : m_Impl->keys) {
+    if (std::holds_alternative<RawInput::State>(input.second))
+    {
+        auto state = std::get<RawInput::State>(input.second);
 
-    //     if (state == InputState::Down) {
-    //         state = InputState::Pressed;
-    //     }
-
-    //     if (state == InputState::Release) {
-    //         state = InputState::None;
-    //     }
-    // }
-
-    // // Press
-    // for (auto&& [key, state] : m_Impl->mouse_buttons) {
-
-    //     if (state == InputState::Down) {
-    //         state = InputState::Pressed;
-    //     }
-
-    //     if (state == InputState::Release) {
-    //         state = InputState::None;
-    //     }
-    // }
-
-    // auto prevX = m_Impl->mouseX;
-    // auto prevY = m_Impl->mouseY;
-
-    // m_Impl->deltaX = m_Impl->mouseX - prevX;
-    // m_Impl->deltaY = m_Impl->mouseY - prevY;
+        if (state == RawInput::State::PRESS_DOWN)
+        {
+            press_cache[input.first] = true;
+        }
+        else if (state == RawInput::State::PRESS_UP)
+        {
+            press_cache[input.first] = false;
+        }
+    }
 }
 
-KS::InputState KS::RawInput::GetKeyboard(KeyboardKey key) const
+std::queue<KS::RawInput::Data> KS::RawInputCollector::ProcessInput()
 {
-    return m_Impl->keys[key];
-}
+    glfwPollEvents();
+    auto dump = std::move(collected);
 
-KS::InputState KS::RawInput::GetMouseButton(MouseButton button) const
-{
-    return m_Impl->mouse_buttons[button];
-}
+    for (auto& [key, pressed] : press_cache)
+    {
+        if (pressed)
+        {
+            RawInput::Value val = RawInput::State::ACTIVE;
+            dump.emplace(key, val);
+        }
+    }
 
-std::pair<float, float> KS::RawInput::GetMousePos() const
-{
-    return { m_Impl->mouseX, m_Impl->mouseY };
-}
+    collected = {};
 
-std::pair<float, float> KS::RawInput::GetMouseDelta() const
-{
-    return { m_Impl->deltaX, m_Impl->deltaY };
+    return dump;
 }

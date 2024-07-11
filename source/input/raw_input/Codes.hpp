@@ -1,14 +1,22 @@
 #pragma once
 #include <cstdint>
 
-namespace KS
+namespace KS::RawInput
 {
 
-enum class InputSource : uint32_t
+enum class Source : uint32_t
 {
     NONE,
     KEYBOARD,
-    MOUSE
+    MOUSE_BUTTONS,
+    MOUSE_SCROLL,
+    MOUSE_POSITION
+};
+
+enum class Direction : uint32_t
+{
+    HORIZONTAL,
+    VERTICAL
 };
 
 // <summary>
