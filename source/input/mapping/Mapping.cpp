@@ -58,7 +58,7 @@ std::optional<KS::InputValue> KS::InputMapping::ToAxis::operator()(const RawInpu
             {
                 return InputValue(scale);
             }
-            return std::nullopt;
+            return InputValue(0.0f);
         },
         [this](float f) -> std::optional<KS::InputValue>
         {

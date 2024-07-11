@@ -6,8 +6,12 @@ void KS::FrameInputResult::StartFrame()
 
     for (auto& [name, axis] : axis_cache)
     {
-        axis.second = axis.first;
-        axis.first = 0.0f;
+        if (axis.changed)
+        {
+            axis.changed = false;
+            axis.prev = axis.current;
+            axis.current = 0.0f;
+        }
     }
 }
 
@@ -34,11 +38,13 @@ void KS::FrameInputResult::Process(const InputData& event)
 
         if (auto it = axis_cache.find(action); it != axis_cache.end())
         {
-            axis_cache.at(action).first += val;
+            auto& axis = it->second;
+            axis.changed = true;
+            axis.current += val;
         }
         else
         {
-            axis_cache.emplace(action, std::make_pair(val, val));
+            axis_cache.emplace(action, AxisCache { true, val, val });
         }
     }
     break;
@@ -58,7 +64,7 @@ float KS::FrameInputResult::GetAxis(const std::string& action_name) const
 {
     if (auto it = axis_cache.find(action_name); it != axis_cache.end())
     {
-        return it->second.first;
+        return it->second.current;
     }
     return 0.0f;
 }
@@ -67,7 +73,8 @@ float KS::FrameInputResult::GetAxisDelta(const std::string& action_name) const
 {
     if (auto it = axis_cache.find(action_name); it != axis_cache.end())
     {
-        return it->second.first - it->second.second;
+        if (it->second.changed)
+            return it->second.current - it->second.prev;
     }
     return 0.0f;
 }

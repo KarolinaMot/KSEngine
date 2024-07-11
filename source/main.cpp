@@ -40,13 +40,20 @@ KS::Camera FreeCamSystem(entt::registry& registry, const KS::FrameInputResult& i
     float dx = input.GetAxisDelta(InputActionNames::MOUSE_POS_HORIZONTAL);
     float dy = input.GetAxisDelta(InputActionNames::MOUSE_POS_VERTICAL);
 
+    // float dx = input.GetAxisDelta(InputActionNames::HORIZONTAL_MOVEMENT);
+    // float dy = input.GetAxisDelta(InputActionNames::VERTICAL_MOVEMENT);
+
+    if (dx != 0.0f || dy != 0.0f)
+    {
+        LOG(Log::Severity::INFO, "{} {}", dx, dy);
+    }
+
     glm::vec3 euler_delta {};
 
     if (input.GetState(InputActionNames::HOLD_RIGHT_CLICK))
     {
         euler_delta.y = dx * MOUSE_SENSITIVITY;
         euler_delta.x = dy * MOUSE_SENSITIVITY;
-        LOG(Log::Severity::INFO, "State On");
     }
 
     glm::vec3 right = input.GetAxis(InputActionNames::HORIZONTAL_MOVEMENT) * KS::World::RIGHT;
@@ -85,8 +92,8 @@ KS::InputContext MakeDefaultInputContext()
     using namespace KS::InputMapping;
 
     return KS::InputContext()
-        .AddBinding(InputActionNames::HORIZONTAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f })
-        .AddBinding(InputActionNames::HORIZONTAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f })
+        .AddBinding(InputActionNames::MOUSE_POS_HORIZONTAL, { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f })
+        .AddBinding(InputActionNames::MOUSE_POS_HORIZONTAL, { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f })
 
         .AddBinding(InputActionNames::VERTICAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::W }, ToAxis { 1.0f })
         .AddBinding(InputActionNames::VERTICAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::S }, ToAxis { -1.0f })

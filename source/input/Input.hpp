@@ -32,7 +32,14 @@ private:
     std::unordered_set<std::string> actions {};
     std::unordered_map<std::string, bool> state_cache;
 
-    std::unordered_map<std::string, std::pair<float, float>> axis_cache;
+    struct AxisCache
+    {
+        bool changed = true;
+        float current {};
+        float prev {};
+    };
+
+    std::unordered_map<std::string, AxisCache> axis_cache;
 };
 
 }
