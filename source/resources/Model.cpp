@@ -14,10 +14,12 @@
 namespace KS::detail
 {
 
-Mesh ProcessMesh(const aiMesh* mesh)
+MeshData ProcessMesh(const aiMesh* mesh)
 {
+    using namespace KS::MeshConstants;
+
     // Build Mesh
-    Mesh new_mesh {};
+    MeshData new_mesh {};
 
     // Indices
     if (mesh->HasFaces())
@@ -54,19 +56,27 @@ Mesh ProcessMesh(const aiMesh* mesh)
     }
 
     // Tangents and Bitangents
-    if (mesh->HasNormals())
+    if (mesh->HasTangentsAndBitangents())
     {
         auto buffer = ByteBuffer(mesh->mTangents, mesh->mNumVertices);
         new_mesh.AddAttribute(ATTRIBUTE_TANGENTS_NAME, std::move(buffer));
 
         auto buffer2 = ByteBuffer(mesh->mBitangents, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_BITANGENTS_NAME, std::move(buffer));
+        new_mesh.AddAttribute(ATTRIBUTE_BITANGENTS_NAME, std::move(buffer2));
     }
 
     // Texture UVS (only using the first)
     if (mesh->GetNumUVChannels())
     {
-        auto buffer = ByteBuffer(mesh->mTextureCoords[0], mesh->mNumVertices);
+        std::vector<glm::vec2> texture_uvs {};
+        for (size_t i = 0; i < mesh->mNumVertices; i++)
+        {
+            texture_uvs.emplace_back(
+                mesh->mTextureCoords[0][i].x,
+                mesh->mTextureCoords[0][i].y);
+        }
+
+        auto buffer = ByteBuffer(texture_uvs.data(), texture_uvs.size());
         new_mesh.AddAttribute(ATTRIBUTE_TEXTURE_UVS_NAME, std::move(buffer));
     }
 
@@ -210,7 +220,7 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 }
 }
 
-std::optional<KS::FileIO::Path> KS::ModelImporter::ImportFromFile(const FileIO::Path& source_model, uint32_t post_processing_flags)
+std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(const FileIO::Path& source_model, uint32_t post_processing_flags)
 {
     Assimp::Importer importer;
     const aiScene* scene = nullptr;
@@ -271,7 +281,7 @@ std::optional<KS::FileIO::Path> KS::ModelImporter::ImportFromFile(const FileIO::
 
             auto output_path = (mesh_out / (mesh_name + ".bin")).string();
 
-            if (auto out = FileIO::OpenWriteStream(output_path, std::ios::trunc))
+            if (auto out = FileIO::OpenWriteStream(output_path))
             {
                 BinarySaver ar { out.value() };
                 ar(mesh);
@@ -365,7 +375,7 @@ std::optional<KS::FileIO::Path> KS::ModelImporter::ImportFromFile(const FileIO::
 
         json(imported);
         LOG(Log::Severity::INFO, "Successfully imported model from {}", source_model.string());
-        return out_model_file.string();
+        return ResourceHandle<Model> { out_model_file.string() };
     }
     else
     {
@@ -373,5 +383,5 @@ std::optional<KS::FileIO::Path> KS::ModelImporter::ImportFromFile(const FileIO::
         return std::nullopt;
     }
 
-    return out_model_file.string();
+    return ResourceHandle<Model> { out_model_file.string() };
 }

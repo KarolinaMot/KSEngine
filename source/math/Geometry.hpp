@@ -5,14 +5,16 @@
 #include <glm/gtc/quaternion.hpp>
 #include <vector>
 
-namespace KS {
+namespace KS
+{
 
 class Plane;
 class BoundingBox;
 class Camera;
 
 // Coordinate system constants (Left handed, Y is up)
-namespace World {
+namespace World
+{
 
     constexpr glm::vec3 FORWARD = { 0.0f, 0.0f, 1.0f };
     constexpr glm::vec3 RIGHT = { 1.0f, 0.0f, 0.0f };
@@ -21,7 +23,8 @@ namespace World {
 }
 
 // Axis aligned 3D bounding box
-class BoundingBox {
+class BoundingBox
+{
 public:
     BoundingBox() = default;
     BoundingBox(const glm::vec3& m_center, const glm::vec3& m_extents);
@@ -43,7 +46,8 @@ private:
 };
 
 // 3D plane
-class Plane {
+class Plane
+{
 public:
     Plane() = default;
 
@@ -66,7 +70,8 @@ private:
 // Contains functionality for creating the view and projection matrices, as well as frustum planes.
 // Meant to be created for every single frame and be immutable
 // Not to be confused with CameraComponent
-class Camera {
+class Camera
+{
 public:
     Camera() = default;
 
@@ -97,7 +102,8 @@ public:
     std::array<Plane, 6> GetFrustum() const;
 
 private:
-    enum class CameraType {
+    enum class CameraType
+    {
         PERSPECTIVE,
         ORTHOGRAPHIC
     } type;

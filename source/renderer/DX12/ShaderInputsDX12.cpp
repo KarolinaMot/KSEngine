@@ -10,7 +10,7 @@ public:
     ComPtr<ID3D12RootSignature> m_signature;
 };
 
-KS::ShaderInputs::ShaderInputs(const Device &device, std::unordered_map<std::string, ShaderInput> &&inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>> &samplers, int totalDataCount, std::string name)
+KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers, int totalDataCount, std::string name)
 {
     m_impl = std::make_unique<Impl>();
     DXSignatureBuilder builder = DXSignatureBuilder(totalDataCount);
@@ -20,7 +20,7 @@ KS::ShaderInputs::ShaderInputs(const Device &device, std::unordered_map<std::str
     int uavCounter = 0;
     int cbvCounter = 0;
 
-    for (auto &pair : m_descriptors)
+    for (auto& pair : m_descriptors)
     {
         D3D12_SHADER_VISIBILITY visibility;
         switch (pair.second.visibility)
@@ -100,10 +100,15 @@ KS::ShaderInputs::ShaderInputs(const Device &device, std::unordered_map<std::str
         {
         case SamplerFilter::SF_NEAREST:
             filterMode = D3D12_FILTER_MIN_MAG_MIP_POINT;
+            break;
+
         case SamplerFilter::SF_LINEAR:
             filterMode = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+            break;
+
         case SamplerFilter::SF_ANISOTROPIC:
             filterMode = D3D12_FILTER_ANISOTROPIC;
+            break;
         }
 
         D3D12_STATIC_BORDER_COLOR borderColor;
@@ -111,10 +116,13 @@ KS::ShaderInputs::ShaderInputs(const Device &device, std::unordered_map<std::str
         {
         case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
             borderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+            break;
         case SamplerBorderColor::SBC_OPAQUE_BLACK:
             borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+            break;
         case SamplerBorderColor::SBC_OPAQUE_WHITE:
             borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+            break;
         }
 
         builder.AddSampler(i, visibility, addressMode, filterMode, borderColor);
@@ -123,14 +131,14 @@ KS::ShaderInputs::ShaderInputs(const Device &device, std::unordered_map<std::str
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
 
-    m_impl->m_signature = builder.Build(reinterpret_cast<ID3D12Device5 *>(device.GetDevice()), wString);
+    m_impl->m_signature = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()), wString);
 }
 
 KS::ShaderInputs::~ShaderInputs()
 {
 }
 
-void *KS::ShaderInputs::GetSignature() const
+void* KS::ShaderInputs::GetSignature() const
 {
     return m_impl->m_signature.Get();
 }

@@ -4,7 +4,7 @@
     {
       "label": "Build",
       "type": "shell",
-      "command": "scripts/build.bat",
+    "command": "scripts/build_debug.bat",
       "group": "build"
     },
   ]

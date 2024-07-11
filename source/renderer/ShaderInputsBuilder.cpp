@@ -1,6 +1,6 @@
 #include "ShaderInputsBuilder.hpp"
 
-KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddStruct(ShaderInputVisibility visibility, std::string name)
+KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStruct(ShaderInputVisibility visibility, std::string name)
 {
     KS::ShaderInput input;
     input.rootIndex = m_input_counter;
@@ -14,7 +14,7 @@ KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddStruct(ShaderInputVisibilit
     return *this;
 }
 
-KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddModifiableStructs(ShaderInputVisibility visibility, int numberOfElements, std::string name, ShaderInputMod modifiable)
+KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddModifiableStructs(ShaderInputVisibility visibility, int numberOfElements, std::string name, ShaderInputMod modifiable)
 {
     KS::ShaderInput input;
     input.modifications = modifiable;
@@ -34,7 +34,7 @@ KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddModifiableStructs(ShaderInp
     return *this;
 }
 
-KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibility visibility, std::string name, ShaderInputMod modifiable)
+KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibility visibility, std::string name, ShaderInputMod modifiable)
 {
     KS::ShaderInput input;
     input.modifications = modifiable;
@@ -53,15 +53,15 @@ KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibili
     return *this;
 }
 
-KS::ShaderInputsBuilder &KS::ShaderInputsBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
+KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
 {
-    std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
+    std::pair<ShaderInputVisibility, SamplerDesc> sampler = { visibility, samplerDesc };
     m_sampler_inputs.push_back(sampler);
 
     return *this;
 }
 
-std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device &device, std::string name)
+std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& device, std::string name)
 {
     return std::make_shared<ShaderInputs>(device, std::move(m_descriptors), m_sampler_inputs, m_ro_array_counter + m_rw_array_counter, name);
 }

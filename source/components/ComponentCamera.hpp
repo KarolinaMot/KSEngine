@@ -1,10 +1,12 @@
 #pragma once
-#include <glm/glm.hpp>
 #include "../math/Geometry.hpp"
+#include <glm/glm.hpp>
 
-namespace KS {
+namespace KS
+{
 
-class ComponentFirstPersonCamera {
+class ComponentFirstPersonCamera
+{
 public:
     Camera GenerateCamera(const glm::mat4& world_matrix) const;
 

@@ -1,10 +1,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace KS {
+namespace KS
+{
 
 // TODO: Still no support for transform hierarchies
-class ComponentTransform {
+class ComponentTransform
+{
 public:
     ComponentTransform(
         const glm::vec3& translation = {},

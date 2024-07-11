@@ -78,11 +78,11 @@ inline void Model::load(A& ar, const uint32_t v)
 namespace ModelImporter
 {
 
-    constexpr uint32_t DEFAULT_POST_PROCESSING_FLAGS = aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_EmbedTextures;
+    constexpr uint32_t DEFAULT_POST_PROCESSING_FLAGS = aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_EmbedTextures | aiProcess_FlipUVs;
 
     // Converts a model file into a .json file for the engine to use
     // Return value is the newly imported model file
-    std::optional<FileIO::Path>
+    std::optional<ResourceHandle<Model>>
     ImportFromFile(const FileIO::Path& source_model, uint32_t post_process_flags = DEFAULT_POST_PROCESSING_FLAGS);
 }
 }

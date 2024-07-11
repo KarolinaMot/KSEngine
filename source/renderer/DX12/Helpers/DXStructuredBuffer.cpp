@@ -1,9 +1,9 @@
 #include "DXStructuredBuffer.hpp"
-#include "DXResource.hpp"
-#include "DXDescHeap.hpp"
 #include "../../../tools/Log.hpp"
+#include "DXDescHeap.hpp"
+#include "DXResource.hpp"
 
-DXStructuredBuffer::DXStructuredBuffer(const ComPtr<ID3D12Device5> &device, size_t dataSize, int numOfElements, const char *bufferDebugName, int frameNumber, D3D12_RESOURCE_FLAGS flags)
+DXStructuredBuffer::DXStructuredBuffer(const ComPtr<ID3D12Device5>& device, size_t dataSize, int numOfElements, const char* bufferDebugName, int frameNumber, D3D12_RESOURCE_FLAGS flags)
 {
     auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     size_t sizeOfBuffer = dataSize * numOfElements;
@@ -25,7 +25,7 @@ size_t DXStructuredBuffer::GetGPUVirtualAddress() const
     return m_resource->Get()->GetGPUVirtualAddress();
 }
 
-void DXStructuredBuffer::Resize(const ComPtr<ID3D12Device5> &device, int numberOfElements)
+void DXStructuredBuffer::Resize(const ComPtr<ID3D12Device5>& device, int numberOfElements)
 {
     if (m_numberOfElements == numberOfElements)
         return;
@@ -50,7 +50,7 @@ void DXStructuredBuffer::Update(ID3D12GraphicsCommandList4* commandList, const v
     m_resource->Update(commandList, subData, D3D12_RESOURCE_STATE_GENERIC_READ, 0, 1);
 }
 
-void DXStructuredBuffer::AllocateAsUAV(DXDescHeap *descriptorHeap)
+void DXStructuredBuffer::AllocateAsUAV(DXDescHeap* descriptorHeap)
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -63,7 +63,7 @@ void DXStructuredBuffer::AllocateAsUAV(DXDescHeap *descriptorHeap)
     m_UAV_handle = descriptorHeap->AllocateUAV(m_resource.get(), &uavDesc);
 }
 
-void DXStructuredBuffer::AllocateAsSRV(DXDescHeap *descriptorHeap)
+void DXStructuredBuffer::AllocateAsSRV(DXDescHeap* descriptorHeap)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;

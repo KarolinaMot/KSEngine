@@ -1,1 +1,0 @@
-start bin/Win64/Debug/KSEngine.exe

@@ -4,10 +4,12 @@
 #include <code_utility.hpp>
 #include <memory>
 
-namespace KS {
+namespace KS
+{
 
 /// @brief TODO: only supports keyboard and is PC only
-class RawInput {
+class RawInput
+{
 public:
     RawInput(std::shared_ptr<Device> device);
     ~RawInput();

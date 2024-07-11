@@ -9,7 +9,7 @@ public:
     // Creates a heap handle that is not bound to anything
     DXHeapHandle() = default;
 
-    DXHeapHandle(DXHeapHandle &&other) noexcept
+    DXHeapHandle(DXHeapHandle&& other) noexcept
     {
         FreeResource();
         mIndex = other.mIndex;
@@ -18,7 +18,7 @@ public:
         other.mDescHeap.reset();
     }
 
-    DXHeapHandle &operator=(DXHeapHandle &&other) noexcept
+    DXHeapHandle& operator=(DXHeapHandle&& other) noexcept
     {
         if (this == &other)
             return *this;
@@ -51,14 +51,15 @@ public:
     }
 
     // Delete the copy constructor
-    DXHeapHandle(const DXHeapHandle &) = delete;
-    DXHeapHandle &operator=(const DXHeapHandle &) = delete;
+    DXHeapHandle(const DXHeapHandle&) = delete;
+    DXHeapHandle& operator=(const DXHeapHandle&) = delete;
 
     bool IsValid() const { return mIndex != -1; }
 
 private:
     DXHeapHandle(uint32_t index, std::weak_ptr<DXDescHeap> descHeap)
-        : mIndex(index), mDescHeap(descHeap) {};
+        : mIndex(index)
+        , mDescHeap(descHeap) {};
 
     void FreeResource()
     {

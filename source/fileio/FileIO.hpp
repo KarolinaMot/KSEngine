@@ -7,7 +7,8 @@
 #include <optional>
 #include <vector>
 
-namespace KS {
+namespace KS
+{
 
 /// @brief File interface system for opening and closing files
 namespace FileIO

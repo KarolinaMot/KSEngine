@@ -29,7 +29,8 @@ KS::BoundingBox KS::BoundingBox::ApplyTransform(const glm::mat4& transform) cons
     glm::vec3 min = center, max = center;
 
     auto edges = GetEdgePoints();
-    for (auto edge : edges) {
+    for (auto edge : edges)
+    {
         glm::vec3 transformed = transform * glm::vec4(edge, 1.0f);
         min = glm::min(transformed, min);
         max = glm::max(transformed, max);
@@ -50,30 +51,40 @@ bool KS::BoundingBox::FrustumTest(const std::array<Plane, 6>& frustum) const
 
     glm::vec3 vmin {}, vmax {};
 
-    for (auto& plane : frustum) {
+    for (auto& plane : frustum)
+    {
         auto planeNormal = plane.GetNormal();
 
         // X axis
-        if (planeNormal.x > 0) {
+        if (planeNormal.x > 0)
+        {
             vmin.x = boxMin.x;
             vmax.x = boxMax.x;
-        } else {
+        }
+        else
+        {
             vmin.x = boxMax.x;
             vmax.x = boxMin.x;
         }
         // Y axis
-        if (planeNormal.y > 0) {
+        if (planeNormal.y > 0)
+        {
             vmin.y = boxMin.y;
             vmax.y = boxMax.y;
-        } else {
+        }
+        else
+        {
             vmin.y = boxMax.y;
             vmax.y = boxMin.y;
         }
         // Z axis
-        if (planeNormal.z > 0) {
+        if (planeNormal.z > 0)
+        {
             vmin.z = boxMin.z;
             vmax.z = boxMax.z;
-        } else {
+        }
+        else
+        {
             vmin.z = boxMax.z;
             vmax.z = boxMin.z;
         }
@@ -136,9 +147,11 @@ glm::mat4 KS::Camera::GetView() const
 
 glm::mat4 KS::Camera::GetProjection() const
 {
-    if (type == CameraType::PERSPECTIVE) {
+    if (type == CameraType::PERSPECTIVE)
+    {
         return glm::perspectiveLH_ZO(fieldOfView, aspectRatio, nearClip, farClip);
-    } else // ORTHOGRAPHIC
+    }
+    else // ORTHOGRAPHIC
     {
         return glm::orthoLH_ZO(
             -boundExtents * aspectRatio,
@@ -182,7 +195,8 @@ std::array<KS::Plane, 6> KS::Camera::GetFrustum() const
 
     Plane rightPlane, leftPlane, topPlane, bottomPlane;
 
-    if (type == CameraType::PERSPECTIVE) {
+    if (type == CameraType::PERSPECTIVE)
+    {
 
         float halfVertical = farClip * std::tanf(fieldOfView * 0.5f);
         float halfHorizontal = halfVertical * aspectRatio;
@@ -197,7 +211,8 @@ std::array<KS::Plane, 6> KS::Camera::GetFrustum() const
         leftPlane = Plane(leftNormal, position);
         topPlane = Plane(topNormal, position);
         bottomPlane = Plane(bottomNormal, position);
-    } else // ORTHOGRAPHIC
+    }
+    else // ORTHOGRAPHIC
     {
         auto rightPoint = right * boundExtents * aspectRatio;
         auto leftPoint = -right * boundExtents * aspectRatio;

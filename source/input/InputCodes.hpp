@@ -1,13 +1,15 @@
 #pragma once
 
-namespace KS {
+namespace KS
+{
 
 // <summary>
 /// An enum listing all supported keyboard keys.
 /// This uses the same numbering as in GLFW input, so a GLFW-based implementation can use it directly without any further
 /// mapping.
 /// </summary>
-enum class KeyboardKey {
+enum class KeyboardKey
+{
     Space = 32,
     Apostrophe = 39,
     Comma = 44,
@@ -135,13 +137,15 @@ enum class KeyboardKey {
 /// This uses the same numbering as in GLFW input, so a GLFW-based implementation can use it directly without any further
 /// mapping.
 /// </summary>
-enum class MouseButton {
+enum class MouseButton
+{
     Left = 0,
     Right = 1,
     Middle = 2
 };
 
-enum InputState {
+enum InputState
+{
     None,
     Release,
     Down,

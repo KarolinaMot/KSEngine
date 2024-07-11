@@ -14,7 +14,7 @@ public:
 
     FloatMilliseconds TimePassed() const
     {
-        return std::chrono::duration_cast<FloatMilliseconds>(last_tick - std::chrono::high_resolution_clock::now());
+        return std::chrono::duration_cast<FloatMilliseconds>(std::chrono::high_resolution_clock::now() - last_tick);
     }
 
     FloatMilliseconds Tick()

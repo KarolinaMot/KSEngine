@@ -105,15 +105,9 @@
             }
         ],
         "Meshes": [
-            {
-                "value0": "assets\\models\\BigTree\\meshes\\Mesh.016-0.bin"
-            },
-            {
-                "value0": "assets\\models\\BigTree\\meshes\\Mesh.016-1.bin"
-            },
-            {
-                "value0": "assets\\models\\BigTree\\meshes\\Cube.001.bin"
-            }
+            "assets\\models\\BigTree\\meshes\\Mesh.016-0.bin",
+            "assets\\models\\BigTree\\meshes\\Mesh.016-1.bin",
+            "assets\\models\\BigTree\\meshes\\Cube.001.bin"
         ],
         "Materials": [
             {
@@ -135,9 +129,7 @@
                         "key": "BASE_TEXTURE",
                         "value": {
                             "index": 4,
-                            "data": {
-                                "value0": "assets\\models\\BigTree\\textures\\Oak_bark.png"
-                            }
+                            "data": "assets\\models\\BigTree\\textures\\Oak_bark.png"
                         }
                     },
                     {
@@ -191,9 +183,7 @@
                         "key": "BASE_TEXTURE",
                         "value": {
                             "index": 4,
-                            "data": {
-                                "value0": "assets\\models\\BigTree\\textures\\oak_leaves.png"
-                            }
+                            "data": "assets\\models\\BigTree\\textures\\oak_leaves.png"
                         }
                     },
                     {
@@ -247,9 +237,7 @@
                         "key": "BASE_TEXTURE",
                         "value": {
                             "index": 4,
-                            "data": {
-                                "value0": "assets\\models\\BigTree\\textures\\Untitled.png"
-                            }
+                            "data": "assets\\models\\BigTree\\textures\\Untitled.png"
                         }
                     },
                     {
