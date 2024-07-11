@@ -79,11 +79,11 @@ bool KS::FrameInputResult::GetAction(const std::string& action_name) const
     return false;
 }
 
-std::optional<bool> KS::FrameInputResult::GetState(const std::string& action_name) const
+bool KS::FrameInputResult::GetState(const std::string& action_name) const
 {
     if (auto it = state_cache.find(action_name); it != state_cache.end())
     {
         return it->second;
     }
-    return std::nullopt;
+    return false;
 }

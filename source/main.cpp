@@ -6,7 +6,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <input/Input.hpp>
-#include <input/RawInput.hpp>
 #include <input/mapping/InputContext.hpp>
 #include <input/raw_input/RawInputCollector.hpp>
 #include <iostream>
@@ -20,53 +19,53 @@
 #include <tools/Log.hpp>
 #include <tools/Timer.hpp>
 
-KS::Camera FreeCamSystem(entt::registry& registry, float dt)
+namespace InputActionNames
+{
+
+const std::string HORIZONTAL_MOVEMENT = "HORIZONTAL_MOVEMENT";
+const std::string VERTICAL_MOVEMENT = "VERTICAL_MOVEMENT";
+const std::string UPWARDS_MOVEMENT = "UPWARDS_MOVEMENT";
+
+const std::string MOUSE_POS_VERTICAL = "MOUSE_POS_VERTICAL";
+const std::string MOUSE_POS_HORIZONTAL = "MOUSE_POS_HORIZONTAL";
+
+const std::string HOLD_RIGHT_CLICK = "HOLD_RIGHT_CLICK";
+}
+
+KS::Camera FreeCamSystem(entt::registry& registry, const KS::FrameInputResult& input, float dt)
 {
     constexpr float MOUSE_SENSITIVITY = 0.003f;
     constexpr float CAM_SPEED = 0.003f;
 
-    // auto [x, y] = input->GetMouseDelta();
-    glm::vec3 eulerDelta {};
+    float dx = input.GetAxisDelta(InputActionNames::MOUSE_POS_HORIZONTAL);
+    float dy = input.GetAxisDelta(InputActionNames::MOUSE_POS_VERTICAL);
 
-    // if (input->GetMouseButton(KS::MouseButton::Right) == KS::InputState::Pressed)
-    // {
-    //     eulerDelta.y = x * MOUSE_SENSITIVITY;
-    //     eulerDelta.x = y * MOUSE_SENSITIVITY;
-    //     eulerDelta.x = glm::clamp(eulerDelta.x, -glm::radians(89.9f), glm::radians(89.9f));
-    // }
+    glm::vec3 euler_delta {};
 
-    glm::vec3 movement_dir {};
-    // if (input->GetKeyboard(KS::KeyboardKey::W) == KS::InputState::Pressed)
-    //     movement_dir += KS::World::FORWARD;
+    if (input.GetState(InputActionNames::HOLD_RIGHT_CLICK))
+    {
+        euler_delta.y = dx * MOUSE_SENSITIVITY;
+        euler_delta.x = dy * MOUSE_SENSITIVITY;
+        LOG(Log::Severity::INFO, "State On");
+    }
 
-    // if (input->GetKeyboard(KS::KeyboardKey::S) == KS::InputState::Pressed)
-    //     movement_dir -= KS::World::FORWARD;
+    glm::vec3 right = input.GetAxis(InputActionNames::HORIZONTAL_MOVEMENT) * KS::World::RIGHT;
+    glm::vec3 forward = input.GetAxis(InputActionNames::VERTICAL_MOVEMENT) * KS::World::FORWARD;
+    glm::vec3 upwards = input.GetAxis(InputActionNames::UPWARDS_MOVEMENT) * KS::World::UP;
 
-    // if (input->GetKeyboard(KS::KeyboardKey::D) == KS::InputState::Pressed)
-    //     movement_dir += KS::World::RIGHT;
+    glm::vec3 movement_dir = right + forward + upwards;
 
-    // if (input->GetKeyboard(KS::KeyboardKey::A) == KS::InputState::Pressed)
-    //     movement_dir -= KS::World::RIGHT;
-
-    // if (input->GetKeyboard(KS::KeyboardKey::E) == KS::InputState::Pressed)
-    //     movement_dir += KS::World::UP;
-
-    // if (input->GetKeyboard(KS::KeyboardKey::Q) == KS::InputState::Pressed)
-    //     movement_dir -= KS::World::UP;
-
-    // if (glm::length(movement_dir) != 0.0f)
-    // {
-    //     movement_dir = glm::normalize(movement_dir);
-    // }
+    if (glm::length(movement_dir) != 0.0f)
+    {
+        movement_dir = glm::normalize(movement_dir);
+    }
 
     auto view = registry.view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
     for (auto&& [e, camera, transform] : view.each())
     {
 
-        camera.eulerAngles += eulerDelta;
+        camera.eulerAngles += euler_delta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
-
-        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
 
         auto rotation = glm::quat(camera.eulerAngles);
         auto translation = transform.GetLocalTranslation();
@@ -85,11 +84,20 @@ KS::InputContext MakeDefaultInputContext()
     using namespace KS::RawInput;
     using namespace KS::InputMapping;
 
-    KS::InputContext out;
-    out.AddBinding("MOVE_HORIZONTAL", { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f });
-    out.AddBinding("MOVE_HORIZONTAL", { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f });
+    return KS::InputContext()
+        .AddBinding(InputActionNames::HORIZONTAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::D }, ToAxis { 1.0f })
+        .AddBinding(InputActionNames::HORIZONTAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::A }, ToAxis { -1.0f })
 
-    return out;
+        .AddBinding(InputActionNames::VERTICAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::W }, ToAxis { 1.0f })
+        .AddBinding(InputActionNames::VERTICAL_MOVEMENT, { Source::KEYBOARD, KeyboardKey::S }, ToAxis { -1.0f })
+
+        .AddBinding(InputActionNames::UPWARDS_MOVEMENT, { Source::KEYBOARD, KeyboardKey::E }, ToAxis { 1.0f })
+        .AddBinding(InputActionNames::UPWARDS_MOVEMENT, { Source::KEYBOARD, KeyboardKey::Q }, ToAxis { -1.0f })
+
+        .AddBinding(InputActionNames::MOUSE_POS_HORIZONTAL, { Source::MOUSE_POSITION, Direction::HORIZONTAL }, ToAxis { 1.0f })
+        .AddBinding(InputActionNames::MOUSE_POS_VERTICAL, { Source::MOUSE_POSITION, Direction::VERTICAL }, ToAxis { 1.0f })
+
+        .AddBinding(InputActionNames::HOLD_RIGHT_CLICK, { Source::MOUSE_BUTTONS, MouseButton::Right }, ToState());
 }
 
 int main()
@@ -153,7 +161,7 @@ int main()
         }
 
         auto dt = frametimer.Tick();
-        auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count());
+        auto camera = FreeCamSystem(ecs->GetWorld(), input_result, dt.count());
 
         device->NewFrame();
 

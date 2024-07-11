@@ -25,8 +25,8 @@ public:
     // Returns false when the action is not triggered
     bool GetAction(const std::string& action_name) const;
 
-    // Returns nullopt on invalid names that are not mapped to a state
-    std::optional<bool> GetState(const std::string& action_name) const;
+    // Returns false on invalid names that are not mapped to a state
+    bool GetState(const std::string& action_name) const;
 
 private:
     std::unordered_set<std::string> actions {};

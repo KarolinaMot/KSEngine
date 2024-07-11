@@ -3,7 +3,7 @@
 
 KS::InputContext& KS::InputContext::AddBinding(const std::string& action_name, RawInput::Code code, InputMapping::Operation conversion)
 {
-    mapping_context.emplace(code, std::make_pair(action_name, conversion));
+    auto [it, success] = mapping_context.emplace(code, std::make_pair(action_name, conversion));
     return *this;
 }
 

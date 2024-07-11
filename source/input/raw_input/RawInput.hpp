@@ -31,7 +31,7 @@ struct Code
             return static_cast<uint32_t>(code) < static_cast<uint32_t>(other.code);
         }
 
-        return static_cast<uint32_t>(code) < static_cast<uint32_t>(other.code);
+        return static_cast<uint32_t>(source) < static_cast<uint32_t>(other.source);
     }
 };
 
