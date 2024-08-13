@@ -1,0 +1,176 @@
+{
+    "value0": {
+        "cereal_class_version": 0,
+        "Nodes": [
+            {
+                "Transform": {
+                    "value0": {
+                        "value0": 1.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": 0.0
+                    },
+                    "value1": {
+                        "value0": 0.0,
+                        "value1": -3.5762786865234377e-7,
+                        "value2": -0.9999999403953552,
+                        "value3": 0.0
+                    },
+                    "value2": {
+                        "value0": 0.0,
+                        "value1": 0.9999999403953552,
+                        "value2": -3.5762786865234377e-7,
+                        "value3": 0.0
+                    },
+                    "value3": {
+                        "value0": 0.0,
+                        "value1": 0.0,
+                        "value2": 0.0,
+                        "value3": 1.0
+                    }
+                },
+                "MeshAndMaterial": [
+                    {
+                        "first": 0,
+                        "second": 0
+                    }
+                ]
+            }
+        ],
+        "Meshes": [
+            "assets\\models\\DamagedHelmet\\meshes\\mesh_helmet_LP_13930damagedHelmet.bin"
+        ],
+        "Materials": [
+            {
+                "cereal_class_version": 0,
+                "Parameters": [
+                    {
+                        "key": "BASE_COLOUR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "BASE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets\\models\\DamagedHelmet\\textures\\Image_0.png"
+                        }
+                    },
+                    {
+                        "key": "DOUBLE_SIDED",
+                        "value": {
+                            "index": 0,
+                            "data": false
+                        }
+                    },
+                    {
+                        "key": "EMISSIVE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets\\models\\DamagedHelmet\\textures\\Image_2.png"
+                        }
+                    },
+                    {
+                        "key": "METALLIC_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets\\models\\DamagedHelmet\\textures\\Image_3-Image_1.png"
+                        }
+                    },
+                    {
+                        "key": "NEA_FACTOR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 0.5,
+                                "value3": 0.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "NORMAL_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets\\models\\DamagedHelmet\\textures\\Image_4.png"
+                        }
+                    },
+                    {
+                        "key": "OCCLUSION_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets\\models\\DamagedHelmet\\textures\\Image_3-Image_1.png"
+                        }
+                    },
+                    {
+                        "key": "ORM_FACTORS",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 0.0
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "Parameters": [
+                    {
+                        "key": "BASE_COLOUR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "DOUBLE_SIDED",
+                        "value": {
+                            "index": 0,
+                            "data": false
+                        }
+                    },
+                    {
+                        "key": "NEA_FACTOR",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 0.5,
+                                "value3": 0.0
+                            }
+                        }
+                    },
+                    {
+                        "key": "ORM_FACTORS",
+                        "value": {
+                            "index": 3,
+                            "data": {
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
+                                "value3": 0.0
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -41,6 +41,7 @@ class ShaderInputs
 {
 public:
     ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers, int totalDataTypeCount, std::string name);
+    ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, void* signature, std::string name);
     ~ShaderInputs();
     void* GetSignature() const;
     ShaderInput GetInput(std::string key) const;

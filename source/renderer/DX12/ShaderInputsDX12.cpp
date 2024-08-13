@@ -3,6 +3,7 @@
 #include "Helpers/DXSignature.hpp"
 #include "device/Device.hpp"
 #include "tools/Log.hpp"
+#include <renderer/ShaderInputsBuilder.hpp>
 
 class KS::ShaderInputs::Impl
 {
@@ -45,8 +46,8 @@ KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::str
             break;
         case InputType::RO_DATA:
             pair.second.typeIndex = srvCounter;
+            builder.AddTable(visibility, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, pair.second.numberOfElements, srvCounter);
             srvCounter++;
-            builder.AddTable(visibility, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, pair.second.numberOfElements, pair.second.typeIndex);
             break;
         case InputType::RW_DATA:
             pair.second.typeIndex = uavCounter;
@@ -132,6 +133,14 @@ KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::str
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
 
     m_impl->m_signature = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()), wString);
+}
+
+KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, void* signature, std::string name)
+{
+    m_impl = std::make_unique<Impl>();
+    m_descriptors = std::move(inputs);
+
+    m_impl->m_signature = reinterpret_cast<ID3D12RootSignature*>(signature);
 }
 
 KS::ShaderInputs::~ShaderInputs()

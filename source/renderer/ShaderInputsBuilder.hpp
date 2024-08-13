@@ -11,14 +11,17 @@ class Device;
 class ShaderInputsBuilder
 {
 public:
-    ShaderInputsBuilder() {};
-    ShaderInputsBuilder& AddStruct(ShaderInputVisibility visibility, std::string name);
-    ShaderInputsBuilder& AddModifiableStructs(ShaderInputVisibility visibility, int numberOfElements, std::string name, ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
+    ShaderInputsBuilder();
+    ~ShaderInputsBuilder();
+    ShaderInputsBuilder& AddUniform(ShaderInputVisibility visibility, std::string name);
+    ShaderInputsBuilder& AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements, std::string name, ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
     ShaderInputsBuilder& AddTexture(ShaderInputVisibility visibility, std::string name, ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
     ShaderInputsBuilder& AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc);
     std::shared_ptr<ShaderInputs> Build(const Device& device, std::string name);
 
 private:
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
     std::unordered_map<std::string, ShaderInput> m_descriptors;
     std::vector<std::pair<ShaderInputVisibility, SamplerDesc>> m_sampler_inputs;
     int m_buffer_counter = 0;

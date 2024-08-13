@@ -23,7 +23,7 @@ public:
 
     template <typename T>
     Buffer(const Device& device, const std::string& name, const std::vector<T>& data, bool readWriteEnabled)
-        : Buffer(device, name, (const void*)(data.data()), sizeof(T), data.size(), readWriteEnabled)
+        : Buffer(device, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(), readWriteEnabled)
     {
     }
 

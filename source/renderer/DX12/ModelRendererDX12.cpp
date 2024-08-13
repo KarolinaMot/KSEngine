@@ -11,16 +11,49 @@
 #include <resources/Texture.hpp>
 #include <resources/Image.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <renderer/InfoStructs.hpp>
 
 KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
     : SubRenderer(device, shader)
 {
     ModelMat mat {};
-    mModelMatBuffer = std::make_unique<Buffer>(device, "MODEL MATRIX RESOURCE", mat, 1, false);
+    MaterialInfo matInfo {};
+
+    m_pointLights = std::vector<PointLightInfo>(100);
+    m_directionalLights = std::vector<DirLightInfo>(100);
+
+    mResourceBuffers[KS::MODEL_MAT_BUFFER] = std::make_unique<Buffer>(device, "MODEL MATRIX RESOURCE", mat, 200, false);
+    mResourceBuffers[KS::MATERIAL_INFO_BUFFER] = std::make_unique<Buffer>(device, "MATERIAL INFO RESOURCE", matInfo, 200, false);
+    mResourceBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<Buffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1, false);
+    mResourceBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<Buffer>(device, "DIRECTIONAL LIGHT INFO BUFFER", m_directionalLights, false);
+    mResourceBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<Buffer>(device, "DIRECTIONAL LIGHT INFO BUFFER", m_pointLights, false);
 }
 
 KS::ModelRenderer::~ModelRenderer()
 {
+}
+
+void KS::ModelRenderer::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
+{
+    PointLightInfo pLight;
+    pLight.mColorAndIntensity = glm::vec4(color, intensity);
+    pLight.mPosition = glm::vec4(position, 0.f);
+    pLight.mRadius = radius;
+    m_pointLights[m_lightInfo.numPointLights] = pLight;
+    m_lightInfo.numPointLights++;
+}
+void KS::ModelRenderer::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity)
+{
+    DirLightInfo dLight;
+    dLight.mDir = glm::vec4(direction, 0.f);
+    dLight.mColorAndIntensity = glm::vec4(color, intensity);
+    m_directionalLights[m_lightInfo.numDirLights] = dLight;
+    m_lightInfo.numDirLights++;
+}
+
+void KS::ModelRenderer::SetAmbientLight(glm::vec3 color, float intensity)
+{
+    m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
 }
 
 void KS::ModelRenderer::QueueModel(ResourceHandle<Model> model, const glm::mat4& transform)
@@ -51,41 +84,74 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
     ID3D12DescriptorHeap* descriptorHeaps[] = { resourceHeap->Get() };
     commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
+    UpdateLights(device);
+    mResourceBuffers[KS::DIR_LIGHT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex, 0);
+    mResourceBuffers[KS::POINT_LIGHT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("point_lights").rootIndex, 0);
+    mResourceBuffers[KS::LIGHT_INFO_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("light_info").rootIndex, 0);
+    int drawQueueCount = 0;
     for (const auto& draw_entry : draw_queue)
     {
 
+        MaterialInfo matInfo = GetMaterialInfo(draw_entry);
         const Mesh* mesh = GetMesh(device, draw_entry.mesh);
-        auto tex = GetTexture(device, *draw_entry.baseTex.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+        auto normalTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
+        auto emissiveTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
+        auto roughMetTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
+        auto occlusionTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
+        matInfo.useColorTex = baseTex != nullptr;
+        matInfo.useEmissiveTex = emissiveTex != nullptr;
+        matInfo.useNormalTex = normalTex != nullptr;
+        matInfo.useOcclusionTex = occlusionTex != nullptr;
+        matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
 
-        if (mesh == nullptr || tex == nullptr)
+        if (mesh == nullptr || baseTex == nullptr)
             continue;
 
         ModelMat modelMat;
         modelMat.mModel = draw_entry.transform;
         modelMat.mTransposed = glm::transpose(modelMat.mModel);
-        mModelMatBuffer->Update(device, modelMat, 0);
-        mModelMatBuffer->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, 0);
+        mResourceBuffers[KS::MODEL_MAT_BUFFER]->Update(device, modelMat, drawQueueCount);
+        mResourceBuffers[KS::MODEL_MAT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, drawQueueCount);
+
+        mResourceBuffers[KS::MATERIAL_INFO_BUFFER]->Update(device, matInfo, drawQueueCount);
+        mResourceBuffers[KS::MATERIAL_INFO_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
 
         using namespace MeshConstants;
 
         auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+        auto normals = mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
         auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
+        auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
         auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
         positions->BindAsVertexData(device, 0);
-        uvs->BindAsVertexData(device, 1);
+        normals->BindAsVertexData(device, 1);
+        uvs->BindAsVertexData(device, 2);
+        tangents->BindAsVertexData(device, 3);
         indices->BindAsIndexData(device);
-        tex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("base_tex").rootIndex);
+        baseTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("base_tex").rootIndex);
+        normalTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex);
+        emissiveTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex);
+        roughMetTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex);
+        occlusionTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex);
 
         device.TrackResource(positions);
+        device.TrackResource(normals);
         device.TrackResource(uvs);
         device.TrackResource(indices);
-        device.TrackResource(tex);
+        device.TrackResource(tangents);
+        device.TrackResource(baseTex);
+        device.TrackResource(normalTex);
+        device.TrackResource(emissiveTex);
+        device.TrackResource(roughMetTex);
+        device.TrackResource(occlusionTex);
 
         commandList->DrawIndexedInstanced(indices->GetElementCount(), 1, 0, 0, 0);
+        drawQueueCount++;
     }
 
-    device.TrackResource(mModelMatBuffer);
+    device.TrackResource(mResourceBuffers[KS::MODEL_MAT_BUFFER]);
     draw_queue.clear();
 }
 
@@ -154,4 +220,29 @@ std::shared_ptr<KS::Texture> KS::ModelRenderer::GetTexture(const Device& device,
         }
     }
     return nullptr;
+}
+
+void KS::ModelRenderer::UpdateLights(const Device& device)
+{
+    m_lightInfo.padding[1] = 1;
+    mResourceBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
+    mResourceBuffers[DIR_LIGHT_BUFFER]->Update(device, m_directionalLights);
+    mResourceBuffers[POINT_LIGHT_BUFFER]->Update(device, m_pointLights);
+    m_lightInfo.numDirLights = 0;
+    m_lightInfo.numPointLights = 0;
+}
+
+KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const DrawEntry& drawEntry)
+{
+    MaterialInfo info {};
+    info.colorFactor = drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::BASE_COLOUR_FACTOR_NAME) ? *drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::BASE_COLOUR_FACTOR_NAME) : MaterialConstants::BASE_COLOUR_FACTOR_DEFAULT;
+    glm::vec4 NEAFactor = drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::NEA_FACTORS_NAME) ? *drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::NEA_FACTORS_NAME) : MaterialConstants::NEA_FACTORS_DEFAULT;
+    glm::vec4 ORMFactor = drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::ORM_FACTORS_NAME) ? *drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::ORM_FACTORS_NAME) : MaterialConstants::ORM_FACTORS_DEFAULT;
+
+    info.emissiveFactor = glm::vec4(NEAFactor.y, NEAFactor.y, NEAFactor.y, 1.f);
+    info.normalScale = NEAFactor.x;
+    info.metallicFactor = ORMFactor.z;
+    info.normalScale = NEAFactor.x;
+    info.roughnessFactor = ORMFactor.y;
+    return info;
 }

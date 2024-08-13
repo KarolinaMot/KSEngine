@@ -17,6 +17,7 @@ class Shader
 {
 public:
     Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputs> shaderInput, std::string path);
+    Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path);
     ~Shader();
     std::shared_ptr<ShaderInputs> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;

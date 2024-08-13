@@ -5,6 +5,7 @@
 class DXSignatureBuilder
 {
 public:
+    DXSignatureBuilder() {};
     DXSignatureBuilder(int numberOfTables) { mRanges.resize(numberOfTables); };
 
     DXSignatureBuilder& Add32BitConstant(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader, int num32BitValues);

@@ -81,7 +81,7 @@ DXSignatureBuilder& DXSignatureBuilder::AddTable(D3D12_SHADER_VISIBILITY shader,
     descriptorTable.pDescriptorRanges = &mRanges[mRangeCounter];
     mRangeCounter++;
 
-    D3D12_ROOT_PARAMETER par;
+    D3D12_ROOT_PARAMETER par {};
     par.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     par.DescriptorTable = descriptorTable;
     par.ShaderVisibility = shader;

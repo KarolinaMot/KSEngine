@@ -32,6 +32,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     cam.m_proj = params.projectionMatrix;
     cam.m_view = params.viewMatrix;
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
+    cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
     m_camera_buffer->Update(device, cam, 0);
 
     for (int i = 0; i < m_subrenderers.size(); i++)

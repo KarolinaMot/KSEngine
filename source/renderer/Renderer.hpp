@@ -19,6 +19,7 @@ struct RendererRenderParams
 {
     glm::mat4x4 projectionMatrix;
     glm::mat4x4 viewMatrix;
+    glm::vec3 cameraPos;
     int cpuFrame;
 };
 
@@ -35,6 +36,7 @@ public:
         glm::mat4x4 m_view = glm::mat4x4(1.f);
         glm::mat4x4 m_proj = glm::mat4x4(1.f);
         glm::mat4x4 m_camera = glm::mat4x4(1.f);
+        glm::vec4 m_cameraPos = glm::vec4(1.f);
     };
 
     std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
