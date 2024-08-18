@@ -1,5 +1,6 @@
 #include "DXConstBuffer.hpp"
 #include "DXResource.hpp"
+#include "DXCommandList.hpp"
 #include <code_utility.hpp>
 
 DXConstBuffer::DXConstBuffer(const ComPtr<ID3D12Device5>& device, size_t dataSize, int numberOfObjects, const char* bufferDebugName, int frameNumber)
@@ -35,14 +36,9 @@ void DXConstBuffer::Update(const void* data, size_t dataSize, int offsetIndex, i
     memcpy(mBufferGPUAddress[frameIndex] + (mBufferPerObjectAlignedSize * offsetIndex), data, dataSize);
 }
 
-void DXConstBuffer::BindToGraphics(ID3D12GraphicsCommandList4* commandList, int rootParameterIndex, int offsetIndex, int frameIndex) const
+void DXConstBuffer::Bind(DXCommandList* commandList, int rootParameterIndex, int offsetIndex, int frameIndex) const
 {
-    commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, mBuffers[frameIndex]->GetResource()->GetGPUVirtualAddress() + (mBufferPerObjectAlignedSize * offsetIndex));
-}
-
-void DXConstBuffer::BindToCompute(ID3D12GraphicsCommandList4* command, int rootParameterIndex, int offsetIndex, int frameIndex) const
-{
-    command->SetComputeRootConstantBufferView(rootParameterIndex, mBuffers[frameIndex]->GetResource()->GetGPUVirtualAddress() + (mBufferPerObjectAlignedSize * offsetIndex));
+    commandList->BindBuffer(mBuffers[frameIndex], rootParameterIndex, mBufferPerObjectAlignedSize, offsetIndex);
 }
 
 void DXConstBuffer::Resize(const ComPtr<ID3D12Device5>& device, int newNumOfElements)

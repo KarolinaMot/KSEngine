@@ -4,6 +4,7 @@
 #include "../ShaderInputs.hpp"
 #include "Helpers/DXPipeline.hpp"
 #include "Helpers/DXDescHeap.hpp"
+#include "Helpers/DXCommandList.hpp"
 #include <device/Device.hpp>
 
 #include <fileio/FileIO.hpp>
@@ -76,13 +77,12 @@ void KS::ModelRenderer::QueueModel(ResourceHandle<Model> model, const glm::mat4&
 }
 void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
 {
-    ID3D12GraphicsCommandList4* commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
-    commandList->SetPipelineState(pipeline);
-    ID3D12DescriptorHeap* descriptorHeaps[] = { resourceHeap->Get() };
-    commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+    commandList->BindPipeline(pipeline);
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
     UpdateLights(device);
     mResourceBuffers[KS::DIR_LIGHT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex, 0);
@@ -130,24 +130,20 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
         uvs->BindAsVertexData(device, 2);
         tangents->BindAsVertexData(device, 3);
         indices->BindAsIndexData(device);
-        baseTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("base_tex").rootIndex);
-        normalTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex);
-        emissiveTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex);
-        roughMetTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex);
-        occlusionTex->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex);
 
-        device.TrackResource(positions);
-        device.TrackResource(normals);
-        device.TrackResource(uvs);
-        device.TrackResource(indices);
-        device.TrackResource(tangents);
-        device.TrackResource(baseTex);
-        device.TrackResource(normalTex);
-        device.TrackResource(emissiveTex);
-        device.TrackResource(roughMetTex);
-        device.TrackResource(occlusionTex);
+        auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
+        auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
+        auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
+        auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
+        auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
 
-        commandList->DrawIndexedInstanced(indices->GetElementCount(), 1, 0, 0, 0);
+        baseTex->Bind(device, baseTexRoot);
+        normalTex->Bind(device, normalTexRoot);
+        emissiveTex->Bind(device, emissiveTexRoot);
+        roughMetTex->Bind(device, roughMetTexRoot);
+        occlusionTex->Bind(device, oucclusionTexRoot);
+
+        commandList->DrawIndexed(indices->GetElementCount());
         drawQueueCount++;
     }
 

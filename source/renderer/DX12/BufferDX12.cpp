@@ -4,6 +4,7 @@
 #include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXResource.hpp"
 #include "Helpers/DXStructuredBuffer.hpp"
+#include "Helpers/DXCommandList.hpp"
 
 class KS::Buffer::Impl
 {
@@ -34,24 +35,24 @@ void KS::Buffer::Resize(const Device& device, int newNumOfElements)
 
 void KS::Buffer::BindToGraphics(const Device& device, int rootIndex, int elementIndex, bool readOnly)
 {
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
     if (m_buffer_type == BufferType::STRUCTURED_BUFFER)
-        m_impl->m_structured_buffer->BindToGraphics(commandList, rootIndex, readOnly, heap);
+        m_impl->m_structured_buffer->Bind(commandList, rootIndex, readOnly, heap);
     else if (m_buffer_type == BufferType::CONST_BUFFER)
-        m_impl->m_const_buffer->BindToGraphics(commandList, rootIndex, elementIndex, device.GetFrameIndex());
+        m_impl->m_const_buffer->Bind(commandList, rootIndex, elementIndex, device.GetFrameIndex());
 }
 
 void KS::Buffer::BindToCompute(const Device& device, int rootIndex, int elementIndex, bool readOnly)
 {
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
     if (m_buffer_type == BufferType::STRUCTURED_BUFFER)
-        m_impl->m_structured_buffer->BindToCompute(commandList, rootIndex, readOnly, heap);
+        m_impl->m_structured_buffer->Bind(commandList, rootIndex, readOnly, heap);
     else if (m_buffer_type == BufferType::CONST_BUFFER)
-        m_impl->m_const_buffer->BindToCompute(commandList, rootIndex, elementIndex, device.GetFrameIndex());
+        m_impl->m_const_buffer->Bind(commandList, rootIndex, elementIndex, device.GetFrameIndex());
 }
 
 void KS::Buffer::BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset)
@@ -62,14 +63,8 @@ void KS::Buffer::BindAsVertexData(const Device& device, uint32_t inputSlot, uint
         return;
     }
 
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
-
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
-    vertexBufferView.BufferLocation = m_impl->m_structured_buffer->GetGPUVirtualAddress() + elementOffset * m_buffer_stride;
-    vertexBufferView.StrideInBytes = m_buffer_stride;
-    vertexBufferView.SizeInBytes = m_total_buffer_size;
-
-    commandList->IASetVertexBuffers(inputSlot, 1, &vertexBufferView);
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    commandList->BindVertexData(m_impl->m_structured_buffer->GetResource(), m_buffer_stride, inputSlot, elementOffset);
 }
 
 void KS::Buffer::BindAsIndexData(const Device& device, uint32_t elementOffset)
@@ -80,29 +75,8 @@ void KS::Buffer::BindAsIndexData(const Device& device, uint32_t elementOffset)
         return;
     }
 
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
-
-    D3D12_INDEX_BUFFER_VIEW indexBufferView {};
-    indexBufferView.BufferLocation = m_impl->m_structured_buffer->GetGPUVirtualAddress() + elementOffset * m_buffer_stride;
-    indexBufferView.SizeInBytes = m_total_buffer_size;
-
-    switch (m_buffer_stride)
-    {
-    case sizeof(unsigned char):
-        indexBufferView.Format = DXGI_FORMAT_R8_UINT;
-        break;
-    case sizeof(unsigned short):
-        indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-        break;
-    case sizeof(unsigned int):
-        indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-        break;
-    default:
-        LOG(Log::Severity::WARN, "Buffer {} format do not fit the expected format of an index buffer format, although it is being bound as one. Command has been ignored.", m_name);
-        return;
-    }
-
-    commandList->IASetIndexBuffer(&indexBufferView);
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    commandList->BindIndexData(m_impl->m_structured_buffer->GetResource(), m_buffer_stride, elementOffset);
 }
 
 void KS::Buffer::CreateStructuredBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements)
@@ -135,7 +109,8 @@ void KS::Buffer::CreateConstBuffer(const Device& device, const std::string& name
 
 void KS::Buffer::UploadDataStructuredBuffer(const Device& device, const void* data, int numOfElements)
 {
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
     m_impl->m_structured_buffer->Update(commandList, data);
 }
 

@@ -1,6 +1,6 @@
-#include "GPUSync.hpp"
+#include "DXGPUSync.hpp"
 
-KS::GPUFence::GPUFence(ComPtr<ID3D12Device> device)
+DXGPUFence::DXGPUFence(ComPtr<ID3D12Device> device)
 {
     // Create fence
     CheckDX(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_object)));
@@ -9,22 +9,22 @@ KS::GPUFence::GPUFence(ComPtr<ID3D12Device> device)
     ASSERT(fence_wait_event && "Failed to create fence event.");
 }
 
-KS::GPUFence::~GPUFence()
+DXGPUFence::~DXGPUFence()
 {
     CloseHandle(fence_wait_event);
 }
 
-void KS::GPUFence::Signal(ComPtr<ID3D12CommandQueue> command_queue, uint64_t value)
+void DXGPUFence::Signal(ComPtr<ID3D12CommandQueue> command_queue, uint64_t value)
 {
     CheckDX(command_queue->Signal(fence_object.Get(), value));
 }
 
-bool KS::GPUFence::Reached(uint64_t time_point) const
+bool DXGPUFence::Reached(uint64_t time_point) const
 {
     return fence_object->GetCompletedValue() >= time_point;
 }
 
-void KS::GPUFence::WaitFor(uint64_t time_point)
+void DXGPUFence::WaitFor(uint64_t time_point)
 {
     if (fence_object->GetCompletedValue() < time_point)
     {
@@ -36,12 +36,12 @@ void KS::GPUFence::WaitFor(uint64_t time_point)
     }
 }
 
-bool KS::GPUFuture::Valid() const
+bool DXGPUFuture::Valid() const
 {
     return !bound_fence.expired();
 }
 
-void KS::GPUFuture::Wait()
+void DXGPUFuture::Wait()
 {
     if (auto lock = bound_fence.lock())
     {
@@ -49,7 +49,7 @@ void KS::GPUFuture::Wait()
     }
 }
 
-bool KS::GPUFuture::IsComplete() const
+bool DXGPUFuture::IsComplete() const
 {
     if (auto lock = bound_fence.lock())
     {

@@ -3,6 +3,7 @@
 #include "Device/Device.hpp"
 #include "Helpers/DXIncludes.hpp"
 #include "Helpers/DXPipeline.hpp"
+#include <renderer/InfoStructs.hpp>
 
 class KS::Shader::Impl
 {
@@ -20,10 +21,10 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
     ComPtr<ID3DBlob> p = DXPipelineBuilder::ShaderToBlob(path.c_str(), "ps_5_0", "mainPS");
 
     m_impl->m_pipeline = DXPipelineBuilder()
-                             .AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0)
-                             .AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, 1)
-                             .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, 2)
-                             .AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, 2)
+                             .AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, VDS_POSITIONS)
+                             .AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, VDS_NORMALS)
+                             .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV)
+                             .AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS)
                              .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM)
                              .SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize())
                              .Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()),

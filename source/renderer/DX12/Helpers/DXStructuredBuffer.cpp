@@ -2,6 +2,7 @@
 #include "../../../tools/Log.hpp"
 #include "DXDescHeap.hpp"
 #include "DXResource.hpp"
+#include "DXCommandList.hpp"
 
 DXStructuredBuffer::DXStructuredBuffer(const ComPtr<ID3D12Device5>& device, size_t dataSize, int numOfElements, const char* bufferDebugName, int frameNumber, D3D12_RESOURCE_FLAGS flags)
 {
@@ -38,7 +39,7 @@ void DXStructuredBuffer::Resize(const ComPtr<ID3D12Device5>& device, int numberO
     m_resource->CreateUploadBuffer(device, sizeOfBuffer, 0);
 }
 
-void DXStructuredBuffer::Update(ID3D12GraphicsCommandList4* commandList, const void* data)
+void DXStructuredBuffer::Update(DXCommandList* commandList, const void* data)
 {
     if (!data)
         return;
@@ -76,38 +77,20 @@ void DXStructuredBuffer::AllocateAsSRV(DXDescHeap* descriptorHeap)
     m_SRV_handle = descriptorHeap->AllocateResource(m_resource.get(), &srvDesc);
 }
 
-void DXStructuredBuffer::BindToGraphics(ID3D12GraphicsCommandList4* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap)
+void DXStructuredBuffer::Bind(DXCommandList* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap)
 {
     if (readOnly)
     {
         if (!m_SRV_handle.IsValid())
             AllocateAsSRV(descriptorHeap);
 
-        descriptorHeap->BindToGraphics(commandList, rootSlot, m_SRV_handle);
+        commandList->BindHeapResource(m_resource, m_SRV_handle, rootSlot);
     }
     else
     {
         if (!m_UAV_handle.IsValid())
             AllocateAsUAV(descriptorHeap);
 
-        descriptorHeap->BindToGraphics(commandList, rootSlot, m_UAV_handle);
-    }
-}
-
-void DXStructuredBuffer::BindToCompute(ID3D12GraphicsCommandList4* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap)
-{
-    if (readOnly)
-    {
-        if (!m_SRV_handle.IsValid())
-            AllocateAsSRV(descriptorHeap);
-
-        descriptorHeap->BindToCompute(commandList, rootSlot, m_SRV_handle);
-    }
-    else
-    {
-        if (!m_UAV_handle.IsValid())
-            AllocateAsUAV(descriptorHeap);
-
-        descriptorHeap->BindToCompute(commandList, rootSlot, m_UAV_handle);
+        commandList->BindHeapResource(m_resource, m_UAV_handle, rootSlot);
     }
 }

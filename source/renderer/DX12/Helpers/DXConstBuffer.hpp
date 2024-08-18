@@ -4,6 +4,7 @@
 #include <vector>
 
 class DXResource;
+class DXCommandList;
 class DXConstBuffer
 {
 public:
@@ -12,8 +13,7 @@ public:
     ~DXConstBuffer();
 
     void Update(const void* data, size_t dataSize, int offsetIndex, int frameIndex);
-    void BindToGraphics(ID3D12GraphicsCommandList4* command, int rootParameterIndex, int offsetIndex, int frameIndexs) const;
-    void BindToCompute(ID3D12GraphicsCommandList4* command, int rootParameterIndex, int offsetIndex, int frameIndexs) const;
+    void Bind(DXCommandList* commandList, int rootParameterIndex, int offsetIndex, int frameIndex) const;
     void Resize(const ComPtr<ID3D12Device5>& device, int newNumOfElements);
     const size_t GetBufferPerObjectAlignedSize() { return mBufferPerObjectAlignedSize; }
     const size_t GetGPUPointer(int slot, int bufferIndex);

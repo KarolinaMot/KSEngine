@@ -3,37 +3,34 @@
 #include <memory>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 
-namespace KS
-{
-
 // Wait times of more than 5 secs not allowed!
 constexpr DWORD MAX_TIMEOUT_PERIOD = 5 * 1000;
 
-class GPUFence
+class DXGPUFence
 {
 public:
-    GPUFence(ComPtr<ID3D12Device> device);
-    ~GPUFence();
+    DXGPUFence(ComPtr<ID3D12Device> device);
+    ~DXGPUFence();
 
     void Signal(ComPtr<ID3D12CommandQueue> command_queue, uint64_t value);
 
     bool Reached(uint64_t time_point) const;
     void WaitFor(uint64_t time_point);
 
-    NON_COPYABLE(GPUFence);
-    NON_MOVABLE(GPUFence);
+    NON_COPYABLE(DXGPUFence);
+    NON_MOVABLE(DXGPUFence);
 
 private:
     ComPtr<ID3D12Fence> fence_object {};
     HANDLE fence_wait_event;
 };
 
-class GPUFuture
+class DXGPUFuture
 {
 public:
-    GPUFuture() = default;
+    DXGPUFuture() = default;
 
-    GPUFuture(std::weak_ptr<GPUFence> fence, uint64_t target_val)
+    DXGPUFuture(std::weak_ptr<DXGPUFence> fence, uint64_t target_val)
         : bound_fence(fence)
         , future_value(target_val)
     {
@@ -49,8 +46,6 @@ public:
     bool IsComplete() const;
 
 private:
-    std::weak_ptr<GPUFence> bound_fence {};
+    std::weak_ptr<DXGPUFence> bound_fence {};
     uint64_t future_value {};
 };
-
-}

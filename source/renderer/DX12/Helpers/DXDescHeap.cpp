@@ -27,50 +27,6 @@ DXDescHeap::DXDescHeap(ComPtr<ID3D12Device5> device, int numDescriptors, D3D12_D
     m_device = device;
 }
 
-void DXDescHeap::BindToGraphics(ComPtr<ID3D12GraphicsCommandList4> commandList, unsigned int rootSlot, const DXHeapHandle& handle)
-{
-    commandList->SetGraphicsRootDescriptorTable(rootSlot, handle.GetAddressGPU());
-}
-
-void DXDescHeap::BindToCompute(ComPtr<ID3D12GraphicsCommandList4> commandList, unsigned int rootSlot, const DXHeapHandle& handle)
-{
-    commandList->SetComputeRootDescriptorTable(rootSlot, handle.GetAddressGPU());
-}
-
-void DXDescHeap::BindRenderTargets(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle* handles, const DXHeapHandle& dsvHandle, unsigned int numRtv)
-{
-    std::vector<CD3DX12_CPU_DESCRIPTOR_HANDLE> rtvHandles(numRtv);
-
-    for (unsigned int i = 0; i < numRtv; i++)
-        rtvHandles[i] = handles[i].GetAddressCPU();
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle = dsvHandle.GetAddressCPU();
-    commandList->OMSetRenderTargets(static_cast<UINT>(rtvHandles.size()), rtvHandles.data(), FALSE, &depthHandle);
-}
-
-void DXDescHeap::BindRenderTargets(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle& handle)
-{
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtHandle = handle.GetAddressCPU();
-    commandList->OMSetRenderTargets(1, &rtHandle, FALSE, nullptr);
-}
-
-void DXDescHeap::ClearRenderTarget(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle& handle, const float* clearData)
-{
-    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
-        return;
-
-    commandList->ClearRenderTargetView(handle.GetAddressCPU(), clearData, 0, nullptr);
-}
-
-void DXDescHeap::ClearDepthStencil(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle& handle)
-{
-    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
-        return;
-
-    commandList->ClearDepthStencilView(handle.GetAddressCPU(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-}
-
 DXHeapHandle DXDescHeap::AllocateResource(DXResource* resource, D3D12_SHADER_RESOURCE_VIEW_DESC* desc)
 {
     int slot = -1;

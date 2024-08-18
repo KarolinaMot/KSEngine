@@ -1,24 +1,22 @@
 
 #pragma once
 
-#include "GPUSync.hpp"
+#include "DXGPUSync.hpp"
 #include <memory>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <string>
 
-namespace KS
-{
-class CommandQueue
+class DXCommandList;
+class DXCommandQueue
 {
 public:
-    CommandQueue(const ComPtr<ID3D12Device5>& device, const std::wstring& name);
-    ~CommandQueue();
+    DXCommandQueue(const ComPtr<ID3D12Device5>& device, const std::wstring& name);
+    ~DXCommandQueue();
 
     // Waits the calling thread until all pending operations are executed
     void Flush();
 
-    GPUFuture ExecuteCommandLists(ID3D12CommandList** ppCommandLists, uint32_t commandListCount);
-    GPUFuture ExecuteCommandList(ID3D12CommandList* command_list);
+    DXGPUFuture ExecuteCommandLists(const DXCommandList** ppCommandLists, uint32_t commandListCount = 1);
 
     ID3D12CommandQueue* Get() const
     {
@@ -27,7 +25,6 @@ public:
 
 private:
     ComPtr<ID3D12CommandQueue> m_command_queue;
-    std::shared_ptr<GPUFence> m_fence {};
+    std::shared_ptr<DXGPUFence> m_fence {};
     uint64_t m_next_fence_value = 0;
 };
-}

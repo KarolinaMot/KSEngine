@@ -34,6 +34,8 @@ public:
     void* GetDevice() const;
     void* GetCommandList() const;
     void* GetResourceHeap() const;
+    void* GetDepthHeap() const;
+    void* GetRenderTargetHeap() const;
     void* GetWindowHandle() const;
 
     inline bool IsWindowOpen() const { return m_window_open; }

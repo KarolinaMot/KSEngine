@@ -21,6 +21,7 @@ public:
     ~Shader();
     std::shared_ptr<ShaderInputs> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
+    ShaderType GetShaderType() { return m_shader_type; }
 
 private:
     class Impl;
