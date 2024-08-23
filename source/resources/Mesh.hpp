@@ -4,7 +4,7 @@
 #include <containers/ByteBuffer.hpp>
 #include <map>
 #include <memory>
-#include <renderer/Buffer.hpp>
+#include <renderer/StorageBuffer.hpp>
 
 namespace KS
 {
@@ -82,10 +82,10 @@ class Mesh
 {
 public:
     Mesh(const Device& device, const MeshData& data);
-    std::shared_ptr<Buffer> GetAttribute(const std::string& name) const;
+    std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
 
 private:
-    std::unordered_map<std::string, std::shared_ptr<Buffer>> m_data;
+    std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
 };
 }
 

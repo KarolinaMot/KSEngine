@@ -5,14 +5,19 @@
 
 namespace KS
 {
-enum ResourceBuffers
+enum UniformBuffers
 {
     MODEL_MAT_BUFFER,
     MATERIAL_INFO_BUFFER,
+    LIGHT_INFO_BUFFER,
+    NUM_U_BUFFERS
+};
+
+enum StorageBufers
+{
     DIR_LIGHT_BUFFER,
     POINT_LIGHT_BUFFER,
-    LIGHT_INFO_BUFFER,
-    NUM_BUFFERS
+    NUM_S_BUFFERS
 };
 
 enum VertexDataBuffers

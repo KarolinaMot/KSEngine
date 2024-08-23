@@ -14,7 +14,8 @@
 
 namespace KS
 {
-class Buffer;
+class StorageBuffer;
+class UniformBuffer;
 class Device;
 class Shader;
 class Mesh;
@@ -46,7 +47,8 @@ private:
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache {};
 
     std::vector<DrawEntry> draw_queue {};
-    std::shared_ptr<Buffer> mResourceBuffers[ResourceBuffers::NUM_BUFFERS];
+    std::shared_ptr<StorageBuffer> mStorageBuffers[NUM_S_BUFFERS];
+    std::shared_ptr<UniformBuffer> mUniformBuffers[NUM_U_BUFFERS];
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     LightInfo m_lightInfo {};

@@ -9,7 +9,7 @@ namespace KS
 class Device;
 class SubRenderer;
 class Shader;
-class Buffer;
+class UniformBuffer;
 struct RendererInitParams
 {
     std::vector<std::shared_ptr<Shader>> shaders;
@@ -42,6 +42,6 @@ public:
     std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
 
 private:
-    std::shared_ptr<Buffer> m_camera_buffer;
+    std::shared_ptr<UniformBuffer> m_camera_buffer;
 };
 }

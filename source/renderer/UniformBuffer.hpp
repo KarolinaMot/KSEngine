@@ -43,6 +43,7 @@ public:
     }
 
     void Resize(const Device& device, int newNumOfElements);
+    void Bind(const Device& device, int rootIndex, int elementIndex);
 
     size_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }

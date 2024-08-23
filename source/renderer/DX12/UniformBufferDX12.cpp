@@ -38,6 +38,13 @@ void KS::UniformBuffer::Resize(const Device& device, int newNumOfElements)
     m_impl->m_buffer->Resize(engineDevice, newNumOfElements);
 }
 
+void KS::UniformBuffer::Bind(const Device& device, int rootIndex, int elementIndex)
+{
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    m_impl->m_buffer->Bind(commandList, rootIndex, elementIndex, device.GetFrameIndex());
+}
+
 void KS::UniformBuffer::Upload(const Device& device, const void* data, uint32_t offset)
 {
     m_impl->m_buffer->Update(data, m_buffer_stride, offset, device.GetFrameIndex());

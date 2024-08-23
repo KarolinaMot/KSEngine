@@ -1,7 +1,7 @@
-#include "../Buffer.hpp"
-#include "../ModelRenderer.hpp"
-#include "../Renderer.hpp"
-#include "../SubRenderer.hpp"
+#include <renderer/Renderer.hpp>
+#include <renderer/UniformBuffer.hpp>
+#include <renderer/ModelRenderer.hpp>
+#include <renderer/SubRenderer.hpp>
 #include <device/Device.hpp>
 #include <glm/glm.hpp>
 #include <renderer/DX12/Helpers/DXConstBuffer.hpp>
@@ -18,7 +18,7 @@ KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
     }
 
     CameraMats cam {};
-    m_camera_buffer = std::make_shared<Buffer>(device, "CAMERA MATRIX BUFFER", cam, 1, false);
+    m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 }
 
 KS::Renderer::~Renderer()
@@ -39,10 +39,8 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     for (int i = 0; i < m_subrenderers.size(); i++)
     {
         commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_subrenderers[i]->GetShader()->GetShaderInput()->GetSignature()));
-        m_camera_buffer->BindToGraphics(device,
-            m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
-            0,
-            params.cpuFrame);
+        m_camera_buffer->Bind(device,
+            m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
         device.TrackResource(m_camera_buffer);
         m_subrenderers[i]->Render(device, params.cpuFrame);
     }
