@@ -94,20 +94,13 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
     for (const auto& draw_entry : draw_queue)
     {
 
-        MaterialInfo matInfo = GetMaterialInfo(draw_entry);
         const Mesh* mesh = GetMesh(device, draw_entry.mesh);
-        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
-        auto normalTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-        auto emissiveTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
-        auto roughMetTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-        auto occlusionTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
-        matInfo.useColorTex = baseTex != nullptr;
-        matInfo.useEmissiveTex = emissiveTex != nullptr;
-        matInfo.useNormalTex = normalTex != nullptr;
-        matInfo.useOcclusionTex = occlusionTex != nullptr;
-        matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
+        MaterialInfo matInfo;
+        MaterialTextures matTex;
 
-        if (mesh == nullptr || baseTex == nullptr)
+        GetMaterial(device, matTex, matInfo, draw_entry);
+
+        if (mesh == nullptr || matTex.baseColor == nullptr)
             continue;
 
         ModelMat modelMat;
@@ -118,6 +111,7 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
 
         mUniformBuffers[KS::MATERIAL_INFO_BUFFER]->Update(device, matInfo, drawQueueCount);
         mUniformBuffers[KS::MATERIAL_INFO_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
+        BindMaterial(device, matTex);
 
         using namespace MeshConstants;
 
@@ -127,23 +121,16 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
         auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
         auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-        positions->BindAsVertexData(device, 0);
-        normals->BindAsVertexData(device, 1);
-        uvs->BindAsVertexData(device, 2);
-        tangents->BindAsVertexData(device, 3);
-        indices->BindAsIndexData(device);
-
-        auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
-        auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
-        auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
-        auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
-        auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
-
-        baseTex->Bind(device, baseTexRoot);
-        normalTex->Bind(device, normalTexRoot);
-        emissiveTex->Bind(device, emissiveTexRoot);
-        roughMetTex->Bind(device, roughMetTexRoot);
-        occlusionTex->Bind(device, oucclusionTexRoot);
+        if (positions != nullptr)
+            positions->BindAsVertexData(device, 0);
+        if (normals != nullptr)
+            normals->BindAsVertexData(device, 1);
+        if (uvs != nullptr)
+            uvs->BindAsVertexData(device, 2);
+        if (tangents != nullptr)
+            tangents->BindAsVertexData(device, 3);
+        if (indices != nullptr)
+            indices->BindAsIndexData(device);
 
         commandList->DrawIndexed(indices->GetElementCount());
         drawQueueCount++;
@@ -241,4 +228,46 @@ KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const DrawEntry& drawEntry)
     info.normalScale = NEAFactor.x;
     info.roughnessFactor = ORMFactor.y;
     return info;
+}
+
+void KS::ModelRenderer::GetMaterial(const Device& device, MaterialTextures& mat, MaterialInfo& materialInfo, const DrawEntry& drawEntry)
+{
+    auto baseTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME);
+    auto normalTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME);
+    auto emissiveTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME);
+    auto metallicTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME);
+    auto occlusionTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME);
+
+    baseTexPath ? mat.baseColor = GetTexture(device, *baseTexPath) : mat.baseColor = nullptr;
+    normalTexPath ? mat.normalTexture = GetTexture(device, *normalTexPath) : mat.normalTexture = nullptr;
+    emissiveTexPath ? mat.emissiveTexture = GetTexture(device, *emissiveTexPath) : mat.emissiveTexture = nullptr;
+    metallicTexPath ? mat.metallicRoughnessTexture = GetTexture(device, *metallicTexPath) : mat.metallicRoughnessTexture = nullptr;
+    occlusionTexPath ? mat.occlusionTexture = GetTexture(device, *occlusionTexPath) : mat.occlusionTexture = nullptr;
+
+    materialInfo = GetMaterialInfo(drawEntry);
+    materialInfo.useColorTex = mat.baseColor != nullptr;
+    materialInfo.useEmissiveTex = mat.emissiveTexture != nullptr;
+    materialInfo.useNormalTex = mat.normalTexture != nullptr;
+    materialInfo.useOcclusionTex = mat.occlusionTexture != nullptr;
+    materialInfo.useMetallicRoughnessTex = mat.metallicRoughnessTexture != nullptr;
+}
+
+void KS::ModelRenderer::BindMaterial(const Device& device, const MaterialTextures& mat)
+{
+    auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
+    auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
+    auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
+    auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
+    auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
+
+    if (mat.baseColor)
+        mat.baseColor->Bind(device, baseTexRoot);
+    if (mat.normalTexture)
+        mat.normalTexture->Bind(device, normalTexRoot);
+    if (mat.emissiveTexture)
+        mat.emissiveTexture->Bind(device, emissiveTexRoot);
+    if (mat.metallicRoughnessTexture)
+        mat.metallicRoughnessTexture->Bind(device, roughMetTexRoot);
+    if (mat.occlusionTexture)
+        mat.occlusionTexture->Bind(device, oucclusionTexRoot);
 }

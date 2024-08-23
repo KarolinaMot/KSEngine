@@ -76,4 +76,13 @@ struct MaterialInfo
     uint32_t useNormalTex;
     uint32_t useOcclusionTex;
 };
+
+struct MaterialTextures
+{
+    std::shared_ptr<Texture> baseColor = nullptr;
+    std::shared_ptr<Texture> normalTexture = nullptr;
+    std::shared_ptr<Texture> emissiveTexture = nullptr;
+    std::shared_ptr<Texture> metallicRoughnessTexture = nullptr;
+    std::shared_ptr<Texture> occlusionTexture = nullptr;
+};
 };
