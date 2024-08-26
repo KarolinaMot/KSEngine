@@ -70,8 +70,6 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
         camera.eulerAngles += eulerDelta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
-        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
-
         auto rotation = glm::quat(camera.eulerAngles);
         auto translation = transform.GetLocalTranslation();
 
@@ -86,7 +84,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/Sponza.gltf").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;
@@ -155,9 +153,9 @@ int main()
 
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
         glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
-        transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
+        // transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
         model_renderer->QueueModel(model, transform);
-        model_renderer->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .25f);
+        model_renderer->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .75f);
         model_renderer->QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
         model_renderer->QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
         renderer.Render(*device, renderParams);

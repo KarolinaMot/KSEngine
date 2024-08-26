@@ -35,7 +35,7 @@ public:
     template <typename T>
     void Update(const Device& device, const std::vector<T>& data)
     {
-        if (sizeof(T) != m_StorageBuffer_stride)
+        if (sizeof(T) != m_buffer_stride)
         {
             LOG(Log::Severity::WARN, "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
             return;
@@ -48,7 +48,7 @@ public:
     }
 
     void Resize(const Device& device, int newNumOfElements);
-    void Bind(const Device& device, int rootIndex, int elementIndex = 0, bool readOnly = true);
+    void Bind(const Device& device, int rootIndex, bool readOnly = true);
     void BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset = 0);
     void BindAsIndexData(const Device& device, uint32_t elementOffset = 0);
 

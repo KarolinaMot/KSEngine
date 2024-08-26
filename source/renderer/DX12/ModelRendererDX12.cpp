@@ -1,10 +1,11 @@
-#include "../Buffer.hpp"
-#include "../ModelRenderer.hpp"
-#include "../Shader.hpp"
-#include "../ShaderInputs.hpp"
-#include "Helpers/DXPipeline.hpp"
-#include "Helpers/DXDescHeap.hpp"
-#include "Helpers/DXCommandList.hpp"
+#include <renderer/ModelRenderer.hpp>
+#include <renderer/Shader.hpp>
+#include <renderer/UniformBuffer.hpp>
+#include <renderer/StorageBuffer.hpp>
+#include <renderer/ShaderInputs.hpp>
+#include <renderer/DX12/Helpers/DXPipeline.hpp>
+#include <renderer/DX12/Helpers/DXDescHeap.hpp>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <device/Device.hpp>
 
 #include <fileio/FileIO.hpp>
@@ -14,8 +15,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <renderer/InfoStructs.hpp>
 
-KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
-    : SubRenderer(device, shader)
+KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, std::shared_ptr<Texture>* resultOfPreviousPasses)
+    : SubRenderer(device, shader, renderTarget, depthStencil, resultOfPreviousPasses)
 {
     ModelMat mat {};
     MaterialInfo matInfo {};
@@ -23,11 +24,11 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
 
-    mResourceBuffers[KS::MODEL_MAT_BUFFER] = std::make_unique<Buffer>(device, "MODEL MATRIX RESOURCE", mat, 200, false);
-    mResourceBuffers[KS::MATERIAL_INFO_BUFFER] = std::make_unique<Buffer>(device, "MATERIAL INFO RESOURCE", matInfo, 200, false);
-    mResourceBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<Buffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1, false);
-    mResourceBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<Buffer>(device, "DIRECTIONAL LIGHT INFO BUFFER", m_directionalLights, false);
-    mResourceBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<Buffer>(device, "DIRECTIONAL LIGHT INFO BUFFER", m_pointLights, false);
+    mUniformBuffers[KS::MODEL_MAT_BUFFER] = std::make_unique<UniformBuffer>(device, "MODEL MATRIX RESOURCE", mat, 200);
+    mUniformBuffers[KS::MATERIAL_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "MATERIAL INFO RESOURCE", matInfo, 200);
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT INFO BUFFER", m_directionalLights, false);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT INFO BUFFER", m_pointLights, false);
 }
 
 KS::ModelRenderer::~ModelRenderer()
@@ -85,37 +86,32 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
     UpdateLights(device);
-    mResourceBuffers[KS::DIR_LIGHT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex, 0);
-    mResourceBuffers[KS::POINT_LIGHT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("point_lights").rootIndex, 0);
-    mResourceBuffers[KS::LIGHT_INFO_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("light_info").rootIndex, 0);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("point_lights").rootIndex);
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("light_info").rootIndex, 0);
+
     int drawQueueCount = 0;
     for (const auto& draw_entry : draw_queue)
     {
 
-        MaterialInfo matInfo = GetMaterialInfo(draw_entry);
         const Mesh* mesh = GetMesh(device, draw_entry.mesh);
-        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
-        auto normalTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-        auto emissiveTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
-        auto roughMetTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-        auto occlusionTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
-        matInfo.useColorTex = baseTex != nullptr;
-        matInfo.useEmissiveTex = emissiveTex != nullptr;
-        matInfo.useNormalTex = normalTex != nullptr;
-        matInfo.useOcclusionTex = occlusionTex != nullptr;
-        matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
+        MaterialInfo matInfo;
+        MaterialTextures matTex;
 
-        if (mesh == nullptr || baseTex == nullptr)
+        GetMaterial(device, matTex, matInfo, draw_entry);
+
+        if (mesh == nullptr || matTex.baseColor == nullptr)
             continue;
 
         ModelMat modelMat;
         modelMat.mModel = draw_entry.transform;
         modelMat.mTransposed = glm::transpose(modelMat.mModel);
-        mResourceBuffers[KS::MODEL_MAT_BUFFER]->Update(device, modelMat, drawQueueCount);
-        mResourceBuffers[KS::MODEL_MAT_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, drawQueueCount);
+        mUniformBuffers[KS::MODEL_MAT_BUFFER]->Update(device, modelMat, drawQueueCount);
+        mUniformBuffers[KS::MODEL_MAT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, drawQueueCount);
 
-        mResourceBuffers[KS::MATERIAL_INFO_BUFFER]->Update(device, matInfo, drawQueueCount);
-        mResourceBuffers[KS::MATERIAL_INFO_BUFFER]->BindToGraphics(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
+        mUniformBuffers[KS::MATERIAL_INFO_BUFFER]->Update(device, matInfo, drawQueueCount);
+        mUniformBuffers[KS::MATERIAL_INFO_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
+        BindMaterial(device, matTex);
 
         using namespace MeshConstants;
 
@@ -125,29 +121,20 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
         auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
         auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-        positions->BindAsVertexData(device, 0);
-        normals->BindAsVertexData(device, 1);
-        uvs->BindAsVertexData(device, 2);
-        tangents->BindAsVertexData(device, 3);
-        indices->BindAsIndexData(device);
-
-        auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
-        auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
-        auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
-        auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
-        auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
-
-        baseTex->Bind(device, baseTexRoot);
-        normalTex->Bind(device, normalTexRoot);
-        emissiveTex->Bind(device, emissiveTexRoot);
-        roughMetTex->Bind(device, roughMetTexRoot);
-        occlusionTex->Bind(device, oucclusionTexRoot);
+        if (positions != nullptr)
+            positions->BindAsVertexData(device, 0);
+        if (normals != nullptr)
+            normals->BindAsVertexData(device, 1);
+        if (uvs != nullptr)
+            uvs->BindAsVertexData(device, 2);
+        if (tangents != nullptr)
+            tangents->BindAsVertexData(device, 3);
+        if (indices != nullptr)
+            indices->BindAsIndexData(device);
 
         commandList->DrawIndexed(indices->GetElementCount());
         drawQueueCount++;
     }
-
-    device.TrackResource(mResourceBuffers[KS::MODEL_MAT_BUFFER]);
     draw_queue.clear();
 }
 
@@ -221,9 +208,9 @@ std::shared_ptr<KS::Texture> KS::ModelRenderer::GetTexture(const Device& device,
 void KS::ModelRenderer::UpdateLights(const Device& device)
 {
     m_lightInfo.padding[1] = 1;
-    mResourceBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    mResourceBuffers[DIR_LIGHT_BUFFER]->Update(device, m_directionalLights);
-    mResourceBuffers[POINT_LIGHT_BUFFER]->Update(device, m_pointLights);
+    mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
+    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, m_directionalLights);
+    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, m_pointLights);
     m_lightInfo.numDirLights = 0;
     m_lightInfo.numPointLights = 0;
 }
@@ -241,4 +228,46 @@ KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const DrawEntry& drawEntry)
     info.normalScale = NEAFactor.x;
     info.roughnessFactor = ORMFactor.y;
     return info;
+}
+
+void KS::ModelRenderer::GetMaterial(const Device& device, MaterialTextures& mat, MaterialInfo& materialInfo, const DrawEntry& drawEntry)
+{
+    auto baseTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME);
+    auto normalTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME);
+    auto emissiveTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME);
+    auto metallicTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME);
+    auto occlusionTexPath = drawEntry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME);
+
+    baseTexPath ? mat.baseColor = GetTexture(device, *baseTexPath) : mat.baseColor = nullptr;
+    normalTexPath ? mat.normalTexture = GetTexture(device, *normalTexPath) : mat.normalTexture = nullptr;
+    emissiveTexPath ? mat.emissiveTexture = GetTexture(device, *emissiveTexPath) : mat.emissiveTexture = nullptr;
+    metallicTexPath ? mat.metallicRoughnessTexture = GetTexture(device, *metallicTexPath) : mat.metallicRoughnessTexture = nullptr;
+    occlusionTexPath ? mat.occlusionTexture = GetTexture(device, *occlusionTexPath) : mat.occlusionTexture = nullptr;
+
+    materialInfo = GetMaterialInfo(drawEntry);
+    materialInfo.useColorTex = mat.baseColor != nullptr;
+    materialInfo.useEmissiveTex = mat.emissiveTexture != nullptr;
+    materialInfo.useNormalTex = mat.normalTexture != nullptr;
+    materialInfo.useOcclusionTex = mat.occlusionTexture != nullptr;
+    materialInfo.useMetallicRoughnessTex = mat.metallicRoughnessTexture != nullptr;
+}
+
+void KS::ModelRenderer::BindMaterial(const Device& device, const MaterialTextures& mat)
+{
+    auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
+    auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
+    auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
+    auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
+    auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
+
+    if (mat.baseColor)
+        mat.baseColor->Bind(device, baseTexRoot);
+    if (mat.normalTexture)
+        mat.normalTexture->Bind(device, normalTexRoot);
+    if (mat.emissiveTexture)
+        mat.emissiveTexture->Bind(device, emissiveTexRoot);
+    if (mat.metallicRoughnessTexture)
+        mat.metallicRoughnessTexture->Bind(device, roughMetTexRoot);
+    if (mat.occlusionTexture)
+        mat.occlusionTexture->Bind(device, oucclusionTexRoot);
 }

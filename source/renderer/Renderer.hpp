@@ -9,7 +9,7 @@ namespace KS
 class Device;
 class SubRenderer;
 class Shader;
-class Buffer;
+class UniformBuffer;
 struct RendererInitParams
 {
     std::vector<std::shared_ptr<Shader>> shaders;
@@ -31,17 +31,9 @@ public:
 
     void Render(Device& device, const RendererRenderParams& params);
 
-    struct CameraMats
-    {
-        glm::mat4x4 m_view = glm::mat4x4(1.f);
-        glm::mat4x4 m_proj = glm::mat4x4(1.f);
-        glm::mat4x4 m_camera = glm::mat4x4(1.f);
-        glm::vec4 m_cameraPos = glm::vec4(1.f);
-    };
-
     std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
 
 private:
-    std::shared_ptr<Buffer> m_camera_buffer;
+    std::shared_ptr<UniformBuffer> m_camera_buffer;
 };
 }

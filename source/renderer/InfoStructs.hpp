@@ -5,14 +5,31 @@
 
 namespace KS
 {
-enum ResourceBuffers
+enum UniformBuffers
 {
     MODEL_MAT_BUFFER,
     MATERIAL_INFO_BUFFER,
+    LIGHT_INFO_BUFFER,
+    NUM_U_BUFFERS
+};
+
+enum StorageBufers
+{
     DIR_LIGHT_BUFFER,
     POINT_LIGHT_BUFFER,
-    LIGHT_INFO_BUFFER,
-    NUM_BUFFERS
+    NUM_S_BUFFERS
+};
+
+enum RenderTargets
+{
+    DEFERRED_RENDERER,
+    NUM_RT = 1
+
+};
+
+enum DepthStencils
+{
+    NUM_DS = 0
 };
 
 enum VertexDataBuffers
@@ -21,6 +38,15 @@ enum VertexDataBuffers
     VDS_NORMALS,
     VDS_UV,
     VDS_TANGENTS
+};
+
+enum Formats
+{
+    R8G8B8A8_UNORM = 0,
+    R16G16B16A16_FLOAT,
+    R32G32B32A32_FLOAT,
+    R32_FLOAT,
+    R16_FLOAT,
 };
 
 struct DrawEntry
@@ -58,6 +84,14 @@ struct LightInfo
     glm::vec4 mAmbientAndIntensity = glm::vec4(1.f);
 };
 
+struct CameraMats
+{
+    glm::mat4x4 m_view = glm::mat4x4(1.f);
+    glm::mat4x4 m_proj = glm::mat4x4(1.f);
+    glm::mat4x4 m_camera = glm::mat4x4(1.f);
+    glm::vec4 m_cameraPos = glm::vec4(1.f);
+};
+
 struct MaterialInfo
 {
     glm::vec4 colorFactor;
@@ -70,5 +104,14 @@ struct MaterialInfo
     uint32_t useMetallicRoughnessTex;
     uint32_t useNormalTex;
     uint32_t useOcclusionTex;
+};
+
+struct MaterialTextures
+{
+    std::shared_ptr<Texture> baseColor = nullptr;
+    std::shared_ptr<Texture> normalTexture = nullptr;
+    std::shared_ptr<Texture> emissiveTexture = nullptr;
+    std::shared_ptr<Texture> metallicRoughnessTexture = nullptr;
+    std::shared_ptr<Texture> occlusionTexture = nullptr;
 };
 };

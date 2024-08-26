@@ -50,10 +50,13 @@ public:
     template <typename T>
     const T* GetParameter(const std::string& key) const
     {
-        if (auto it = input_parameters.find(key); it != input_parameters.end())
+        auto it = input_parameters.find(key);
+        if (it != input_parameters.end())
         {
             return std::get_if<T>(&it->second);
         }
+
+        return nullptr;
     }
 
 private:

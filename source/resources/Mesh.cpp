@@ -27,14 +27,14 @@ KS::Mesh::Mesh(const Device& device, const MeshData& data)
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
-        auto buffer = std::make_shared<KS::Buffer>(
+        auto buffer = std::make_shared<KS::StorageBuffer>(
             device, name, start, stride, size / stride, false);
 
         m_data.emplace(name, buffer);
     }
 }
 
-std::shared_ptr<KS::Buffer> KS::Mesh::GetAttribute(const std::string& name) const
+std::shared_ptr<KS::StorageBuffer> KS::Mesh::GetAttribute(const std::string& name) const
 {
     if (auto it = m_data.find(name); it != m_data.end())
     {

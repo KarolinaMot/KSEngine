@@ -1,9 +1,9 @@
 #pragma once
 #include "DXIncludes.hpp"
+#include "DXResource.hpp"
 #include <memory>
 #include <vector>
 
-class DXResource;
 class DXCommandList;
 class DXConstBuffer
 {

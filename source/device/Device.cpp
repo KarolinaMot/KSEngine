@@ -1,5 +1,4 @@
 #include <device/Device.hpp>
-#include <renderer/Buffer.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
