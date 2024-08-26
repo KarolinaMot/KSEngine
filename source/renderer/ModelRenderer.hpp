@@ -15,6 +15,8 @@
 namespace KS
 {
 class StorageBuffer;
+class RenderTarget;
+class DepthStencil;
 class UniformBuffer;
 class Device;
 class Shader;
@@ -51,6 +53,7 @@ private:
     std::vector<DrawEntry> draw_queue {};
     std::shared_ptr<StorageBuffer> mStorageBuffers[NUM_S_BUFFERS];
     std::shared_ptr<UniformBuffer> mUniformBuffers[NUM_U_BUFFERS];
+    std::shared_ptr<RenderTarget> mRenderTargets[NUM_U_BUFFERS];
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     LightInfo m_lightInfo {};

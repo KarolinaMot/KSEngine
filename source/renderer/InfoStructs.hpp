@@ -20,6 +20,18 @@ enum StorageBufers
     NUM_S_BUFFERS
 };
 
+enum RenderTargets
+{
+    DEFERRED_RENDERER,
+    NUM_RT = 1
+
+};
+
+enum DepthStencils
+{
+    NUM_DS = 0
+};
+
 enum VertexDataBuffers
 {
     VDS_POSITIONS = 0,
@@ -70,6 +82,14 @@ struct LightInfo
     uint32_t numPointLights = 0;
     uint32_t padding[2];
     glm::vec4 mAmbientAndIntensity = glm::vec4(1.f);
+};
+
+struct CameraMats
+{
+    glm::mat4x4 m_view = glm::mat4x4(1.f);
+    glm::mat4x4 m_proj = glm::mat4x4(1.f);
+    glm::mat4x4 m_camera = glm::mat4x4(1.f);
+    glm::vec4 m_cameraPos = glm::vec4(1.f);
 };
 
 struct MaterialInfo

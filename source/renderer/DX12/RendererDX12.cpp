@@ -9,6 +9,7 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputs.hpp>
+#include <renderer/InfoStructs.hpp>
 
 KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
 {

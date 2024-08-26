@@ -2,6 +2,8 @@ static const float sGamma = 1.8;
 static const float sInvGamma = 1.0 / sGamma;
 static const float sPi = 3.14159265359;
 
+#include "DataStructs.hlsl"
+
 struct VS_INPUT
 {
     float3 pos : POSITION;
@@ -21,65 +23,22 @@ struct PS_INPUT
 
 cbuffer Camera : register(b0)
 {
-    float4x4 mProjection;
-    float4x4 mView;
-    float4x4 mCamera;
-    float4 mCameraPos;
+    CameraMats cameraMats;
 };
 
 cbuffer ModelMatrix : register(b1)
 {
-    float4x4 mModelMat;
-    float4x4 mInvTransposeMat;
+    ModelMat modelMats;
 };
 
 cbuffer MaterialInfo : register(b2)
 {
-    float4 colorFactor;
-    float4 emissiveFactor;
-    float metallicFactor;
-    float roughnessFactor;
-    float normalScale;
-    uint useColorTex;
-    uint useEmissiveTex;
-    uint useMetallicRoughnessTex;
-    uint useNormalTex;
-    uint useOcclusionTex;
-    float4 uvScale;
+    MaterialInfo materialInfo;
 }
 
 cbuffer LightInfoBuffer : register(b3)
 {
-    uint numDirLight;
-    uint numPointLight;
-    uint2 padding1;
-    float4 ambientLightIntensity;
-};
-
-struct DirLight
-{
-    float4 mDir;
-    float4 mColorAndIntensity;
-};
-
-struct PointLight
-{
-    float4 mPosition;
-    float4 mColorAndIntensity;
-    float mRadius;
-    float3 padding;
-};
-
-struct PBRMaterial
-{
-    float3 baseColor;
-    float3 emissiveColor;
-    float metallic;
-    float roughness;
-    float3 normalColor;
-    float occlusionColor;
-    float3 F0;
-    float3 diffuse;
+    LightInfo lightInfo;
 };
 
 SamplerState mainSampler : register(s0);
@@ -111,9 +70,9 @@ PBRMaterial GenerateMaterial(PS_INPUT input);
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
-    output.vertexPos = mul(mModelMat, float4(input.pos, 1.f));
-    output.pos = mul(mCamera, output.vertexPos);
-    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)mInvTransposeMat)), 0.f);
+    output.vertexPos = mul(modelMats.mModelMat, float4(input.pos, 1.f));
+    output.pos = mul(cameraMats.mCamera, output.vertexPos);
+    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)modelMats.mInvTransposeMat)), 0.f);
     output.uv = input.uv;
 
     input.tangents = normalize(input.tangents);
@@ -131,15 +90,15 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     PBRMaterial material = GenerateMaterial(input);
     float3 diffuse = 0.f;
     float3 specular = 0.f;
-    float3 viewDirection = normalize(mCameraPos.xyz - input.vertexPos.xyz);
+    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - input.vertexPos.xyz);
 
-    for (int i = 0; i < numDirLight; i++)
+    for (int i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
         GetBRDF(material, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
     }
 
-    for (int j = 0; j < numPointLight; j++)
+    for (int j = 0; j < lightInfo.numPointLight; j++)
     {
         PointLight light = pointLights[j];
 
@@ -151,7 +110,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
         GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
     }
 
-    GetBRDF(material, viewDirection, viewDirection, ambientLightIntensity.rgb, ambientLightIntensity.a, 1.f, diffuse, specular);
+    GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
 
     float3 result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
     result = LinearToSRGB(result);
@@ -161,28 +120,28 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
 PBRMaterial GenerateMaterial(PS_INPUT input)
 {
     PBRMaterial mat;
-    if (useColorTex)
+    if (materialInfo.useColorTex)
     {
         mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.baseColor *= colorFactor.rgb;
+        mat.baseColor *= materialInfo.colorFactor.rgb;
     }
     else
     {
         mat.baseColor = float3(1.0, 1.0, 1.0);
-        mat.baseColor *= colorFactor.rgb;
+        mat.baseColor *= materialInfo.colorFactor.rgb;
     }
 
-    if (useEmissiveTex)
+    if (materialInfo.useEmissiveTex)
     {
         mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.emissiveColor *= emissiveFactor.rgb;
+        mat.emissiveColor *= materialInfo.emissiveFactor.rgb;
     }
     else
     {
         mat.emissiveColor = float3(0.0, 0.0, 0.0);
     }
 
-    if (useMetallicRoughnessTex)
+    if (materialInfo.useMetallicRoughnessTex)
     {
         float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
         mat.roughness = metallicRoughnessColor.g;
@@ -191,17 +150,17 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     else
     {
         mat.occlusionColor = 1.0;
-        mat.metallic = metallicFactor;
-        mat.roughness = roughnessFactor;
+        mat.metallic = materialInfo.metallicFactor;
+        mat.roughness = materialInfo.roughnessFactor;
     }
 
     // Occlusion if it is not in matallic roughness texture
-    if (useOcclusionTex)
+    if (materialInfo.useOcclusionTex)
     {
         mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
     }
 
-    if (useNormalTex)
+    if (materialInfo.useNormalTex)
     {
         mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
         mat.normalColor = mat.normalColor * 2.0 - 1.0;
