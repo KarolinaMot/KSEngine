@@ -158,8 +158,8 @@ int main()
         // transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
         model_renderer->QueueModel(model, transform);
         model_renderer->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .75f);
-        // model_renderer->QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-        // model_renderer->QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
+        model_renderer->QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
+        model_renderer->QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
         renderer.Render(*device, renderParams);
         device->EndFrame();
     }

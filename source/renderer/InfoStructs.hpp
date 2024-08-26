@@ -28,6 +28,15 @@ enum VertexDataBuffers
     VDS_TANGENTS
 };
 
+enum Formats
+{
+    R8G8B8A8_UNORM = 0,
+    R16G16B16A16_FLOAT,
+    R32G32B32A32_FLOAT,
+    R32_FLOAT,
+    R16_FLOAT,
+};
+
 struct DrawEntry
 {
     glm::mat4 transform {};
