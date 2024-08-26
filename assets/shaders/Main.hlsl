@@ -17,6 +17,14 @@ struct PS_INPUT
     float3x3 tangentBasis : TANGENT_BASIS;
 };
 
+struct PSOutput
+{
+    float4 albedo : SV_Target0;
+    float4 vertexPos : SV_Target1;
+    float4 normals : SV_Target2;
+    float4 emissive : SV_Target2;
+};
+
 cbuffer Camera : register(b0)
 {
     CameraMats cameraMats;
@@ -32,10 +40,10 @@ cbuffer MaterialInfo : register(b2)
     MaterialInfo materialInfo;
 }
 
-cbuffer LightInfoBuffer : register(b3)
-{
-    LightInfo lightInfo;
-};
+// cbuffer LightInfoBuffer : register(b3)
+// {
+//     LightInfo lightInfo;
+// };
 
 SamplerState mainSampler : register(s0);
 Texture2D baseColorTex : register(t0);
@@ -43,8 +51,8 @@ Texture2D normalTex : register(t1);
 Texture2D emissiveTex : register(t2);
 Texture2D metallicRoughnessTex : register(t3);
 Texture2D occlusionTex : register(t4);
-StructuredBuffer<DirLight> dirLights : register(t5);
-StructuredBuffer<PointLight> pointLights : register(t6);
+// StructuredBuffer<DirLight> dirLights : register(t5);
+// StructuredBuffer<PointLight> pointLights : register(t6);
 
 float3 LinearToSRGB(float3 color);
 PBRMaterial GenerateMaterial(PS_INPUT input);
@@ -67,36 +75,47 @@ PS_INPUT mainVS(VS_INPUT input)
     return output;
 }
 
-float4 mainPS(PS_INPUT input) : SV_TARGET
+PSOutput mainPS(PS_INPUT input) : SV_TARGET
 {
+    PSOutput output;
     PBRMaterial material = GenerateMaterial(input);
-    float3 diffuse = 0.f;
-    float3 specular = 0.f;
-    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - input.vertexPos.xyz);
 
-    for (int i = 0; i < lightInfo.numDirLight; i++)
-    {
-        DirLight light = dirLights[i];
-        GetBRDF(material, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
-    }
+    float metallic, roughness;
+    output.albedo = float4(material.baseColor.rgb, material.metallic);
+    output.normals = material.normalColor;
+    output.vertexPos = float4(input.vertexPos.xyz, material.roughness);
+    output.emissive = material.emissiveColor;
 
-    for (int j = 0; j < lightInfo.numPointLight; j++)
-    {
-        PointLight light = pointLights[j];
+    return output;
 
-        float3 lightDirection = light.mPosition.xyz - input.vertexPos.xyz;
-        float dist = length(lightDirection);
-        lightDirection /= dist;
-        float att = Attenuation(dist, light.mRadius);
+    // PBRMaterial material = GenerateMaterial(input);
+    // float3 diffuse = 0.f;
+    // float3 specular = 0.f;
+    // float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - input.vertexPos.xyz);
 
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
-    }
+    // for (int i = 0; i < lightInfo.numDirLight; i++)
+    // {
+    //     DirLight light = dirLights[i];
+    //     GetBRDF(material, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
+    // }
 
-    GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
+    // for (int j = 0; j < lightInfo.numPointLight; j++)
+    // {
+    //     PointLight light = pointLights[j];
 
-    float3 result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
-    result = LinearToSRGB(result);
-    return float4(result, 1.f);
+    //     float3 lightDirection = light.mPosition.xyz - input.vertexPos.xyz;
+    //     float dist = length(lightDirection);
+    //     lightDirection /= dist;
+    //     float att = Attenuation(dist, light.mRadius);
+
+    //     GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
+    // }
+
+    // GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
+
+    // float3 result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
+    // result = LinearToSRGB(result);
+    // return float4(result, 1.f);
 }
 
 PBRMaterial GenerateMaterial(PS_INPUT input)

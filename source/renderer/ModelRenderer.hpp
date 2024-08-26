@@ -28,7 +28,7 @@ struct DrawEntry;
 class ModelRenderer : public SubRenderer
 {
 public:
-    ModelRenderer(const Device& device, std::shared_ptr<Shader> shader);
+    ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, std::shared_ptr<Texture>* resultOfPreviousPasses = nullptr);
     ~ModelRenderer();
 
     void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);

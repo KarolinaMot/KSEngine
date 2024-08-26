@@ -15,8 +15,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <renderer/InfoStructs.hpp>
 
-KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
-    : SubRenderer(device, shader)
+KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, std::shared_ptr<Texture>* resultOfPreviousPasses)
+    : SubRenderer(device, shader, renderTarget, depthStencil, resultOfPreviousPasses)
 {
     ModelMat mat {};
     MaterialInfo matInfo {};

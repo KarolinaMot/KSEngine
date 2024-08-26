@@ -11,7 +11,7 @@
 #include <renderer/ShaderInputs.hpp>
 #include <renderer/InfoStructs.hpp>
 
-KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
+KS::Renderer::Renderer(const Device& device, std::shared_ptr<Shader> shader, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, std::shared_ptr<Texture>* resultOfPreviousPasses = nullptr)
 {
     for (int i = 0; i < params.shaders.size(); i++)
     {
