@@ -111,7 +111,6 @@ public:
 private:
     void CreateStructuredBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
     void CreateConstBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
-    void CreateTexture(const Device& device, const std::string& name, uint32_t width, uint32_t height, size_t dataSize, bool readWriteEnabled);
 
     void UploadDataStructuredBuffer(const Device& device, const void* data, int numOfElements);
     void UploadDataConstBuffer(const Device& device, const void* data, uint32_t offset);

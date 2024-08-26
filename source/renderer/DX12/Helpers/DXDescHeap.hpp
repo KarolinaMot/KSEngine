@@ -22,15 +22,6 @@ public:
     // DONOT USE THIS, USE DXHeapHandle::Construct!!!!!!
     DXDescHeap(ComPtr<ID3D12Device5> device, int numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, LPCWSTR name, D3D12_DESCRIPTOR_HEAP_FLAGS flags);
 
-    void BindToGraphics(ComPtr<ID3D12GraphicsCommandList4> commandList, unsigned int rootSlot, const DXHeapHandle& handle);
-    void BindToCompute(ComPtr<ID3D12GraphicsCommandList4> commandList, unsigned int rootSlot, const DXHeapHandle& handle);
-
-    void BindRenderTargets(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle* handles, const DXHeapHandle& dsvHandle, unsigned int numRtv = 1);
-    void BindRenderTargets(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle& rtvHeapSlot);
-
-    void ClearRenderTarget(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle& handle, const float* clearData);
-    void ClearDepthStencil(ComPtr<ID3D12GraphicsCommandList4> commandList, const DXHeapHandle& handle);
-
     DXHeapHandle AllocateResource(DXResource* resource, D3D12_SHADER_RESOURCE_VIEW_DESC* desc);
     DXHeapHandle AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, DXResource* counterResource = nullptr);
     DXHeapHandle AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc);

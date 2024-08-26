@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <renderer/DX12/Helpers/DXConstBuffer.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputs.hpp>
 
@@ -26,7 +27,7 @@ KS::Renderer::~Renderer()
 
 void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
 {
-    ID3D12GraphicsCommandList4* commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     CameraMats cam {};
     cam.m_proj = params.projectionMatrix;
@@ -37,7 +38,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
 
     for (int i = 0; i < m_subrenderers.size(); i++)
     {
-        commandList->SetGraphicsRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_subrenderers[i]->GetShader()->GetShaderInput()->GetSignature()));
+        commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_subrenderers[i]->GetShader()->GetShaderInput()->GetSignature()));
         m_camera_buffer->BindToGraphics(device,
             m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
             0,

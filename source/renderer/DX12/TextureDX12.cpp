@@ -4,6 +4,7 @@
 #include "Helpers/DXResource.hpp"
 #include "Helpers/DXHeapHandle.hpp"
 #include "Helpers/DXDescHeap.hpp"
+#include "Helpers/DXCommandList.hpp"
 
 class KS::Texture::Impl
 {
@@ -20,7 +21,7 @@ KS::Texture::Texture(const Device& device, const Image& image, bool readOnly)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     m_width = image.GetWidth();
     m_height = image.GetHeight();
 
@@ -76,49 +77,27 @@ KS::Texture::~Texture()
     delete m_impl;
 }
 
-void KS::Texture::BindToGraphics(const Device& device, uint32_t rootIndex, bool readOnly) const
+void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) const
 {
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     if (readOnly)
     {
         if (m_impl->mSRVHeapSlot.IsValid())
         {
-            resourceHeap->BindToGraphics(commandList, rootIndex, m_impl->mSRVHeapSlot);
+            commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
         }
         else
+        {
             m_impl->AllocateAsSRV(resourceHeap);
+        }
     }
     else
     {
         if (m_impl->mUAVHeapSlot.IsValid())
         {
-            resourceHeap->BindToGraphics(commandList, rootIndex, m_impl->mUAVHeapSlot);
-        }
-        else
-            m_impl->AllocateAsUAV(resourceHeap);
-    }
-}
-void KS::Texture::BindToCompute(const Device& device, uint32_t rootIndex, bool readOnly) const
-{
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto commandList = reinterpret_cast<ID3D12GraphicsCommandList4*>(device.GetCommandList());
-
-    if (readOnly)
-    {
-        if (m_impl->mSRVHeapSlot.IsValid())
-        {
-            resourceHeap->BindToCompute(commandList, rootIndex, m_impl->mSRVHeapSlot);
-        }
-        else
-            m_impl->AllocateAsSRV(resourceHeap);
-    }
-    else
-    {
-        if (m_impl->mUAVHeapSlot.IsValid())
-        {
-            resourceHeap->BindToCompute(commandList, rootIndex, m_impl->mUAVHeapSlot);
+            commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
         }
         else
             m_impl->AllocateAsUAV(resourceHeap);

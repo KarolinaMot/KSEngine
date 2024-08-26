@@ -6,6 +6,7 @@
 
 class DXResource;
 class DXDescHeap;
+class DXCommandList;
 class DXStructuredBuffer
 {
 public:
@@ -15,13 +16,13 @@ public:
     size_t GetGPUVirtualAddress() const;
 
     void Resize(const ComPtr<ID3D12Device5>& device, int numberOfElements);
-    void Update(ID3D12GraphicsCommandList4* commandList, const void* data);
+    void Update(DXCommandList* commandList, const void* data);
 
-    void BindToGraphics(ID3D12GraphicsCommandList4* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap);
-    void BindToCompute(ID3D12GraphicsCommandList4* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap);
+    void Bind(DXCommandList* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap);
 
     const DXHeapHandle& GetUAVHandle() { return m_UAV_handle; }
     const DXHeapHandle& GetSRVHandle() { return m_SRV_handle; }
+    const std::unique_ptr<DXResource>& GetResource() const { return m_resource; }
 
 private:
     void AllocateAsUAV(DXDescHeap* descriptorHeap);

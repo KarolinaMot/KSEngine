@@ -4,15 +4,16 @@ namespace KS
 {
 class Device;
 class Image;
+class CommandList;
 class Texture
 {
+    friend CommandList;
+
 public:
     Texture(const Device& device, const Image& image, bool readOnly = true);
     Texture(const Device& device, uint32_t width, uint32_t height, bool readOnly = true);
     ~Texture();
-
-    void BindToGraphics(const Device& device, uint32_t rootIndex, bool readOnly = true) const;
-    void BindToCompute(const Device& device, uint32_t rootIndex, bool readOnly = true) const;
+    void Bind(const Device& device, uint32_t rootIndex, bool readOnly = true) const;
 
 private:
     class Impl;

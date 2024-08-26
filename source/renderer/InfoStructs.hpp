@@ -15,6 +15,14 @@ enum ResourceBuffers
     NUM_BUFFERS
 };
 
+enum VertexDataBuffers
+{
+    VDS_POSITIONS = 0,
+    VDS_NORMALS,
+    VDS_UV,
+    VDS_TANGENTS
+};
+
 struct DrawEntry
 {
     glm::mat4 transform {};
