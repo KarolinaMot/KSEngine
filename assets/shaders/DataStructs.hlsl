@@ -1,3 +1,7 @@
+static const float sGamma = 1.8;
+static const float sInvGamma = 1.0 / sGamma;
+static const float sPi = 3.14159265359;
+
 struct DirLight
 {
     float4 mDir;
