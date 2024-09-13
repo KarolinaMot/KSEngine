@@ -50,8 +50,7 @@ public:
     template <typename T>
     const T* GetParameter(const std::string& key) const
     {
-        auto it = input_parameters.find(key);
-        if (it != input_parameters.end())
+        if (auto it = input_parameters.find(key); it != input_parameters.end())
         {
             return std::get_if<T>(&it->second);
         }

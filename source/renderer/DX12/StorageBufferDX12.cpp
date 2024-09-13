@@ -46,7 +46,7 @@ void KS::StorageBuffer::Resize(const Device& device, int newNumOfElements)
     m_impl->m_buffer->Resize(engineDevice, newNumOfElements);
 }
 
-void KS::StorageBuffer::Bind(const Device& device, int rootIndex, bool readOnly)
+void KS::StorageBuffer::Bind(const Device& device, int rootIndex, int elementIndex, bool readOnly)
 {
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());

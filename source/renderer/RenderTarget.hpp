@@ -13,10 +13,11 @@ public:
     RenderTarget();
     ~RenderTarget();
 
-    void AddTexture(Device& device, std::shared_ptr<Texture>& texture);
+    void AddTexture(Device& device, std::shared_ptr<Texture> texture, std::string name);
 
     void Bind(Device& device, const DepthStencil* depth) const;
     void Clear(const Device& device);
+    void PrepareToPresent(Device& device);
 
 private:
     class Impl;
@@ -25,7 +26,6 @@ private:
     std::shared_ptr<Texture> m_textures[8];
     int m_textureCount = 0;
     glm::vec2 m_size {};
-    glm::vec4 m_clearColor {};
     Formats m_format {};
 };
 

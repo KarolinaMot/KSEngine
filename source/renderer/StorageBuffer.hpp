@@ -48,7 +48,7 @@ public:
     }
 
     void Resize(const Device& device, int newNumOfElements);
-    void Bind(const Device& device, int rootIndex, bool readOnly = true);
+    void Bind(const Device& device, int rootIndex, int elementIndex = 0, bool readOnly = true);
     void BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset = 0);
     void BindAsIndexData(const Device& device, uint32_t elementOffset = 0);
 

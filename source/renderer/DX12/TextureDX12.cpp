@@ -1,13 +1,13 @@
 #include <resources/Texture.hpp>
-#include <renderer/RenderTarget.hpp>
-#include <renderer/DepthStencil.hpp>
 #include <device/Device.hpp>
 #include <resources/Image.hpp>
+#include <renderer/RenderTarget.hpp>
+#include <renderer/DepthStencil.hpp>
 #include "Helpers/DXResource.hpp"
 #include "Helpers/DXHeapHandle.hpp"
 #include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXCommandList.hpp"
-#include <renderer/DX12/DX12Conversion.hpp>
+#include "Helpers/DX12Conversion.hpp"
 
 class KS::Texture::Impl
 {
@@ -89,6 +89,17 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, Text
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
 }
 
+KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, TextureFlags type)
+{
+    m_impl = new Impl();
+    m_impl->mTextureBuffer = std::make_unique<DXResource>();
+    m_impl->mTextureBuffer->SetResource(reinterpret_cast<ID3D12Resource*>(resource));
+    m_format = DXGIFormatsToKS(m_impl->mTextureBuffer->GetDesc().Format);
+    m_width = size.x;
+    m_height = size.y;
+    m_flag = type;
+}
+
 KS::Texture::~Texture()
 {
     delete m_impl;
@@ -101,14 +112,13 @@ void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) 
 
     if (readOnly)
     {
-        if (m_impl->mSRVHeapSlot.IsValid())
-        {
-            commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
-        }
-        else
+        if (!m_impl->mSRVHeapSlot.IsValid())
         {
             m_impl->AllocateAsSRV(resourceHeap);
         }
+        commandList->ResourceBarrier(m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_COMMON);
+        m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
+        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
     }
     else
     {
@@ -118,12 +128,14 @@ void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) 
             return;
         }
 
-        if (m_impl->mUAVHeapSlot.IsValid())
+        if (!m_impl->mUAVHeapSlot.IsValid())
         {
-            commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
-        }
-        else
             m_impl->AllocateAsUAV(resourceHeap);
+        }
+
+        commandList->ResourceBarrier(m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
     }
 }
 
@@ -162,13 +174,14 @@ public:
 
 KS::RenderTarget::RenderTarget()
 {
+    m_impl = std::make_unique<Impl>();
 }
 
 KS::RenderTarget::~RenderTarget()
 {
 }
 
-void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture>& texture)
+void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture, std::string name)
 {
     if (m_textureCount >= 8)
     {
@@ -191,6 +204,10 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture>& text
     rtvDesc.Texture2D.MipSlice = 0;
     m_impl->m_RT[m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture->m_impl->mTextureBuffer.get(), &rtvDesc);
     m_textureCount++;
+
+    wchar_t wString[4096];
+    MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
+    texture->m_impl->mTextureBuffer->Get()->SetName(wString);
 }
 
 void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
@@ -201,20 +218,20 @@ void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
         return;
     }
 
-    if (depth == nullptr)
+    if (depth == nullptr && depth->IsValid())
     {
         LOG(Log::Severity::WARN, "Trying to bind a render target with no depth stencil. Command ignored.");
         return;
     }
 
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-    std::unique_ptr<DXResource>* m_resources[8];
+    DXResource* m_resources[8];
     for (int i = 0; i < m_textureCount; i++)
     {
-        m_resources[i] = &m_textures[i]->m_impl->mTextureBuffer;
+        m_resources[i] = m_textures[i]->m_impl->mTextureBuffer.get();
     }
 
-    commandList->BindRenderTargets(m_resources[0], m_impl->m_RT, depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle);
+    //commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
 }
 
 void KS::RenderTarget::Clear(const Device& device)
@@ -228,7 +245,17 @@ void KS::RenderTarget::Clear(const Device& device)
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList->ClearRenderTargets(m_textures[i]->m_impl->mTextureBuffer, m_impl->m_RT[i], &m_clearColor[0]);
+        commandList->ClearRenderTargets(m_textures[i]->m_impl->mTextureBuffer, m_impl->m_RT[i], &m_textures[i]->m_clearColor[0]);
+    }
+}
+
+void KS::RenderTarget::PrepareToPresent(Device& device)
+{
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    for (int i = 0; i < m_textureCount; i++)
+    {
+        commandList->ResourceBarrier(m_textures[i]->m_impl->mTextureBuffer->Get(), m_textures[i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
+        m_textures[i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
     }
 }
 
@@ -236,7 +263,7 @@ KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)
 {
     m_impl = std::make_unique<Impl>();
 
-    if (texture->GetType() != Texture::RENDER_TARGET)
+    if (texture->GetType() != Texture::DEPTH_TEXTURE)
     {
         LOG(Log::Severity::WARN, "Tried to attach a texture that was not created with the depth stencil type. Depth stencil will not be initialized.");
         return;
@@ -254,4 +281,10 @@ KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)
 
 KS::DepthStencil::~DepthStencil()
 {
+}
+
+void KS::DepthStencil::Clear(Device& device)
+{
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    commandList->ClearDepthStencils(m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
 }

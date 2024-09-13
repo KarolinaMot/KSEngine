@@ -1,6 +1,6 @@
 #include "../Shader.hpp"
 #include "../ShaderInputs.hpp"
-#include "Device/Device.hpp"
+#include <device/Device.hpp>
 #include "Helpers/DXIncludes.hpp"
 #include "Helpers/DXPipeline.hpp"
 #include <renderer/InfoStructs.hpp>

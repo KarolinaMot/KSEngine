@@ -31,6 +31,14 @@ public:
 
     void Render(Device& device, const RendererRenderParams& params);
 
+    struct CameraMats
+    {
+        glm::mat4x4 m_view = glm::mat4x4(1.f);
+        glm::mat4x4 m_proj = glm::mat4x4(1.f);
+        glm::mat4x4 m_camera = glm::mat4x4(1.f);
+        glm::vec4 m_cameraPos = glm::vec4(1.f);
+    };
+
     std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
 
 private:

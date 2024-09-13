@@ -1,7 +1,7 @@
-#include <renderer/Renderer.hpp>
-#include <renderer/UniformBuffer.hpp>
-#include <renderer/ModelRenderer.hpp>
-#include <renderer/SubRenderer.hpp>
+#include "../UniformBuffer.hpp"
+#include "../ModelRenderer.hpp"
+#include "../Renderer.hpp"
+#include "../SubRenderer.hpp"
 #include <device/Device.hpp>
 #include <glm/glm.hpp>
 #include <renderer/DX12/Helpers/DXConstBuffer.hpp>
@@ -9,9 +9,8 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputs.hpp>
-#include <renderer/InfoStructs.hpp>
 
-KS::Renderer::Renderer(const Device& device, std::shared_ptr<Shader> shader, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, std::shared_ptr<Texture>* resultOfPreviousPasses = nullptr)
+KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
 {
     for (int i = 0; i < params.shaders.size(); i++)
     {
@@ -41,7 +40,8 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     {
         commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_subrenderers[i]->GetShader()->GetShaderInput()->GetSignature()));
         m_camera_buffer->Bind(device,
-            m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
+            m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
+            0);
         device.TrackResource(m_camera_buffer);
         m_subrenderers[i]->Render(device, params.cpuFrame);
     }

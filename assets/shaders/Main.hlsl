@@ -1,4 +1,6 @@
-#include "PBRFunctions.hlsl"
+static const float sGamma = 1.8;
+static const float sInvGamma = 1.0 / sGamma;
+static const float sPi = 3.14159265359;
 
 struct VS_INPUT
 {
@@ -17,33 +19,68 @@ struct PS_INPUT
     float3x3 tangentBasis : TANGENT_BASIS;
 };
 
-struct PSOutput
-{
-    float4 albedo : SV_Target0;
-    float4 vertexPos : SV_Target1;
-    float4 normals : SV_Target2;
-    float4 emissive : SV_Target2;
-};
-
 cbuffer Camera : register(b0)
 {
-    CameraMats cameraMats;
+    float4x4 mProjection;
+    float4x4 mView;
+    float4x4 mCamera;
+    float4 mCameraPos;
 };
 
 cbuffer ModelMatrix : register(b1)
 {
-    ModelMat modelMats;
+    float4x4 mModelMat;
+    float4x4 mInvTransposeMat;
 };
 
 cbuffer MaterialInfo : register(b2)
 {
-    MaterialInfo materialInfo;
+    float4 colorFactor;
+    float4 emissiveFactor;
+    float metallicFactor;
+    float roughnessFactor;
+    float normalScale;
+    uint useColorTex;
+    uint useEmissiveTex;
+    uint useMetallicRoughnessTex;
+    uint useNormalTex;
+    uint useOcclusionTex;
+    float4 uvScale;
 }
 
-// cbuffer LightInfoBuffer : register(b3)
-// {
-//     LightInfo lightInfo;
-// };
+cbuffer LightInfoBuffer : register(b3)
+{
+    uint numDirLight;
+    uint numPointLight;
+    uint2 padding1;
+    float4 ambientLightIntensity;
+};
+
+struct DirLight
+{
+    float4 mDir;
+    float4 mColorAndIntensity;
+};
+
+struct PointLight
+{
+    float4 mPosition;
+    float4 mColorAndIntensity;
+    float mRadius;
+    float3 padding;
+};
+
+struct PBRMaterial
+{
+    float3 baseColor;
+    float3 emissiveColor;
+    float metallic;
+    float roughness;
+    float3 normalColor;
+    float occlusionColor;
+    float3 F0;
+    float3 diffuse;
+};
 
 SamplerState mainSampler : register(s0);
 Texture2D baseColorTex : register(t0);
@@ -51,18 +88,32 @@ Texture2D normalTex : register(t1);
 Texture2D emissiveTex : register(t2);
 Texture2D metallicRoughnessTex : register(t3);
 Texture2D occlusionTex : register(t4);
-// StructuredBuffer<DirLight> dirLights : register(t5);
-// StructuredBuffer<PointLight> pointLights : register(t6);
+StructuredBuffer<DirLight> dirLights : register(t5);
+StructuredBuffer<PointLight> pointLights : register(t6);
 
 float3 LinearToSRGB(float3 color);
+float3 LambertianDiffuse(float3 albedo, float3 f0, float3 f90, float vDotH);
+float3 FSchlick(float3 F0, float3 F90, float vDotH);
+float D_GGX(in float NdotH, in float alphaRoughness);
+float V_GGX(in float NdotL, in float NoV, in float alphaRoughness);
+void GetBRDF(
+    PBRMaterial mat,
+    float3 viewDir,
+    float3 lightDir,
+    float3 lightColor,
+    float lightIntensity,
+    float attenuation,
+    inout float3 diffuse,
+    inout float3 specular);
+float Attenuation(float distance, float range);
 PBRMaterial GenerateMaterial(PS_INPUT input);
 
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
-    output.vertexPos = mul(modelMats.mModelMat, float4(input.pos, 1.f));
-    output.pos = mul(cameraMats.mCamera, output.vertexPos);
-    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)modelMats.mInvTransposeMat)), 0.f);
+    output.vertexPos = mul(mModelMat, float4(input.pos, 1.f));
+    output.pos = mul(mCamera, output.vertexPos);
+    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)mInvTransposeMat)), 0.f);
     output.uv = input.uv;
 
     input.tangents = normalize(input.tangents);
@@ -75,74 +126,63 @@ PS_INPUT mainVS(VS_INPUT input)
     return output;
 }
 
-PSOutput mainPS(PS_INPUT input) : SV_TARGET
+float4 mainPS(PS_INPUT input) : SV_TARGET
 {
-    PSOutput output;
     PBRMaterial material = GenerateMaterial(input);
+    float3 diffuse = 0.f;
+    float3 specular = 0.f;
+    float3 viewDirection = normalize(mCameraPos.xyz - input.vertexPos.xyz);
 
-    float metallic, roughness;
-    output.albedo = float4(material.baseColor.rgb, material.metallic);
-    output.normals = material.normalColor;
-    output.vertexPos = float4(input.vertexPos.xyz, material.roughness);
-    output.emissive = material.emissiveColor;
+    for (int i = 0; i < numDirLight; i++)
+    {
+        DirLight light = dirLights[i];
+        GetBRDF(material, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
+    }
 
-    return output;
+    for (int j = 0; j < numPointLight; j++)
+    {
+        PointLight light = pointLights[j];
 
-    // PBRMaterial material = GenerateMaterial(input);
-    // float3 diffuse = 0.f;
-    // float3 specular = 0.f;
-    // float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - input.vertexPos.xyz);
+        float3 lightDirection = light.mPosition.xyz - input.vertexPos.xyz;
+        float dist = length(lightDirection);
+        lightDirection /= dist;
+        float att = Attenuation(dist, light.mRadius);
 
-    // for (int i = 0; i < lightInfo.numDirLight; i++)
-    // {
-    //     DirLight light = dirLights[i];
-    //     GetBRDF(material, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
-    // }
+        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
+    }
 
-    // for (int j = 0; j < lightInfo.numPointLight; j++)
-    // {
-    //     PointLight light = pointLights[j];
+    GetBRDF(material, viewDirection, viewDirection, ambientLightIntensity.rgb, ambientLightIntensity.a, 1.f, diffuse, specular);
 
-    //     float3 lightDirection = light.mPosition.xyz - input.vertexPos.xyz;
-    //     float dist = length(lightDirection);
-    //     lightDirection /= dist;
-    //     float att = Attenuation(dist, light.mRadius);
-
-    //     GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
-    // }
-
-    // GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
-
-    // float3 result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
-    // result = LinearToSRGB(result);
-    // return float4(result, 1.f);
+    float3 result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
+    result = LinearToSRGB(result);
+    return float4(result, 1.f);
 }
 
 PBRMaterial GenerateMaterial(PS_INPUT input)
 {
     PBRMaterial mat;
-    if (materialInfo.useColorTex)
+    if (useColorTex)
     {
         mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.baseColor *= materialInfo.colorFactor.rgb;
+        mat.baseColor *= colorFactor.rgb;
     }
     else
     {
         mat.baseColor = float3(1.0, 1.0, 1.0);
-        mat.baseColor *= materialInfo.colorFactor.rgb;
+        mat.baseColor *= colorFactor.rgb;
     }
 
-    if (materialInfo.useEmissiveTex)
+    if (useEmissiveTex)
     {
         mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.emissiveColor *= materialInfo.emissiveFactor.rgb;
+        mat.emissiveColor *= emissiveFactor.rgb;
     }
     else
     {
         mat.emissiveColor = float3(0.0, 0.0, 0.0);
     }
 
-    if (materialInfo.useMetallicRoughnessTex)
+    if (useMetallicRoughnessTex)
     {
         float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
         mat.roughness = metallicRoughnessColor.g;
@@ -151,17 +191,17 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     else
     {
         mat.occlusionColor = 1.0;
-        mat.metallic = materialInfo.metallicFactor;
-        mat.roughness = materialInfo.roughnessFactor;
+        mat.metallic = metallicFactor;
+        mat.roughness = roughnessFactor;
     }
 
     // Occlusion if it is not in matallic roughness texture
-    if (materialInfo.useOcclusionTex)
+    if (useOcclusionTex)
     {
         mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
     }
 
-    if (materialInfo.useNormalTex)
+    if (useNormalTex)
     {
         mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
         mat.normalColor = mat.normalColor * 2.0 - 1.0;
@@ -187,4 +227,74 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
 float3 LinearToSRGB(float3 color)
 {
     return pow(color, float3(sInvGamma, sInvGamma, sInvGamma));
+}
+
+float3 LambertianDiffuse(float3 albedo, float3 f0, float3 f90, float vDotH)
+{
+    return (1.0 - FSchlick(f0, f90, vDotH)) * (albedo / sPi);
+}
+
+float3 FSchlick(float3 F0, float3 F90, float vDotH)
+{
+    return F0 + (F90 - F0) * pow(clamp(1.0 - vDotH, 0.0, 1.0), 5.0);
+}
+
+float D_GGX(in float NdotH, in float alphaRoughness)
+{
+    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+    float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;
+
+    return alphaRoughnessSq / (sPi * f * f);
+}
+
+float V_GGX(in float NdotL, in float NoV, in float alphaRoughness)
+{
+    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+
+    float GGXV = NdotL * sqrt(NoV * NoV * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+    float GGXL = NoV * sqrt(NdotL * NdotL * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+
+    float GGX = GGXV + GGXL;
+    if (GGX > 0.0)
+    {
+        return 0.5 / GGX;
+    }
+
+    return 0.0;
+}
+
+void GetBRDF(
+    PBRMaterial mat,
+    float3 viewDir,
+    float3 lightDir,
+    float3 lightColor,
+    float lightIntensity,
+    float attenuation,
+    inout float3 diffuse,
+    inout float3 specular)
+{
+    float3 halfAngle = normalize(viewDir + lightDir);
+    float nDotL = clamp(dot(mat.normalColor, lightDir), 0.0, 1.0);
+    float nDotH = clamp(dot(mat.normalColor, halfAngle), 0.0, 1.0);
+    float nDotV = clamp(dot(mat.normalColor, viewDir), 0.0, 1.0);
+    float vDotH = clamp(dot(viewDir, halfAngle), 0.0, 1.0);
+
+    float3 colorIntensity = lightColor * lightIntensity;
+    colorIntensity *= attenuation;
+
+    float3 diffuseBRDF = LambertianDiffuse(mat.diffuse, mat.F0, float3(1.0, 1.0, 1.0), vDotH);
+
+    float3 F = FSchlick(mat.F0, float3(1.0, 1.0, 1.0), vDotH);
+    float3 G = V_GGX(nDotL, nDotV, mat.roughness);
+    float3 D = D_GGX(nDotH, mat.roughness);
+    float3 specularBRDF = F * G * D;
+
+    diffuse += colorIntensity * nDotL * diffuseBRDF;
+    specular += colorIntensity * nDotL * specularBRDF;
+}
+
+float Attenuation(float distance, float range)
+{
+    float distance2 = distance * distance;
+    return max(min(1.0 - pow(distance / range, 4.0), 1.0), 0.0) / distance2;
 }
