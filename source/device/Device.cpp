@@ -49,7 +49,6 @@ public:
     std::shared_ptr<DXCommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT];
     DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
 
-    // std::unique_ptr<DXResource> m_resources[NUM_RESOURCES];
     std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
     const DXGI_FORMAT m_depth_format = DXGI_FORMAT_D32_FLOAT;
 };
@@ -330,22 +329,6 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
     depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
     depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
     depthOptimizedClearValue.DepthStencil.Stencil = 0;
-
-    // auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    // auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-    //     m_depth_format, static_cast<UINT>(params.window_width),
-    //     static_cast<UINT>(m_viewport.Height), 1, 1, 1, 0,
-    //     D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
-
-    // m_resources[DEPTH_STENCIL_RSC] = std::make_unique<DXResource>(
-    //     m_device, heapProperties, resourceDesc, &depthOptimizedClearValue,
-    //     "Depth/Stencil Resource");
-    // m_command_list->ResourceBarrier(m_resources[DEPTH_STENCIL_RSC]->GetResource(),
-    //     m_resources[DEPTH_STENCIL_RSC]->GetState(),
-    //     D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    // m_resources[DEPTH_STENCIL_RSC]->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    // m_depth_handle = m_descriptor_heaps[DEPTH_HEAP]->AllocateDepthStencil(
-    //     m_resources[DEPTH_STENCIL_RSC].get(), m_device.Get(), &depthStencilDesc);
 
     HWND HWNDwindow
         = reinterpret_cast<HWND>(glfwGetWin32Window(m_window));
