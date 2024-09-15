@@ -6,7 +6,6 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandQueue.hpp>
 #include <tools/Log.hpp>
-
 #include "DX12/DXFactory.hpp"
 
 #include <thread>
@@ -20,9 +19,9 @@ public:
     void InitializeDevice(const DeviceInitParams& params);
     UINT GetFramebufferIndex();
 
-    void BindSwapchainRT();
-    void StartFrame(int frameIndex, glm::vec4 clearColor);
-    void EndFrame();
+    // void BindSwapchainRT();
+    void StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor);
+    void EndFrame(int cpuFrame);
 
     enum DXResources
     {
@@ -41,8 +40,6 @@ public:
 
     GLFWwindow* m_window;
     GLFWmonitor* m_monitor;
-    D3D12_VIEWPORT m_viewport;
-    D3D12_RECT m_scissor_rect;
 
     ComPtr<ID3D12Device5> m_device;
     ComPtr<IDXGISwapChain3> m_swapchain;
@@ -51,13 +48,9 @@ public:
     std::unique_ptr<DXCommandList> m_command_list;
     std::shared_ptr<DXCommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT];
     DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
-    int m_cpu_frame = 0;
-    int m_gpu_frame = 0;
 
-    std::unique_ptr<DXResource> m_resources[NUM_RESOURCES];
+    // std::unique_ptr<DXResource> m_resources[NUM_RESOURCES];
     std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
-    DXHeapHandle m_rt_handle[FRAME_BUFFER_COUNT];
-    DXHeapHandle m_depth_handle;
     const DXGI_FORMAT m_depth_format = DXGI_FORMAT_D32_FLOAT;
 };
 
@@ -65,8 +58,8 @@ KS::Device::Device(const DeviceInitParams& params)
 {
     m_impl = std::make_unique<Impl>();
     m_fullscreen = false;
-    m_prev_width = params.window_width;
-    m_prev_height = params.window_height;
+    m_width = params.window_width;
+    m_height = params.window_height;
     m_impl->InitializeWindow(params);
     m_window_open = true;
     m_clear_color = params.clear_color;
@@ -112,19 +105,53 @@ void KS::Device::NewFrame()
 {
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     m_frame_index = m_impl->GetFramebufferIndex();
-    m_impl->StartFrame(m_frame_index, m_clear_color);
+    m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
+    m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
+    m_swapchainRT[m_cpu_frame]->Bind(*this, m_swapchainDS.get());
+    m_swapchainRT[m_cpu_frame]->Clear(*this);
+    m_swapchainDS->Clear(*this);
 }
 
 void KS::Device::EndFrame()
 {
     glfwSwapBuffers(m_impl->m_window);
-    m_impl->EndFrame();
-    m_frame_resources[m_impl->m_gpu_frame].clear();
+    int cpuFrame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
+    m_swapchainRT[cpuFrame]->PrepareToPresent(*this);
+    m_impl->EndFrame(m_cpu_frame);
+}
+
+void KS::Device::InitializeSwapchain()
+{
+    // CREATE RENDER TARGETS
+    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+    {
+        ComPtr<ID3D12Resource> res;
+        HRESULT hr = m_impl->m_swapchain->GetBuffer(i, IID_PPV_ARGS(&res));
+        if (FAILED(hr))
+        {
+            LOG(Log::Severity::FATAL, "Failed to get swapchain buffer");
+        }
+
+        m_swapchainTex[i] = std::make_shared<Texture>(*this, res.Get(), glm::vec2(m_width, m_height), Texture::RENDER_TARGET);
+        m_swapchainRT[i] = std::make_shared<RenderTarget>();
+        m_swapchainRT[i]->AddTexture(*this, m_swapchainTex[i], "Swapchain render target" + std::to_string(i));
+    }
+
+    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_width, m_height, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
+    m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
+}
+
+void KS::Device::FinishInitialization()
+{
+    m_impl->m_command_list->Close();
+
+    const DXCommandList* commandLists[] = { m_impl->m_command_list.get() };
+    auto frame_setup = m_impl->m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
+    frame_setup.Wait();
 }
 
 void KS::Device::TrackResource(std::shared_ptr<void> buffer)
 {
-    m_frame_resources[m_frame_index].push_back(buffer);
 }
 
 void KS::Device::Flush()
@@ -150,9 +177,6 @@ void KS::Device::Impl::InitializeWindow(const DeviceInitParams& params)
 
     m_monitor = glfwGetPrimaryMonitor();
 
-    m_viewport.Width = params.window_width;
-    m_viewport.Height = params.window_height;
-
     std::string applicationName = params.name;
     if (applicationName.empty())
     {
@@ -160,7 +184,7 @@ void KS::Device::Impl::InitializeWindow(const DeviceInitParams& params)
     }
 
     glfwWindowHint(GLFW_RESIZABLE, 1);
-    m_window = glfwCreateWindow(static_cast<int>(m_viewport.Width), static_cast<int>(m_viewport.Height), applicationName.c_str(), nullptr, nullptr);
+    m_window = glfwCreateWindow(params.window_width, params.window_height, applicationName.c_str(), nullptr, nullptr);
 
     if (m_window == nullptr)
     {
@@ -177,38 +201,18 @@ UINT KS::Device::Impl::GetFramebufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-void KS::Device::Impl::BindSwapchainRT()
+void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor)
 {
-    m_command_list->GetCommandList()->RSSetViewports(1, &m_viewport);
-    m_command_list->GetCommandList()->RSSetScissorRects(1, &m_scissor_rect);
-    m_command_list->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    m_command_list->ResourceBarrier(m_resources[m_cpu_frame]->Get(), m_resources[m_cpu_frame]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_resources[m_cpu_frame]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_command_list->BindRenderTargets(&m_resources[m_cpu_frame], &m_rt_handle[m_cpu_frame], m_resources[DEPTH_STENCIL_RSC], m_depth_handle);
-}
-
-void KS::Device::Impl::StartFrame(int frameIndex, glm::vec4 clearColor)
-{
-    m_gpu_frame = frameIndex;
-    m_cpu_frame = (frameIndex + 1) % FRAME_BUFFER_COUNT;
-
     // Wait until the current swapchain is available;
     m_fence_values->Wait();
 
-    m_command_allocator[m_cpu_frame]->Reset();
-    m_command_list->Open(m_command_allocator[m_cpu_frame]);
-
-    BindSwapchainRT();
-    m_command_list->ClearRenderTargets(m_resources[m_cpu_frame], m_rt_handle[m_cpu_frame], &clearColor[0]);
-    m_command_list->ClearDepthStencils(m_resources[DEPTH_STENCIL_RSC], m_depth_handle);
+    m_command_allocator[cpuFrame]->Reset();
+    m_command_list->Open(m_command_allocator[cpuFrame]);
+    m_command_list->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-void KS::Device::Impl::EndFrame()
+void KS::Device::Impl::EndFrame(int cpuFrame)
 {
-    m_command_list->ResourceBarrier(m_resources[m_cpu_frame]->GetResource(), m_resources[m_cpu_frame]->GetState(), D3D12_RESOURCE_STATE_PRESENT);
-    m_resources[m_cpu_frame]->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
-
     // CLOSE COMMAND LIST
     m_command_list->Close();
 
@@ -220,7 +224,7 @@ void KS::Device::Impl::EndFrame()
 
     const DXCommandList* commandLists[] = { m_command_list.get() };
 
-    m_fence_values[m_cpu_frame] = m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
+    m_fence_values[cpuFrame] = m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
 }
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
@@ -290,16 +294,6 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
 
     CheckDX(device.As(&m_device));
 
-    m_viewport.TopLeftX = 0;
-    m_viewport.TopLeftY = 0;
-    m_viewport.MinDepth = 0.0f;
-    m_viewport.MaxDepth = 1.0f;
-
-    m_scissor_rect.left = 0;
-    m_scissor_rect.top = 0;
-    m_scissor_rect.right = static_cast<LONG>(m_viewport.Width);
-    m_scissor_rect.bottom = static_cast<LONG>(m_viewport.Height);
-
     HRESULT hr;
 
     if (params.debug_context)
@@ -337,27 +331,21 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
     depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
     depthOptimizedClearValue.DepthStencil.Stencil = 0;
 
-    auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-        m_depth_format, static_cast<UINT>(m_viewport.Width),
-        static_cast<UINT>(m_viewport.Height), 1, 1, 1, 0,
-        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+    // auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    // auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+    //     m_depth_format, static_cast<UINT>(params.window_width),
+    //     static_cast<UINT>(m_viewport.Height), 1, 1, 1, 0,
+    //     D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
-    m_resources[DEPTH_STENCIL_RSC] = std::make_unique<DXResource>(
-        m_device, heapProperties, resourceDesc, &depthOptimizedClearValue,
-        "Depth/Stencil Resource");
-    m_command_list->ResourceBarrier(m_resources[DEPTH_STENCIL_RSC]->GetResource(),
-        m_resources[DEPTH_STENCIL_RSC]->GetState(),
-        D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    m_resources[DEPTH_STENCIL_RSC]->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    m_depth_handle = m_descriptor_heaps[DEPTH_HEAP]->AllocateDepthStencil(
-        m_resources[DEPTH_STENCIL_RSC].get(), m_device.Get(), &depthStencilDesc);
-
-    m_command_list->Close();
-
-    const DXCommandList* commandLists[] = { m_command_list.get() };
-    auto frame_setup = m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
-    frame_setup.Wait();
+    // m_resources[DEPTH_STENCIL_RSC] = std::make_unique<DXResource>(
+    //     m_device, heapProperties, resourceDesc, &depthOptimizedClearValue,
+    //     "Depth/Stencil Resource");
+    // m_command_list->ResourceBarrier(m_resources[DEPTH_STENCIL_RSC]->GetResource(),
+    //     m_resources[DEPTH_STENCIL_RSC]->GetState(),
+    //     D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    // m_resources[DEPTH_STENCIL_RSC]->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    // m_depth_handle = m_descriptor_heaps[DEPTH_HEAP]->AllocateDepthStencil(
+    //     m_resources[DEPTH_STENCIL_RSC].get(), m_device.Get(), &depthStencilDesc);
 
     HWND HWNDwindow
         = reinterpret_cast<HWND>(glfwGetWin32Window(m_window));
@@ -394,20 +382,4 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
         LOG(Log::Severity::FATAL, "Failed to create swap chain");
     }
     tempSwapChain.As(&m_swapchain);
-
-    // CREATE RENDER TARGETS
-    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
-    {
-        m_resources[RT + i] = std::make_unique<DXResource>();
-        ComPtr<ID3D12Resource> res;
-        hr = m_swapchain->GetBuffer(i, IID_PPV_ARGS(&res));
-        if (FAILED(hr))
-        {
-            LOG(Log::Severity::FATAL, "Failed to get swapchain buffer");
-        }
-        m_resources[RT + i]->SetResource(res);
-        m_rt_handle[i] = m_descriptor_heaps[RT_HEAP]->AllocateRenderTarget(
-            m_resources[RT + i].get(), m_device.Get(), nullptr);
-        m_resources[RT + i]->GetResource()->SetName(L"RENDER TARGET");
-    }
 }

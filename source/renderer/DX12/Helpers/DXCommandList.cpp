@@ -133,7 +133,7 @@ void DXCommandList::BindHeapResource(std::unique_ptr<DXResource>& resource, cons
     m_allocator->TrackResource(resource->Get());
 }
 
-void DXCommandList::BindRenderTargets(std::unique_ptr<DXResource>* rtResources, const DXHeapHandle* handles, std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle, unsigned int numRtv)
+void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles, std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle, unsigned int numRtv)
 {
     if (!m_isOpen)
     {

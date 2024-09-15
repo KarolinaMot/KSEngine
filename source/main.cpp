@@ -92,7 +92,11 @@ int main()
     params.window_width = 1280;
     params.window_height = 720;
 
+    // Initialize device
     auto device = std::make_shared<KS::Device>(params);
+    device->InitializeSwapchain();
+    device->FinishInitialization();
+
     auto ecs = std::make_shared<KS::EntityComponentSystem>();
     auto input = std::make_shared<KS::RawInput>(device);
 
@@ -120,7 +124,7 @@ int main()
         mainInputs,
         shaderPath);
 
-    KS::RendererInitParams initParams {};
+        KS::RendererInitParams initParams {};
     initParams.shaders.push_back(mainShader);
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 

@@ -73,7 +73,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, Text
     clearValue.Color[2] = clearColor.z; // Blue component
     clearValue.Color[3] = clearColor.w; // Alpha component
 
-    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(KS::KSFormatsToDXGI(m_format),
         m_width,
         m_height,
         1,
@@ -164,6 +164,8 @@ class KS::RenderTarget::Impl
 {
 public:
     DXHeapHandle m_RT[8];
+    D3D12_VIEWPORT m_viewport;
+    D3D12_RECT m_scissor_rect;
 };
 
 class KS::DepthStencil::Impl
@@ -205,6 +207,18 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
     m_impl->m_RT[m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture->m_impl->mTextureBuffer.get(), &rtvDesc);
     m_textureCount++;
 
+    m_impl->m_viewport.Width = texture->m_width;
+    m_impl->m_viewport.Height = texture->m_height;
+    m_impl->m_viewport.TopLeftX = 0;
+    m_impl->m_viewport.TopLeftY = 0;
+    m_impl->m_viewport.MinDepth = 0.0f;
+    m_impl->m_viewport.MaxDepth = 1.0f;
+
+    m_impl->m_scissor_rect.left = 0;
+    m_impl->m_scissor_rect.top = 0;
+    m_impl->m_scissor_rect.right = static_cast<LONG>(m_impl->m_viewport.Width);
+    m_impl->m_scissor_rect.bottom = static_cast<LONG>(m_impl->m_viewport.Height);
+
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
     texture->m_impl->mTextureBuffer->Get()->SetName(wString);
@@ -229,9 +243,17 @@ void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
     for (int i = 0; i < m_textureCount; i++)
     {
         m_resources[i] = m_textures[i]->m_impl->mTextureBuffer.get();
+        commandList->ResourceBarrier(m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_resources[i]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
-    //commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
+    commandList->ResourceBarrier(depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    depth->m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+    commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
+
+    commandList->GetCommandList()->RSSetViewports(1, &m_impl->m_viewport);
+    commandList->GetCommandList()->RSSetScissorRects(1, &m_impl->m_scissor_rect);
 }
 
 void KS::RenderTarget::Clear(const Device& device)
