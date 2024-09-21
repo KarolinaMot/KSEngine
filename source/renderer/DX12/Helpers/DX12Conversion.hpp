@@ -3,7 +3,7 @@
 
 namespace KS
 {
-static DXGI_FORMAT KSFormatsToDXGI(Formats format)
+static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
 {
     switch (format)
     {
@@ -29,7 +29,7 @@ static DXGI_FORMAT KSFormatsToDXGI(Formats format)
         return DXGI_FORMAT_R8G8B8A8_UNORM;
         break;
     }
-}
+};
 
 static Formats DXGIFormatsToKS(DXGI_FORMAT format)
 {

@@ -10,6 +10,10 @@ class Device;
 class SubRenderer;
 class Shader;
 class UniformBuffer;
+class Texture;
+class DepthStencil;
+class RenderTarget;
+
 struct RendererInitParams
 {
     std::vector<std::shared_ptr<Shader>> shaders;
@@ -35,5 +39,10 @@ public:
 
 private:
     std::shared_ptr<UniformBuffer> m_camera_buffer;
+
+    std::shared_ptr<Texture> m_deferredRendererTex[2][4];
+    std::shared_ptr<Texture> m_deferredRendererDepthTex;
+    std::shared_ptr<RenderTarget> m_deferredRendererRT;
+    std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
 };
 }

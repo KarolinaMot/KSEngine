@@ -33,7 +33,7 @@ public:
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
     void SetAmbientLight(glm::vec3 color, float intensity);
     void QueueModel(ResourceHandle<Model> model, const glm::mat4& transform);
-    void Render(Device& device, int cpuFrameIndex) override;
+    void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0) override;
 
 private:
     const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);

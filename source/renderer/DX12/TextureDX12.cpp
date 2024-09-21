@@ -163,7 +163,7 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
 class KS::RenderTarget::Impl
 {
 public:
-    DXHeapHandle m_RT[8];
+    DXHeapHandle m_RT[2][8];
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissor_rect;
 };
@@ -183,7 +183,7 @@ KS::RenderTarget::~RenderTarget()
 {
 }
 
-void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture, std::string name)
+void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name)
 {
     if (m_textureCount >= 8)
     {
@@ -191,24 +191,32 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
         return;
     }
 
-    if (texture->GetType() != Texture::RENDER_TARGET)
+    if (texture1->GetType() != Texture::RENDER_TARGET || texture2->GetType() != Texture::RENDER_TARGET)
     {
         LOG(Log::Severity::WARN, "Tried to attach a texture that was not created with the render target type. Command will be ignored.");
         return;
     }
 
-    m_textures[m_textureCount] = texture;
+    m_textures[0][m_textureCount] = texture1;
+    m_textures[1][m_textureCount] = texture2;
 
     auto renderTargetHeap = reinterpret_cast<DXDescHeap*>(device.GetRenderTargetHeap());
+
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format = KSFormatsToDXGI(texture->GetFormat());
+    rtvDesc.Format = KSFormatsToDXGI(texture1->GetFormat());
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Texture2D.MipSlice = 0;
-    m_impl->m_RT[m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture->m_impl->mTextureBuffer.get(), &rtvDesc);
+    m_impl->m_RT[0][m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture1->m_impl->mTextureBuffer.get(), &rtvDesc);
+
+    rtvDesc.Format = KSFormatsToDXGI(texture2->GetFormat());
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+    m_impl->m_RT[1][m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture2->m_impl->mTextureBuffer.get(), &rtvDesc);
+
     m_textureCount++;
 
-    m_impl->m_viewport.Width = texture->m_width;
-    m_impl->m_viewport.Height = texture->m_height;
+    m_impl->m_viewport.Width = texture1->m_width;
+    m_impl->m_viewport.Height = texture1->m_height;
     m_impl->m_viewport.TopLeftX = 0;
     m_impl->m_viewport.TopLeftY = 0;
     m_impl->m_viewport.MinDepth = 0.0f;
@@ -221,7 +229,8 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
 
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
-    texture->m_impl->mTextureBuffer->Get()->SetName(wString);
+    texture1->m_impl->mTextureBuffer->Get()->SetName(wString);
+    texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
 }
 
 void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
@@ -242,7 +251,7 @@ void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
     DXResource* m_resources[8];
     for (int i = 0; i < m_textureCount; i++)
     {
-        m_resources[i] = m_textures[i]->m_impl->mTextureBuffer.get();
+        m_resources[i] = m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer.get();
         commandList->ResourceBarrier(m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_resources[i]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
@@ -250,7 +259,7 @@ void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
     commandList->ResourceBarrier(depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
     depth->m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-    commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
+    commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
 
     commandList->GetCommandList()->RSSetViewports(1, &m_impl->m_viewport);
     commandList->GetCommandList()->RSSetScissorRects(1, &m_impl->m_scissor_rect);
@@ -267,7 +276,7 @@ void KS::RenderTarget::Clear(const Device& device)
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList->ClearRenderTargets(m_textures[i]->m_impl->mTextureBuffer, m_impl->m_RT[i], &m_textures[i]->m_clearColor[0]);
+        commandList->ClearRenderTargets(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &m_textures[device.GetCPUFrameIndex()][i]->m_clearColor[0]);
     }
 }
 
@@ -276,8 +285,8 @@ void KS::RenderTarget::PrepareToPresent(Device& device)
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList->ResourceBarrier(m_textures[i]->m_impl->mTextureBuffer->Get(), m_textures[i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
-        m_textures[i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
+        commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->Get(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
+        m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
     }
 }
 

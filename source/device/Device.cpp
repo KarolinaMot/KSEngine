@@ -106,8 +106,8 @@ void KS::Device::NewFrame()
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
     m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
-    m_swapchainRT[m_cpu_frame]->Bind(*this, m_swapchainDS.get());
-    m_swapchainRT[m_cpu_frame]->Clear(*this);
+    m_swapchainRT->Bind(*this, m_swapchainDS.get());
+    m_swapchainRT->Clear(*this);
     m_swapchainDS->Clear(*this);
 }
 
@@ -115,7 +115,7 @@ void KS::Device::EndFrame()
 {
     glfwSwapBuffers(m_impl->m_window);
     int cpuFrame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
-    m_swapchainRT[cpuFrame]->PrepareToPresent(*this);
+    m_swapchainRT->PrepareToPresent(*this);
     m_impl->EndFrame(m_cpu_frame);
 }
 
@@ -132,9 +132,10 @@ void KS::Device::InitializeSwapchain()
         }
 
         m_swapchainTex[i] = std::make_shared<Texture>(*this, res.Get(), glm::vec2(m_width, m_height), Texture::RENDER_TARGET);
-        m_swapchainRT[i] = std::make_shared<RenderTarget>();
-        m_swapchainRT[i]->AddTexture(*this, m_swapchainTex[i], "Swapchain render target" + std::to_string(i));
     }
+
+    m_swapchainRT = std::make_shared<RenderTarget>();
+    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target");
 
     m_swapchainDepthTex = std::make_shared<Texture>(*this, m_width, m_height, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
     m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);

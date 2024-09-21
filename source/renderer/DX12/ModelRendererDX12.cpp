@@ -77,7 +77,7 @@ void KS::ModelRenderer::QueueModel(ResourceHandle<Model> model, const glm::mat4&
         }
     }
 }
-void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
+void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
@@ -85,6 +85,7 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex)
 
     commandList->BindPipeline(pipeline);
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+    renderTarget->Bind(device, depthStencil.get());
 
     UpdateLights(device);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex, 0);

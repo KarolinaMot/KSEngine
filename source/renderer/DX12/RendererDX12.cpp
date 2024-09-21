@@ -20,6 +20,11 @@ KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
 
     CameraMats cam {};
     m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
+
+    for (int i = 0; i < 2; i++)
+    {
+        m_deferredRendererTex[0]
+    }
 }
 
 KS::Renderer::~Renderer()
@@ -44,6 +49,6 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
             m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
             0);
         device.TrackResource(m_camera_buffer);
-        m_subrenderers[i]->Render(device, params.cpuFrame);
+        m_subrenderers[i]->Render(device, params.cpuFrame, device.GetRenderTarget(), device.GetDepthStencil());
     }
 }
