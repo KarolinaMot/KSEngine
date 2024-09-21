@@ -65,6 +65,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, Text
     m_height = height;
     m_format = format;
     m_flag = type;
+    m_clearColor = clearColor;
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = KSFormatsToDXGI(format);
@@ -276,8 +277,34 @@ void KS::RenderTarget::Clear(const Device& device)
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList->ClearRenderTargets(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &m_textures[device.GetCPUFrameIndex()][i]->m_clearColor[0]);
+        glm::vec4 clearColor = m_textures[device.GetCPUFrameIndex()][i]->m_clearColor;
+        commandList->ClearRenderTargets(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &clearColor[0]);
     }
+}
+
+void KS::RenderTarget::CopyTo(Device& device, std::shared_ptr<RenderTarget> sourceRT, int sourceRtIndex, int dstRTIndex)
+{
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->Get(),
+        m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->GetState(),
+        D3D12_RESOURCE_STATE_COPY_DEST);
+    m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
+
+    sourceRT->SetCopyFrom(device, sourceRtIndex);
+
+    commandList->CopyResource(sourceRT->GetTexture(device, sourceRtIndex)->m_impl->mTextureBuffer,
+        m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer);
+}
+
+void KS::RenderTarget::SetCopyFrom(const Device& device, int rtIndex)
+{
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->Get(),
+        m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->GetState(),
+        D3D12_RESOURCE_STATE_COPY_SOURCE);
+    m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_SOURCE);
 }
 
 void KS::RenderTarget::PrepareToPresent(Device& device)
@@ -288,6 +315,11 @@ void KS::RenderTarget::PrepareToPresent(Device& device)
         commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->Get(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
         m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
     }
+}
+
+std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(Device& device, int index)
+{
+    return m_textures[device.GetCPUFrameIndex()][index];
 }
 
 KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)

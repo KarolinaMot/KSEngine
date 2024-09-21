@@ -17,7 +17,10 @@ public:
 
     void Bind(Device& device, const DepthStencil* depth) const;
     void Clear(const Device& device);
+    void CopyTo(Device& device, std::shared_ptr<RenderTarget> sourceRT, int sourceRtIndex, int dstRTIndex);
+    void SetCopyFrom(const Device& device, int rtIndex);
     void PrepareToPresent(Device& device);
+    std::shared_ptr<Texture> GetTexture(Device& device, int index);
 
 private:
     class Impl;

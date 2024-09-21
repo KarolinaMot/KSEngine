@@ -30,7 +30,7 @@ struct RendererRenderParams
 class Renderer
 {
 public:
-    Renderer(const Device& device, const RendererInitParams& params);
+    Renderer(Device& device, const RendererInitParams& params);
     ~Renderer();
 
     void Render(Device& device, const RendererRenderParams& params);

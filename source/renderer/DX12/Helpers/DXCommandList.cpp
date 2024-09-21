@@ -281,6 +281,13 @@ void DXCommandList::DrawIndexed(int indexCount, int instancesCount)
     m_command_list->DrawIndexedInstanced(indexCount, instancesCount, 0, 0, 0);
 }
 
+void DXCommandList::CopyResource(std::unique_ptr<DXResource>& source, std::unique_ptr<DXResource>& dest)
+{
+    m_command_list->CopyResource(dest->Get(), source->Get());
+    m_allocator->TrackResource(dest->Get());
+    m_allocator->TrackResource(source->Get());
+}
+
 void DXCommandList::ResourceBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState)
 {
     if (!m_isOpen)

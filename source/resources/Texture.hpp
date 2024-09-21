@@ -35,7 +35,7 @@ private:
     Impl* m_impl;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
-    glm::vec4 m_clearColor;
+    glm::vec4 m_clearColor = glm::vec4(0.f);
     Formats m_format;
     TextureFlags m_flag;
 };

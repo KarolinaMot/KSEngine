@@ -19,8 +19,8 @@ struct PS_INPUT
 
 struct PSOutput
 {
-    float4 albedo : SV_Target0;
     float4 vertexPos : SV_Target1;
+    float4 albedo : SV_Target0;
     float4 normals : SV_Target2;
     float4 emissive : SV_Target2;
 };

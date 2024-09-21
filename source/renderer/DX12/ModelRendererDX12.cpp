@@ -86,6 +86,8 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_pt
     commandList->BindPipeline(pipeline);
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
     renderTarget->Bind(device, depthStencil.get());
+    renderTarget->Clear(device);
+    depthStencil->Clear(device);
 
     UpdateLights(device);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex, 0);

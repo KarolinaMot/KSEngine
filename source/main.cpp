@@ -118,7 +118,7 @@ int main()
                                                        .Build(*device, "MAIN SIGNATURE");
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
-    KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R16G16B16A16_FLOAT, KS::Formats::R16G16B16A16_FLOAT, KS::Formats::R16G16B16A16_FLOAT };
+    KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
     // KS::Formats formats = KS::Formats::R8G8B8A8_UNORM;
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,

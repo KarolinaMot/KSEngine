@@ -10,8 +10,11 @@
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputs.hpp>
 #include <renderer/InfoStructs.hpp>
+#include <renderer/RenderTarget.hpp>
+#include <renderer/DepthStencil.hpp>
+#include <resources/Texture.hpp>
 
-KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
+KS::Renderer::Renderer(Device& device, const RendererInitParams& params)
 {
     for (int i = 0; i < params.shaders.size(); i++)
     {
@@ -23,8 +26,20 @@ KS::Renderer::Renderer(const Device& device, const RendererInitParams& params)
 
     for (int i = 0; i < 2; i++)
     {
-        m_deferredRendererTex[0]
+        m_deferredRendererTex[i][0] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R32G32B32A32_FLOAT);
+        m_deferredRendererTex[i][1] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_deferredRendererTex[i][2] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_deferredRendererTex[i][3] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM);
     }
+
+    m_deferredRendererRT = std::make_shared<RenderTarget>();
+    for (int i = 0; i < 4; i++)
+    {
+        m_deferredRendererRT->AddTexture(device, m_deferredRendererTex[0][i], m_deferredRendererTex[1][i], "DEFERRED RENDERER" + std::to_string(i));
+    }
+
+    m_deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f), KS::Formats::D32_FLOAT);
+    m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, m_deferredRendererDepthTex);
 }
 
 KS::Renderer::~Renderer()
@@ -49,6 +64,8 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
             m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
             0);
         device.TrackResource(m_camera_buffer);
-        m_subrenderers[i]->Render(device, params.cpuFrame, device.GetRenderTarget(), device.GetDepthStencil());
+        m_subrenderers[i]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil);
     }
+
+    device.GetRenderTarget()->CopyTo(device, m_deferredRendererRT, 1, 0);
 }
