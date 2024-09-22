@@ -112,10 +112,10 @@ int main()
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "occlusion_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "PBRRes", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferA", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferB", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferC", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferD", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer1", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer2", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer3", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer4", KS::ShaderInputMod::READ_WRITE)
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "dir_lights")
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, "light_info")
@@ -137,7 +137,7 @@ int main()
 
     KS::RendererInitParams initParams {};
     initParams.shaders.push_back(mainShader);
-    // initParams.shaders.push_back(computePBRShader);
+    initParams.shaders.push_back(computePBRShader);
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 
     device->EndFrame();

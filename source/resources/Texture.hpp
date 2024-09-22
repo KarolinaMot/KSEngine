@@ -17,18 +17,18 @@ class Texture
 public:
     enum TextureFlags
     {
-        RO_TEXTURE,
-        RW_TEXTURE,
-        RENDER_TARGET,
-        DEPTH_TEXTURE
+        RO_TEXTURE = 1 << 0,
+        RW_TEXTURE = 1 << 1,
+        RENDER_TARGET = 1 << 2,
+        DEPTH_TEXTURE = 1 << 3
     };
 
-    Texture(const Device& device, const Image& image, TextureFlags type = RO_TEXTURE);
-    Texture(const Device& device, uint32_t width, uint32_t height, TextureFlags type, glm::vec4 clearColor, Formats format);
-    Texture(const Device& device, void* resource, glm::vec2 size, TextureFlags type);
+    Texture(const Device& device, const Image& image, int flags = 0);
+    Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format);
+    Texture(const Device& device, void* resource, glm::vec2 size, int flags = 0);
     ~Texture();
     void Bind(const Device& device, uint32_t rootIndex, bool readOnly = true) const;
-    inline TextureFlags GetType()const{return m_flag;}
+    inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format;}
 private:
     class Impl;
@@ -37,6 +37,6 @@ private:
     uint32_t m_height = 0;
     glm::vec4 m_clearColor = glm::vec4(0.f);
     Formats m_format;
-    TextureFlags m_flag;
+    int m_flag;
 };
 } // namespace KS

@@ -20,7 +20,7 @@ public:
     void AllocateAsSRV(DXDescHeap* descriptorHeap);
 };
 
-KS::Texture::Texture(const Device& device, const Image& image, TextureFlags type)
+KS::Texture::Texture(const Device& device, const Image& image, int type)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -29,15 +29,23 @@ KS::Texture::Texture(const Device& device, const Image& image, TextureFlags type
     m_height = image.GetHeight();
     m_format = R8G8B8A8_UNORM;
     m_flag = type;
-    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
-        m_width,
-        m_height,
-        1,
-        1,
-        1,
-        0,
-        type == RW_TEXTURE ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
-                           : D3D12_RESOURCE_FLAG_NONE);
+    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+    if (m_flag & TextureFlags::DEPTH_TEXTURE)
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (m_flag & TextureFlags::RENDER_TARGET)
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (m_flag & TextureFlags::RW_TEXTURE)
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    auto resourceDesc
+        = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+            m_width,
+            m_height,
+            1,
+            1,
+            1,
+            0,
+            flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "Texture Buffer Resource Heap");
@@ -56,7 +64,7 @@ KS::Texture::Texture(const Device& device, const Image& image, TextureFlags type
     m_impl->mTextureBuffer->Update(commandList, textureData, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 0, 1);
 }
 
-KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, TextureFlags type, glm::vec4 clearColor, Formats format)
+KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format)
 {
     m_impl = new Impl();
 
@@ -73,6 +81,13 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, Text
     clearValue.Color[1] = clearColor.y; // Green component
     clearValue.Color[2] = clearColor.z; // Blue component
     clearValue.Color[3] = clearColor.w; // Alpha component
+    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+    if (m_flag & TextureFlags::DEPTH_TEXTURE)
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (m_flag & TextureFlags::RENDER_TARGET)
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (m_flag & TextureFlags::RW_TEXTURE)
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(KS::KSFormatsToDXGI(m_format),
         m_width,
@@ -81,16 +96,13 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, Text
         1,
         1,
         0,
-        type == RW_TEXTURE          ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
-            : type == RENDER_TARGET ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
-            : type == DEPTH_TEXTURE ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
-                                    : D3D12_RESOURCE_FLAG_NONE);
+        flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
 }
 
-KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, TextureFlags type)
+KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, int type)
 {
     m_impl = new Impl();
     m_impl->mTextureBuffer = std::make_unique<DXResource>();
@@ -117,24 +129,24 @@ void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) 
         {
             m_impl->AllocateAsSRV(resourceHeap);
         }
-        commandList->ResourceBarrier(m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_COMMON);
+        commandList->ResourceBarrier(m_impl->mTextureBuffer->GetResource(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_COMMON);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
         commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
     }
     else
     {
-        if (m_flag == RENDER_TARGET || m_flag == DEPTH_TEXTURE)
-        {
-            LOG(Log::Severity::WARN, "Cannot bind textures created with the RENDER_TARGET or DEPTH_TEXTURE types as read-write textures. Command ignored.");
-            return;
-        }
+        // if (m_flag == RENDER_TARGET || m_flag == DEPTH_TEXTURE)
+        // {
+        //     LOG(Log::Severity::WARN, "Cannot bind textures created with the RENDER_TARGET or DEPTH_TEXTURE types as read-write textures. Command ignored.");
+        //     return;
+        // }
 
         if (!m_impl->mUAVHeapSlot.IsValid())
         {
             m_impl->AllocateAsUAV(resourceHeap);
         }
 
-        commandList->ResourceBarrier(m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        commandList->ResourceBarrier(m_impl->mTextureBuffer->GetResource(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
     }
@@ -144,7 +156,7 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap)
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    uavDesc.Format = mTextureBuffer->GetDesc().Format;
     uavDesc.Texture2D.MipSlice = 0;
     uavDesc.Texture2D.PlaneSlice = 0;
     mUAVHeapSlot = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc);
@@ -154,7 +166,7 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Format = mTextureBuffer->GetDesc().Format;
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -192,7 +204,7 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
         return;
     }
 
-    if (texture1->GetType() != Texture::RENDER_TARGET || texture2->GetType() != Texture::RENDER_TARGET)
+    if (!(texture1->GetType() & Texture::RENDER_TARGET) || !(texture2->GetType() & Texture::RENDER_TARGET))
     {
         LOG(Log::Severity::WARN, "Tried to attach a texture that was not created with the render target type. Command will be ignored.");
         return;
@@ -253,11 +265,11 @@ void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
     for (int i = 0; i < m_textureCount; i++)
     {
         m_resources[i] = m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer.get();
-        commandList->ResourceBarrier(m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        commandList->ResourceBarrier(m_resources[i]->GetResource(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_resources[i]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
-    commandList->ResourceBarrier(depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    commandList->ResourceBarrier(depth->m_texture->m_impl->mTextureBuffer->GetResource(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
     depth->m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
@@ -286,7 +298,7 @@ void KS::RenderTarget::CopyTo(Device& device, std::shared_ptr<RenderTarget> sour
 {
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->Get(),
+    commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->GetResource(),
         m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->GetState(),
         D3D12_RESOURCE_STATE_COPY_DEST);
     m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
@@ -301,7 +313,7 @@ void KS::RenderTarget::SetCopyFrom(const Device& device, int rtIndex)
 {
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->Get(),
+    commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->GetResource(),
         m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->GetState(),
         D3D12_RESOURCE_STATE_COPY_SOURCE);
     m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_SOURCE);
@@ -312,7 +324,7 @@ void KS::RenderTarget::PrepareToPresent(Device& device)
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->Get(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
+        commandList->ResourceBarrier(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetResource(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
         m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
     }
 }
@@ -326,7 +338,7 @@ KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)
 {
     m_impl = std::make_unique<Impl>();
 
-    if (texture->GetType() != Texture::DEPTH_TEXTURE)
+    if (!(texture->GetType() & Texture::DEPTH_TEXTURE))
     {
         LOG(Log::Severity::WARN, "Tried to attach a texture that was not created with the depth stencil type. Depth stencil will not be initialized.");
         return;

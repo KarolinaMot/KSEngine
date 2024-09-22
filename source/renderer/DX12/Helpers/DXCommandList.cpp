@@ -288,6 +288,23 @@ void DXCommandList::CopyResource(std::unique_ptr<DXResource>& source, std::uniqu
     m_allocator->TrackResource(source->GetResource());
 }
 
+void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ)
+{
+    if (!m_isOpen)
+    {
+        LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
+        return;
+    }
+
+    if (!m_isBoundSignatureCompute)
+    {
+        LOG(Log::Severity::WARN, "Cannot dispatch a shader when no compute shader is bound");
+        return;
+    }
+
+    m_command_list->Dispatch(threadGroupX, threadgGroupY, threadGroupZ);
+}
+
 void DXCommandList::ResourceBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState)
 {
     if (!m_isOpen)

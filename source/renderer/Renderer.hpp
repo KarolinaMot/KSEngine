@@ -46,7 +46,9 @@ private:
 
     std::shared_ptr<Texture> m_deferredRendererTex[2][4];
     std::shared_ptr<Texture> m_deferredRendererDepthTex;
+    std::shared_ptr<Texture> m_pbrResTex[2];
     std::shared_ptr<RenderTarget> m_deferredRendererRT;
+    std::shared_ptr<RenderTarget> m_pbrResRT;
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
 
     std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
