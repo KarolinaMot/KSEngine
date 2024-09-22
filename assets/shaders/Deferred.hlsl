@@ -129,6 +129,7 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
         mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
         mat.normalColor = mat.normalColor * 2.0 - 1.0;
         mat.normalColor = mul(mat.normalColor, input.tangentBasis);
+        mat.normalColor = (mat.normalColor + 1) * 0.5f;
     }
     else
     {

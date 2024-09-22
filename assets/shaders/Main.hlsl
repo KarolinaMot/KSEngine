@@ -27,12 +27,12 @@ float Attenuation(float distance, float range);
 [numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
     PBRMaterial mat;
-    float3 vertexPos = GBufferB.Load(DispatchThreadID.xy).xyz;
-    mat.baseColor = GBufferA.Load(DispatchThreadID.xy).rgb;
-    mat.normalColor = GBufferC.Load(DispatchThreadID.xy).rgb; /**2.f -1.f;*/
+    float3 vertexPos = GBufferA.Load(DispatchThreadID.xy).xyz;
+    mat.baseColor = GBufferB.Load(DispatchThreadID.xy).rgb;
+    mat.normalColor = GBufferC.Load(DispatchThreadID.xy).rgb * 2.0 - 1.0;
     mat.emissiveColor = GBufferD.Load(DispatchThreadID.xy).rgb;
-    mat.metallic = GBufferA.Load(DispatchThreadID.xy).a;
-    mat.roughness = GBufferB.Load(DispatchThreadID.xy).a;
+    mat.metallic = GBufferB.Load(DispatchThreadID.xy).a;
+    mat.roughness = GBufferA.Load(DispatchThreadID.xy).a;
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
     mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);

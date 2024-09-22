@@ -172,7 +172,7 @@ int main()
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
         glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
         transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .25f);
+        renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
         renderer.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
         renderer.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
         model_renderer->QueueModel(model, transform);

@@ -184,7 +184,11 @@ void DXCommandList::BindRenderTargets(std::unique_ptr<DXResource>& rtResource, c
 
 void DXCommandList::BindBuffer(const std::unique_ptr<DXResource>& resource, int rootParameter, size_t elementSize, int offsetElement)
 {
-    m_command_list->SetGraphicsRootConstantBufferView(rootParameter, resource->GetResource()->GetGPUVirtualAddress() + (elementSize * offsetElement));
+    if (!m_isBoundSignatureCompute)
+        m_command_list->SetGraphicsRootConstantBufferView(rootParameter, resource->GetResource()->GetGPUVirtualAddress() + (elementSize * offsetElement));
+    else
+        m_command_list->SetComputeRootConstantBufferView(rootParameter, resource->GetResource()->GetGPUVirtualAddress() + (elementSize * offsetElement));
+
     m_allocator->TrackResource(resource->GetResource());
 }
 
