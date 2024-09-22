@@ -76,7 +76,7 @@ PSOutput mainPS(PS_INPUT input)
     output.albedo = float4(material.baseColor.rgb, material.metallic);
     output.normals = float4(material.normalColor, 1.f);
     output.vertexPos = float4(input.vertexPos.xyz, material.roughness);
-    output.emissive = float4(material.emissiveColor, 1.f);
+    output.emissive = float4(material.emissiveColor, material.occlusionColor);
 
     return output;
 }
