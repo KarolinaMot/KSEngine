@@ -111,10 +111,15 @@ int main()
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "occlusion_tex")
-                                                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 100, "dir_lights")
-                                                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 100, "point_lights")
-                                                       .AddUniform(KS::ShaderInputVisibility::PIXEL, "light_info")
-                                                       .AddStaticSampler(KS::ShaderInputVisibility::PIXEL, KS::SamplerDesc {})
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "PBRRes", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferA", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferB", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferC", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBufferD", KS::ShaderInputMod::READ_WRITE)
+                                                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "dir_lights")
+                                                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "light_info")
+                                                       .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
                                                        .Build(*device, "MAIN SIGNATURE");
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
@@ -125,6 +130,11 @@ int main()
         mainInputs,
         shaderPath,
         formats, 4);
+
+    std::shared_ptr<KS::Shader> computePBRShader = std::make_shared<KS::Shader>(*device,
+        KS::ShaderType::ST_COMPUTE,
+        mainInputs,
+        "assets/shaders/Main.hlsl");
 
     KS::RendererInitParams initParams {};
     initParams.shaders.push_back(mainShader);

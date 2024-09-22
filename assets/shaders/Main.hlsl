@@ -1,36 +1,9 @@
 #include "PBR.hlsl"
 #include "Structs.hlsl"
 
-struct VS_INPUT
-{
-    float3 pos : POSITION;
-    float3 normals : NORMALS;
-    float2 uv : TEXCOORD;
-    float3 tangents : TANGENT;
-};
-
-struct PS_INPUT
-{
-    float4 pos : SV_POSITION;
-    float4 vertexPos : VERT_POS;
-    float4 normals : NORMALS;
-    float2 uv : TEXCOORD;
-    float3x3 tangentBasis : TANGENT_BASIS;
-};
-
 cbuffer Camera : register(b0)
 {
     CameraMats cameraMats;
-};
-
-cbuffer ModelMatrix : register(b1)
-{
-    ModelMat modelMats;
-};
-
-cbuffer MaterialInfos : register(b2)
-{
-    MaterialInfo matInfo;
 };
 
 cbuffer LightInfoBuffer : register(b3)
@@ -38,131 +11,61 @@ cbuffer LightInfoBuffer : register(b3)
     LightInfo lightInfo;
 };
 
+RWTexture2D<float4> FinalRes : register(u0);
+RWTexture2D<float4> GBufferA : register(u1);
+RWTexture2D<float4> GBufferB : register(u2);
+RWTexture2D<float4> GBufferC : register(u3);
+RWTexture2D<float4> GBufferD : register(u4);
 SamplerState mainSampler : register(s0);
-Texture2D baseColorTex : register(t0);
-Texture2D normalTex : register(t1);
-Texture2D emissiveTex : register(t2);
-Texture2D metallicRoughnessTex : register(t3);
-Texture2D occlusionTex : register(t4);
+
 StructuredBuffer<DirLight> dirLights : register(t5);
 StructuredBuffer<PointLight> pointLights : register(t6);
 
 float3 LinearToSRGB(float3 color);
 float Attenuation(float distance, float range);
-PBRMaterial GenerateMaterial(PS_INPUT input);
 
-PS_INPUT mainVS(VS_INPUT input)
+[numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
-    PS_INPUT output;
-    output.vertexPos = mul(modelMats.mModelMat, float4(input.pos, 1.f));
-    output.pos = mul(cameraMats.mCamera, output.vertexPos);
-    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)modelMats.mInvTransposeMat)), 0.f);
-    output.uv = input.uv;
+    PBRMaterial mat;
+    float3 vertexPos = GBufferB.Load(DispatchThreadID.xy).xyz;
+    mat.baseColor = GBufferA.Load(DispatchThreadID.xy).rgb;
+    mat.normalColor = GBufferC.Load(DispatchThreadID.xy).rgb; /**2.f -1.f;*/
+    mat.emissiveColor = GBufferD.Load(DispatchThreadID.xy).rgb;
+    mat.metallic = GBufferA.Load(DispatchThreadID.xy).a;
+    mat.roughness = GBufferB.Load(DispatchThreadID.xy).a;
+    mat.F0 = float3(0.04, 0.04, 0.04);
+    mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
+    mat.occlusionColor = 1.f;
 
-    input.tangents = normalize(input.tangents);
-    input.tangents = normalize(input.tangents - dot(input.tangents, input.normals) * input.normals);
-    float3 bitangent = cross(output.normals.xyz, input.tangents);
-
-    float3x3 TBN = float3x3(input.tangents, bitangent, output.normals.xyz);
-    output.tangentBasis = TBN;
-
-    return output;
-}
-
-float4 mainPS(PS_INPUT input) : SV_TARGET
-{
-    PBRMaterial material = GenerateMaterial(input);
     float3 diffuse = 0.f;
     float3 specular = 0.f;
-    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - input.vertexPos.xyz);
+    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - vertexPos.xyz);
 
-    for (int i = 0; i < lightInfo.numDirLight; i++)
+    for (uint i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
-        GetBRDF(material, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
+        GetBRDF(mat, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
     }
 
-    for (int j = 0; j < lightInfo.numPointLight; j++)
+    for (uint j = 0; j < lightInfo.numPointLight; j++)
     {
         PointLight light = pointLights[j];
 
-        float3 lightDirection = light.mPosition.xyz - input.vertexPos.xyz;
+        float3 lightDirection = light.mPosition.xyz - vertexPos.xyz;
         float dist = length(lightDirection);
         lightDirection /= dist;
         float att = Attenuation(dist, light.mRadius);
 
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
+        GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
     }
 
-    GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
+    GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
 
-    float3 result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
+    float3 result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
     result = LinearToSRGB(result);
-    return float4(result, 1.f);
-}
 
-PBRMaterial GenerateMaterial(PS_INPUT input)
-{
-    PBRMaterial mat;
-    if (matInfo.useColorTex)
-    {
-        mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.baseColor *= matInfo.colorFactor.rgb;
-    }
-    else
-    {
-        mat.baseColor = float3(1.0, 1.0, 1.0);
-        mat.baseColor *= matInfo.colorFactor.rgb;
-    }
-
-    if (matInfo.useEmissiveTex)
-    {
-        mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.emissiveColor *= matInfo.emissiveFactor.rgb;
-    }
-    else
-    {
-        mat.emissiveColor = float3(0.0, 0.0, 0.0);
-    }
-
-    if (matInfo.useMetallicRoughnessTex)
-    {
-        float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
-        mat.roughness = metallicRoughnessColor.g;
-        mat.metallic = metallicRoughnessColor.b;
-    }
-    else
-    {
-        mat.occlusionColor = 1.0;
-        mat.metallic = matInfo.metallicFactor;
-        mat.roughness = matInfo.roughnessFactor;
-    }
-
-    // Occlusion if it is not in matallic roughness texture
-    if (matInfo.useOcclusionTex)
-    {
-        mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
-    }
-
-    if (matInfo.useNormalTex)
-    {
-        mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
-        mat.normalColor = mat.normalColor * 2.0 - 1.0;
-        mat.normalColor = mul(mat.normalColor, input.tangentBasis);
-    }
-     else
-     {
-         mat.normalColor = input.normals.xyz;
-     }
-
-    mat.F0 = float3(0.04, 0.04, 0.04);
-    mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
-    mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
-
-    // To alpha roughness
-    mat.roughness = mat.roughness * mat.roughness;
-
-    return mat;
+    FinalRes[DispatchThreadID.xy] = float4(result.rgb, 1.f);
 }
 
 // linear to sRGB approximation
