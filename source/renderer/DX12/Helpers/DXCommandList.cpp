@@ -130,7 +130,7 @@ void DXCommandList::BindHeapResource(std::unique_ptr<DXResource>& resource, cons
     else
         m_command_list->SetGraphicsRootDescriptorTable(rootSlot, handle.GetAddressGPU());
 
-    m_allocator->TrackResource(resource->Get());
+    m_allocator->TrackResource(resource->GetResource());
 }
 
 void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles, std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle, unsigned int numRtv)
@@ -150,7 +150,7 @@ void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHand
             return;
         }
         rtvHandles[i] = handles[i].GetAddressCPU();
-        m_allocator->TrackResource(rtResources[i]->Get());
+        m_allocator->TrackResource(rtResources[i]->GetResource());
     }
 
     if (!dsvHandle.IsValid())
@@ -159,7 +159,7 @@ void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHand
         return;
     }
 
-    m_allocator->TrackResource(depthResource->Get());
+    m_allocator->TrackResource(depthResource->GetResource());
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle = dsvHandle.GetAddressCPU();
     m_command_list->OMSetRenderTargets(static_cast<UINT>(rtvHandles.size()), rtvHandles.data(), FALSE, &depthHandle);
@@ -179,7 +179,7 @@ void DXCommandList::BindRenderTargets(std::unique_ptr<DXResource>& rtResource, c
     }
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtHandle = rtvHeapSlot.GetAddressCPU();
     m_command_list->OMSetRenderTargets(1, &rtHandle, FALSE, nullptr);
-    m_allocator->TrackResource(rtResource->Get());
+    m_allocator->TrackResource(rtResource->GetResource());
 }
 
 void DXCommandList::BindBuffer(const std::unique_ptr<DXResource>& resource, int rootParameter, size_t elementSize, int offsetElement)
@@ -202,7 +202,7 @@ void DXCommandList::ClearRenderTargets(std::unique_ptr<DXResource>& rtResource, 
     }
 
     m_command_list->ClearRenderTargetView(handle.GetAddressCPU(), clearData, 0, nullptr);
-    m_allocator->TrackResource(rtResource->Get());
+    m_allocator->TrackResource(rtResource->GetResource());
 }
 
 void DXCommandList::ClearDepthStencils(std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& handle)
@@ -219,7 +219,7 @@ void DXCommandList::ClearDepthStencils(std::unique_ptr<DXResource>& depthResourc
     }
 
     m_command_list->ClearDepthStencilView(handle.GetAddressCPU(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    m_allocator->TrackResource(depthResource->Get());
+    m_allocator->TrackResource(depthResource->GetResource());
 }
 
 void DXCommandList::BindVertexData(const std::unique_ptr<DXResource>& buffer, size_t bufferStride, int inputSlot, int elementOffset)
@@ -236,7 +236,7 @@ void DXCommandList::BindVertexData(const std::unique_ptr<DXResource>& buffer, si
     vertexBufferView.SizeInBytes = buffer->GetResourceSize();
 
     m_command_list->IASetVertexBuffers(inputSlot, 1, &vertexBufferView);
-    m_allocator->TrackResource(buffer->Get());
+    m_allocator->TrackResource(buffer->GetResource());
 }
 
 void DXCommandList::BindIndexData(const std::unique_ptr<DXResource>& buffer, size_t bufferStride, int elementOffset)
@@ -268,7 +268,7 @@ void DXCommandList::BindIndexData(const std::unique_ptr<DXResource>& buffer, siz
     }
 
     m_command_list->IASetIndexBuffer(&indexBufferView);
-    m_allocator->TrackResource(buffer->Get());
+    m_allocator->TrackResource(buffer->GetResource());
 }
 
 void DXCommandList::DrawIndexed(int indexCount, int instancesCount)
@@ -284,8 +284,8 @@ void DXCommandList::DrawIndexed(int indexCount, int instancesCount)
 void DXCommandList::CopyResource(std::unique_ptr<DXResource>& source, std::unique_ptr<DXResource>& dest)
 {
     m_command_list->CopyResource(dest->Get(), source->Get());
-    m_allocator->TrackResource(dest->Get());
-    m_allocator->TrackResource(source->Get());
+    m_allocator->TrackResource(dest->GetResource());
+    m_allocator->TrackResource(source->GetResource());
 }
 
 void DXCommandList::ResourceBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState)

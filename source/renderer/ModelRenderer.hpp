@@ -29,9 +29,6 @@ public:
     ModelRenderer(const Device& device, std::shared_ptr<Shader> shader);
     ~ModelRenderer();
 
-    void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
-    void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
-    void SetAmbientLight(glm::vec3 color, float intensity);
     void QueueModel(ResourceHandle<Model> model, const glm::mat4& transform);
     void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0) override;
 
@@ -45,12 +42,9 @@ private:
     std::unordered_map<ResourceHandle<Model>, Model> model_cache {};
     std::unordered_map<ResourceHandle<Mesh>, Mesh> mesh_cache {};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache {};
+    std::unique_ptr<UniformBuffer> m_modelMatsBuffer;
+    std::unique_ptr<UniformBuffer> m_materialInfoBuffer;
 
     std::vector<DrawEntry> draw_queue {};
-    std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
-    std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
-    std::vector<DirLightInfo> m_directionalLights;
-    std::vector<PointLightInfo> m_pointLights;
-    LightInfo m_lightInfo {};
 };
 } // namespace KS

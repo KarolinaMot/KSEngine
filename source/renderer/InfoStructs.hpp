@@ -15,8 +15,8 @@ enum StorageBuffers
 
 enum UniformBuffers
 {
-    MODEL_MAT_BUFFER,
-    MATERIAL_INFO_BUFFER,
+    // MODEL_MAT_BUFFER,
+    // MATERIAL_INFO_BUFFER,
     LIGHT_INFO_BUFFER,
     NUM_UBUFFER
 };

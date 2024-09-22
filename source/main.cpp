@@ -124,7 +124,6 @@ int main()
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
-    // KS::Formats formats = KS::Formats::R8G8B8A8_UNORM;
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,
         mainInputs,
@@ -138,6 +137,7 @@ int main()
 
     KS::RendererInitParams initParams {};
     initParams.shaders.push_back(mainShader);
+    // initParams.shaders.push_back(computePBRShader);
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 
     device->EndFrame();
@@ -172,10 +172,10 @@ int main()
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
         glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
         transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
+        renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .25f);
+        renderer.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
+        renderer.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
         model_renderer->QueueModel(model, transform);
-        model_renderer->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .25f);
-        model_renderer->QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-        model_renderer->QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
         renderer.Render(*device, renderParams);
         device->EndFrame();
     }

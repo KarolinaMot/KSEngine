@@ -40,10 +40,40 @@ KS::Renderer::Renderer(Device& device, const RendererInitParams& params)
 
     m_deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f), KS::Formats::D32_FLOAT);
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, m_deferredRendererDepthTex);
+
+    m_pointLights = std::vector<PointLightInfo>(100);
+    m_directionalLights = std::vector<DirLightInfo>(100);
+
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
 }
 
 KS::Renderer::~Renderer()
 {
+}
+
+void KS::Renderer::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
+{
+    PointLightInfo pLight;
+    pLight.mColorAndIntensity = glm::vec4(color, intensity);
+    pLight.mPosition = glm::vec4(position, 0.f);
+    pLight.mRadius = radius;
+    m_pointLights[m_lightInfo.numPointLights] = pLight;
+    m_lightInfo.numPointLights++;
+}
+void KS::Renderer::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity)
+{
+    DirLightInfo dLight;
+    dLight.mDir = glm::vec4(direction, 0.f);
+    dLight.mColorAndIntensity = glm::vec4(color, intensity);
+    m_directionalLights[m_lightInfo.numDirLights] = dLight;
+    m_lightInfo.numDirLights++;
+}
+
+void KS::Renderer::SetAmbientLight(glm::vec3 color, float intensity)
+{
+    m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
 }
 
 void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
@@ -57,9 +87,19 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
     m_camera_buffer->Update(device, cam, 0);
 
+    UpdateLights(device);
+
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
     for (int i = 0; i < m_subrenderers.size(); i++)
     {
-        commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_subrenderers[i]->GetShader()->GetShaderInput()->GetSignature()));
+        auto rootSignature = m_subrenderers[i]->GetShader()->GetShaderInput();
+        commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
+        mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex, 0);
+        mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex, 0);
+        mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex, 0);
+
         m_camera_buffer->Bind(device,
             m_subrenderers[i]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
             0);
@@ -68,4 +108,14 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     }
 
     device.GetRenderTarget()->CopyTo(device, m_deferredRendererRT, 1, 0);
+}
+
+void KS::Renderer::UpdateLights(const Device& device)
+{
+    m_lightInfo.padding[1] = 1;
+    mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
+    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, m_directionalLights);
+    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, m_pointLights);
+    m_lightInfo.numDirLights = 0;
+    m_lightInfo.numPointLights = 0;
 }

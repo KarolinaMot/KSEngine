@@ -34,15 +34,25 @@ public:
     ~Renderer();
 
     void Render(Device& device, const RendererRenderParams& params);
+    void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
+    void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
+    void SetAmbientLight(glm::vec3 color, float intensity);
 
     std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
 
 private:
+    void UpdateLights(const Device& device);
     std::shared_ptr<UniformBuffer> m_camera_buffer;
 
     std::shared_ptr<Texture> m_deferredRendererTex[2][4];
     std::shared_ptr<Texture> m_deferredRendererDepthTex;
     std::shared_ptr<RenderTarget> m_deferredRendererRT;
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
+
+    std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
+    std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
+    std::vector<DirLightInfo> m_directionalLights;
+    std::vector<PointLightInfo> m_pointLights;
+    LightInfo m_lightInfo {};
 };
 }

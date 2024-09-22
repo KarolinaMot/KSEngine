@@ -20,43 +20,12 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
 {
     ModelMat mat {};
     MaterialInfo matInfo {};
-
-    m_pointLights = std::vector<PointLightInfo>(100);
-    m_directionalLights = std::vector<DirLightInfo>(100);
-
-    mUniformBuffers[KS::MODEL_MAT_BUFFER] = std::make_unique<UniformBuffer>(device, "MODEL MATRIX RESOURCE", mat, 200);
-    mUniformBuffers[KS::MATERIAL_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "MATERIAL INFO RESOURCE", matInfo, 200);
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
-    
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
+    m_modelMatsBuffer = std::make_unique<UniformBuffer>(device, "MODEL MATRIX RESOURCE", mat, 200);
+    m_materialInfoBuffer = std::make_unique<UniformBuffer>(device, "MATERIAL INFO RESOURCE", matInfo, 200);
 }
 
 KS::ModelRenderer::~ModelRenderer()
 {
-}
-
-void KS::ModelRenderer::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
-{
-    PointLightInfo pLight;
-    pLight.mColorAndIntensity = glm::vec4(color, intensity);
-    pLight.mPosition = glm::vec4(position, 0.f);
-    pLight.mRadius = radius;
-    m_pointLights[m_lightInfo.numPointLights] = pLight;
-    m_lightInfo.numPointLights++;
-}
-void KS::ModelRenderer::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity)
-{
-    DirLightInfo dLight;
-    dLight.mDir = glm::vec4(direction, 0.f);
-    dLight.mColorAndIntensity = glm::vec4(color, intensity);
-    m_directionalLights[m_lightInfo.numDirLights] = dLight;
-    m_lightInfo.numDirLights++;
-}
-
-void KS::ModelRenderer::SetAmbientLight(glm::vec3 color, float intensity)
-{
-    m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
 }
 
 void KS::ModelRenderer::QueueModel(ResourceHandle<Model> model, const glm::mat4& transform)
@@ -81,18 +50,12 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_pt
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
     commandList->BindPipeline(pipeline);
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
     renderTarget->Bind(device, depthStencil.get());
     renderTarget->Clear(device);
     depthStencil->Clear(device);
 
-    UpdateLights(device);
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("dir_lights").rootIndex, 0);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("point_lights").rootIndex, 0);
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("light_info").rootIndex, 0);
     int drawQueueCount = 0;
     for (const auto& draw_entry : draw_queue)
     {
@@ -116,11 +79,11 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_pt
         ModelMat modelMat;
         modelMat.mModel = draw_entry.transform;
         modelMat.mTransposed = glm::transpose(modelMat.mModel);
-        mUniformBuffers[KS::MODEL_MAT_BUFFER]->Update(device, modelMat, drawQueueCount);
-        mUniformBuffers[KS::MODEL_MAT_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, drawQueueCount);
+        m_modelMatsBuffer->Update(device, modelMat, drawQueueCount);
+        m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, drawQueueCount);
 
-        mUniformBuffers[KS::MATERIAL_INFO_BUFFER]->Update(device, matInfo, drawQueueCount);
-        mUniformBuffers[KS::MATERIAL_INFO_BUFFER]->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
+        m_materialInfoBuffer->Update(device, matInfo, drawQueueCount);
+        m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
 
         using namespace MeshConstants;
 
@@ -221,16 +184,6 @@ std::shared_ptr<KS::Texture> KS::ModelRenderer::GetTexture(const Device& device,
         }
     }
     return nullptr;
-}
-
-void KS::ModelRenderer::UpdateLights(const Device& device)
-{
-    m_lightInfo.padding[1] = 1;
-    mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, m_directionalLights);
-    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, m_pointLights);
-    m_lightInfo.numDirLights = 0;
-    m_lightInfo.numPointLights = 0;
 }
 
 KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const DrawEntry& drawEntry)
