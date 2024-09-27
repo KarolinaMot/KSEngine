@@ -152,6 +152,7 @@ int main()
     }
 
     KS::Timer frametimer {};
+    bool raytraced = false;
 
     while (device->IsWindowOpen())
     {
@@ -161,6 +162,9 @@ int main()
         device->NewFrame();
 
         auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count());
+
+        if (input->GetKeyboard(KS::KeyboardKey::Space) == KS::InputState::Down)
+            raytraced = !raytraced;
 
         auto renderParams = KS::RendererRenderParams();
 
@@ -176,7 +180,7 @@ int main()
         renderer.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
         renderer.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
         model_renderer->QueueModel(model, transform);
-        renderer.Render(*device, renderParams);
+        renderer.Render(*device, renderParams, raytraced);
         device->EndFrame();
     }
 

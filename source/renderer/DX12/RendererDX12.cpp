@@ -87,7 +87,7 @@ void KS::Renderer::SetAmbientLight(glm::vec3 color, float intensity)
     m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
 }
 
-void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
+void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bool raytraced)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
@@ -103,8 +103,16 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    // for (int i = 0; i < m_subrenderers.size(); i++)
-    // {
+    if (!raytraced)
+        Rasterize(device, params);
+    else
+        Raytrace(device, params);
+}
+
+void KS::Renderer::Rasterize(Device& device, const RendererRenderParams& params)
+{
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
     mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex, 0);
@@ -126,10 +134,13 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params)
     Texture* textures[4] = { m_deferredRendererTex[device.GetCPUFrameIndex()][0].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][1].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][2].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][3].get() };
     m_subrenderers[1]->Render(device, params.cpuFrame, m_pbrResRT, m_deferredRendererDepthStencil, &textures[0], 4);
 
-    // if (m_subrenderers[0]->GetShader()->GetShaderType() == ShaderType::ST_MESH_RENDER)
-    // }
-
     device.GetRenderTarget()->CopyTo(device, m_pbrResRT, 0, 0);
+}
+
+void KS::Renderer::Raytrace(Device& device, const RendererRenderParams& params)
+{
+    device.GetRenderTarget()->Bind(device, device.GetDepthStencil().get());
+    device.GetRenderTarget()->Clear(device);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

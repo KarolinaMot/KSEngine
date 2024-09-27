@@ -10,6 +10,8 @@ class ShaderInputs;
 
 enum class ShaderType
 {
+    ST_RT_MESH_RENDER,
+
     ST_MESH_RENDER,
 
     ST_COMPUTE

@@ -33,7 +33,7 @@ public:
     Renderer(Device& device, const RendererInitParams& params);
     ~Renderer();
 
-    void Render(Device& device, const RendererRenderParams& params);
+    void Render(Device& device, const RendererRenderParams& params, bool raytraced = false);
     void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
     void SetAmbientLight(glm::vec3 color, float intensity);
@@ -42,6 +42,9 @@ public:
 
 private:
     void UpdateLights(const Device& device);
+    void Rasterize(Device& device, const RendererRenderParams& params);
+    void Raytrace(Device& device, const RendererRenderParams& params);
+
     std::shared_ptr<UniformBuffer> m_camera_buffer;
 
     std::shared_ptr<Texture> m_deferredRendererTex[2][4];

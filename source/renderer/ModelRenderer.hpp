@@ -44,7 +44,7 @@ private:
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache {};
     std::unique_ptr<UniformBuffer> m_modelMatsBuffer;
     std::unique_ptr<UniformBuffer> m_materialInfoBuffer;
-
+    bool m_raytraced = false;
     std::vector<DrawEntry> draw_queue {};
 };
 } // namespace KS
