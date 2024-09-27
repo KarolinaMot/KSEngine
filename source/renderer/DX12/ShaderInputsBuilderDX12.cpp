@@ -1,6 +1,6 @@
 #include <renderer/ShaderInputsBuilder.hpp>
 #include <renderer/DX12/Helpers/DXSignature.hpp>
-#include <Device/Device.hpp>
+#include <device/Device.hpp>
 
 class KS::ShaderInputsBuilder::Impl
 {

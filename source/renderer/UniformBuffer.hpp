@@ -30,7 +30,8 @@ public:
     template <typename T>
     void Update(const Device& device, const T& data, int member = 0)
     {
-        if (sizeof(T) != m_buffer_stride)
+        int dataSize = sizeof(T);
+        if (dataSize != m_buffer_stride)
         {
             LOG(Log::Severity::WARN, "Buffer {} type on update does not fit the original format. Command has been ignored.", m_name);
             return;

@@ -18,17 +18,16 @@
 KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
     : SubRenderer(device, shader)
 {
-    ModelMat mat {};
-    MaterialInfo matInfo {};
-    m_modelMatsBuffer = std::make_unique<UniformBuffer>(device, "MODEL MATRIX RESOURCE", mat, 200);
-    m_materialInfoBuffer = std::make_unique<UniformBuffer>(device, "MATERIAL INFO RESOURCE", matInfo, 200);
+    m_modelMatsBuffer = std::make_unique<StorageBuffer>(device, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), 200, false);
+    m_materialInfoBuffer = std::make_unique<StorageBuffer>(device, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), 200, false);
+    m_modelIndexBuffer = std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, 200);
 }
 
 KS::ModelRenderer::~ModelRenderer()
 {
 }
 
-void KS::ModelRenderer::QueueModel(ResourceHandle<Model> model, const glm::mat4& transform)
+void KS::ModelRenderer::QueueModel(const Device& device, ResourceHandle<Model> model, const glm::mat4& transform)
 {
     if (auto* ptr = GetModel(model))
     {
@@ -38,10 +37,42 @@ void KS::ModelRenderer::QueueModel(ResourceHandle<Model> model, const glm::mat4&
 
             for (auto [mesh, material] : node.mesh_material_indices)
             {
+                if (m_modelCount >= 200)
+                {
+                    LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", 200);
+                    return;
+                }
+
                 draw_queue.emplace_back(
-                    scene_transform,
                     ptr->meshes[mesh],
-                    ptr->materials[material]);
+                    ptr->materials[material],
+                    m_modelCount);
+
+                auto mat = ptr->materials[material];
+                auto meshHandle = ptr->meshes[mesh];
+
+                ModelMat modelMat;
+                modelMat.mModel = scene_transform;
+                modelMat.mTransposed = glm::transpose(modelMat.mModel);
+                m_modelMatrices[m_modelCount] = modelMat;
+
+                MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
+                auto baseTex = GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+                auto normalTex = GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
+                auto emissiveTex = GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
+                auto roughMetTex = GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
+                auto occlusionTex = GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
+
+                matInfo.useColorTex = baseTex != nullptr;
+                matInfo.useEmissiveTex = emissiveTex != nullptr;
+                matInfo.useNormalTex = normalTex != nullptr;
+                matInfo.useOcclusionTex = occlusionTex != nullptr;
+                matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
+
+                m_modelIndexBuffer->Update(device, m_modelCount, m_modelCount);
+
+                m_materialInstances[m_modelCount] = matInfo;
+                m_modelCount++;
             }
         }
     }
@@ -56,34 +87,23 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_pt
     renderTarget->Clear(device);
     depthStencil->Clear(device);
 
-    int drawQueueCount = 0;
+    m_modelMatsBuffer->Update(device, &m_modelMatrices[0], m_modelCount);
+    m_materialInfoBuffer->Update(device, &m_materialInstances[0], m_modelCount);
+    m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex);
+    m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex);
+
     for (const auto& draw_entry : draw_queue)
     {
 
-        MaterialInfo matInfo = GetMaterialInfo(draw_entry);
         const Mesh* mesh = GetMesh(device, draw_entry.mesh);
         auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
         auto normalTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
         auto emissiveTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
         auto roughMetTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
         auto occlusionTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
-        matInfo.useColorTex = baseTex != nullptr;
-        matInfo.useEmissiveTex = emissiveTex != nullptr;
-        matInfo.useNormalTex = normalTex != nullptr;
-        matInfo.useOcclusionTex = occlusionTex != nullptr;
-        matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
 
         if (mesh == nullptr || baseTex == nullptr)
             continue;
-
-        ModelMat modelMat;
-        modelMat.mModel = draw_entry.transform;
-        modelMat.mTransposed = glm::transpose(modelMat.mModel);
-        m_modelMatsBuffer->Update(device, modelMat, drawQueueCount);
-        m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex, drawQueueCount);
-
-        m_materialInfoBuffer->Update(device, matInfo, drawQueueCount);
-        m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex, drawQueueCount);
 
         using namespace MeshConstants;
 
@@ -92,6 +112,7 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_pt
         auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
         auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
         auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+        m_modelIndexBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_index").rootIndex, draw_entry.modelIndex);
 
         positions->BindAsVertexData(device, 0);
         normals->BindAsVertexData(device, 1);
@@ -112,10 +133,10 @@ void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_pt
         occlusionTex->Bind(device, oucclusionTexRoot);
 
         commandList->DrawIndexed(indices->GetElementCount());
-        drawQueueCount++;
     }
 
     //device.TrackResource(mResourceBuffers[KS::MODEL_MAT_BUFFER]);
+    m_modelCount = 0;
     draw_queue.clear();
 }
 
@@ -186,12 +207,12 @@ std::shared_ptr<KS::Texture> KS::ModelRenderer::GetTexture(const Device& device,
     return nullptr;
 }
 
-KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const DrawEntry& drawEntry)
+KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const KS::Material& material)
 {
     MaterialInfo info {};
-    info.colorFactor = drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::BASE_COLOUR_FACTOR_NAME) ? *drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::BASE_COLOUR_FACTOR_NAME) : MaterialConstants::BASE_COLOUR_FACTOR_DEFAULT;
-    glm::vec4 NEAFactor = drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::NEA_FACTORS_NAME) ? *drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::NEA_FACTORS_NAME) : MaterialConstants::NEA_FACTORS_DEFAULT;
-    glm::vec4 ORMFactor = drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::ORM_FACTORS_NAME) ? *drawEntry.material.GetParameter<glm::vec4>(MaterialConstants::ORM_FACTORS_NAME) : MaterialConstants::ORM_FACTORS_DEFAULT;
+    info.colorFactor = material.GetParameter<glm::vec4>(MaterialConstants::BASE_COLOUR_FACTOR_NAME) ? *material.GetParameter<glm::vec4>(MaterialConstants::BASE_COLOUR_FACTOR_NAME) : MaterialConstants::BASE_COLOUR_FACTOR_DEFAULT;
+    glm::vec4 NEAFactor = material.GetParameter<glm::vec4>(MaterialConstants::NEA_FACTORS_NAME) ? *material.GetParameter<glm::vec4>(MaterialConstants::NEA_FACTORS_NAME) : MaterialConstants::NEA_FACTORS_DEFAULT;
+    glm::vec4 ORMFactor = material.GetParameter<glm::vec4>(MaterialConstants::ORM_FACTORS_NAME) ? *material.GetParameter<glm::vec4>(MaterialConstants::ORM_FACTORS_NAME) : MaterialConstants::ORM_FACTORS_DEFAULT;
 
     info.emissiveFactor = glm::vec4(NEAFactor.y, NEAFactor.y, NEAFactor.y, 1.f);
     info.normalScale = NEAFactor.x;

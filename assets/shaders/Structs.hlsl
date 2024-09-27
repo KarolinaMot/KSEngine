@@ -57,7 +57,6 @@ struct MaterialInfo
     uint useMetallicRoughnessTex;
     uint useNormalTex;
     uint useOcclusionTex;
-    float4 uvScale;
 };
 
 struct LightInfo

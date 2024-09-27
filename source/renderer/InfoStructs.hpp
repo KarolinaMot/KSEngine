@@ -41,15 +41,15 @@ enum Formats
 
 struct DrawEntry
 {
-    glm::mat4 transform {};
     ResourceHandle<Mesh> mesh {};
     Material material {};
+    int modelIndex;
 };
 
 struct ModelMat
 {
-    glm::mat4 mModel;
-    glm::mat4 mTransposed;
+    glm::mat4 mModel = glm::mat4x4(1.f);
+    glm::mat4 mTransposed = glm::mat4x4(1.f);
 };
 
 struct DirLightInfo
@@ -76,16 +76,16 @@ struct LightInfo
 
 struct MaterialInfo
 {
-    glm::vec4 colorFactor;
-    glm::vec4 emissiveFactor;
-    float metallicFactor;
-    float roughnessFactor;
-    float normalScale;
-    uint32_t useColorTex;
-    uint32_t useEmissiveTex;
-    uint32_t useMetallicRoughnessTex;
-    uint32_t useNormalTex;
-    uint32_t useOcclusionTex;
+    glm::vec4 colorFactor = glm::vec4(1.f);
+    glm::vec4 emissiveFactor = glm::vec4(1.f);
+    float metallicFactor = 1.f;
+    float roughnessFactor = 0.f;
+    float normalScale = 1.f;
+    uint32_t useColorTex = 0;
+    uint32_t useEmissiveTex = 0;
+    uint32_t useMetallicRoughnessTex = 0;
+    uint32_t useNormalTex = 0;
+    uint32_t useOcclusionTex = 0;
 };
 
 struct CameraMats

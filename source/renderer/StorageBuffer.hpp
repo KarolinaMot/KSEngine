@@ -47,6 +47,27 @@ public:
         UploadDataBuffer(device, data.data(), data.size());
     }
 
+    template <typename T>
+    void Update(const Device& device, const T* data, size_t numElements)
+    {
+        if (sizeof(T) != m_buffer_stride)
+        {
+            LOG(Log::Severity::WARN, "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
+            return;
+        }
+
+        if (data == nullptr)
+        {
+            LOG(Log::Severity::WARN, "StorageBuffer {} got an invalid data value for update. Command ignored.", m_name);
+            return;
+        }
+
+        if (numElements > m_num_elements)
+            Resize(device, numElements);
+
+        UploadDataBuffer(device, data, numElements);
+    }
+
     void Resize(const Device& device, int newNumOfElements);
     void Bind(const Device& device, int rootIndex, int elementIndex = 0, bool readOnly = true);
     void BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset = 0);

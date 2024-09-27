@@ -114,7 +114,6 @@ void KS::Device::NewFrame()
 void KS::Device::EndFrame()
 {
     glfwSwapBuffers(m_impl->m_window);
-    int cpuFrame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
     m_swapchainRT->PrepareToPresent(*this);
     m_impl->EndFrame(m_cpu_frame);
 }

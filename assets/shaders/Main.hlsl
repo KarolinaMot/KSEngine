@@ -6,7 +6,7 @@ cbuffer Camera : register(b0)
     CameraMats cameraMats;
 };
 
-cbuffer LightInfoBuffer : register(b3)
+cbuffer LightInfoBuffer : register(b2)
 {
     LightInfo lightInfo;
 };
