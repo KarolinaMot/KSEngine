@@ -11,7 +11,7 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-            "toolchainFile": "${sourceDir}/cmake/clang-toolchain.cmake"
+            "toolchainFile": "${sourceDir}/cmake-modules/clang-toolchain.cmake"
         },
         {
             "name": "Debug",

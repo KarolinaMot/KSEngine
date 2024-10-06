@@ -14,7 +14,7 @@
         {
             "type": "shell",
             "label": "Clean CMake Cache",
-            "command": "cmake --build build/Debug --target clean; cmake --build build/Release --target clean",
+            "command": "rm build",
         },
     ]
 }
