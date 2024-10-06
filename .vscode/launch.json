@@ -5,13 +5,22 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug C++ Executable",
+      "name": "Run Debug",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/Win64/Debug/KSEngine.exe", // Specify the path to your executable
+      "program": "${workspaceFolder}/build/Debug/KSEngine.exe", // Specify the path to your executable
       "cwd": "${workspaceFolder}", // Current working directory
-      "preLaunchTask": "Build", // Name of the task to run before launching the debugger
+      "preLaunchTask": "Build Debug", // Name of the task to run before launching the debugger
       "console": "externalTerminal"
-    }
+    },
+    {
+        "name": "Run Release",
+        "type": "cppvsdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/build/Release/KSEngine.exe", // Specify the path to your executable
+        "cwd": "${workspaceFolder}", // Current working directory
+        "preLaunchTask": "Build Release", // Name of the task to run before launching the debugger
+        "console": "externalTerminal"
+      }
   ]
 }
