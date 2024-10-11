@@ -31,13 +31,22 @@ public:
 
     void QueueModel(const Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
     void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0) override;
+    void SetRaytraced(bool raytraced) { m_raytraced = raytraced; };
 
 private:
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
+
     const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);
     const Model* GetModel(ResourceHandle<Model> model);
     std::shared_ptr<Texture> GetTexture(const Device& device, ResourceHandle<Texture> imgPath);
     void UpdateLights(const Device& device);
     MaterialInfo GetMaterialInfo(const Material& material);
+    void Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);
+    void Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);
+    void CreateBottomLevelAS(const Device& device, const Mesh* mesh);
+    void CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex);
+    void CreateTopLevelAS(const Device& device, bool updateOnly);
 
     std::unordered_map<ResourceHandle<Model>, Model> model_cache {};
     std::unordered_map<ResourceHandle<Mesh>, Mesh> mesh_cache {};
@@ -45,6 +54,7 @@ private:
     std::unique_ptr<StorageBuffer> m_modelMatsBuffer;
     std::unique_ptr<StorageBuffer> m_materialInfoBuffer;
     std::unique_ptr<UniformBuffer> m_modelIndexBuffer;
+
     bool m_raytraced = false;
     std::vector<DrawEntry> draw_queue {};
 

@@ -32,13 +32,13 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         if (!rtFormats)
         {
             LOG(Log::Severity::WARN, "Render target format has not been passed. A default format of R8G8B8A8_UNORM will be added instead");
-            builder.AddRenderTarget(KSFormatsToDXGI(Formats::R8G8B8A8_UNORM));
+            builder.AddRenderTarget(Conversion::KSFormatsToDXGI(Formats::R8G8B8A8_UNORM));
         }
         else
         {
             for (int i = 0; i < numFormats; i++)
             {
-                builder.AddRenderTarget(KSFormatsToDXGI(rtFormats[i]));
+                builder.AddRenderTarget(Conversion::KSFormatsToDXGI(rtFormats[i]));
             }
         }
 

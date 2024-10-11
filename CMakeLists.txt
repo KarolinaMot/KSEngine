@@ -30,9 +30,10 @@ add_subdirectory(external/entt)
 add_subdirectory(external/glm)
 add_subdirectory(external/assimp)
 add_subdirectory(external/cereal)
+add_subdirectory(external/DXR)
 
 # MAIN PROJECT
 
 add_executable(KSEngine ${sources} ${headers})
-target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt PUBLIC assimp PUBLIC cereal)
+target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt PUBLIC assimp PUBLIC cereal PUBLIC DXR)
 target_include_directories(KSEngine PUBLIC source PUBLIC external)

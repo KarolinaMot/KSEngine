@@ -4,20 +4,50 @@
 #include "Helpers/DXPipeline.hpp"
 #include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXCommandList.hpp"
-#include <device/Device.hpp>
+#include "Helpers/DX12Conversion.hpp"
+#include "Helpers/DXHeapHandle.hpp"
+#include "Helpers/DXDescHeap.hpp"
 
+#include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
+#include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
+#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
+#include <DXR/nv_helpers_dx12/RootSignatureGenerator.h>
+#include <DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h>
+
+#include <device/Device.hpp>
 #include <fileio/FileIO.hpp>
 #include <fileio/Serialization.hpp>
 #include <resources/Texture.hpp>
 #include <resources/Image.hpp>
+#include <resources/Mesh.hpp>
+#include <fileio\ResourceHandle.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <renderer/InfoStructs.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
 
+class KS::ModelRenderer::Impl
+{
+public:
+    struct ASBuffers
+    {
+        std::shared_ptr<DXResource> pScratch = nullptr;
+        std::shared_ptr<DXResource> pResult = nullptr;
+        std::shared_ptr<DXResource> pInstanceDesc = nullptr;
+    };
+    nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
+    ASBuffers m_BLBuffers[200];
+    std::pair<std::shared_ptr<DXResource>, DirectX::XMMATRIX> m_instances[200];
+    ASBuffers m_topLevelASBuffers;
+    int m_BLCount = 0;
+    DXHeapHandle m_BHVHandle;
+    bool m_updateBVH = false;
+};
+
 KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
     : SubRenderer(device, shader)
 {
+    m_impl = std::make_unique<Impl>();
     m_modelMatsBuffer = std::make_unique<StorageBuffer>(device, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), 200, false);
     m_materialInfoBuffer = std::make_unique<StorageBuffer>(device, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), 200, false);
     m_modelIndexBuffer = std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, 200);
@@ -46,7 +76,8 @@ void KS::ModelRenderer::QueueModel(const Device& device, ResourceHandle<Model> m
                 draw_queue.emplace_back(
                     ptr->meshes[mesh],
                     ptr->materials[material],
-                    m_modelCount);
+                    m_modelCount,
+                    scene_transform);
 
                 auto mat = ptr->materials[material];
                 auto meshHandle = ptr->meshes[mesh];
@@ -77,65 +108,14 @@ void KS::ModelRenderer::QueueModel(const Device& device, ResourceHandle<Model> m
         }
     }
 }
+
 void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-    ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
+    if (m_raytraced)
+        Raytrace(device, cpuFrameIndex, renderTarget, depthStencil, previoiusPassResults, numTextures);
+    else
+        Rasterize(device, cpuFrameIndex, renderTarget, depthStencil, previoiusPassResults, numTextures);
 
-    commandList->BindPipeline(pipeline);
-    renderTarget->Bind(device, depthStencil.get());
-    renderTarget->Clear(device);
-    depthStencil->Clear(device);
-
-    m_modelMatsBuffer->Update(device, &m_modelMatrices[0], m_modelCount);
-    m_materialInfoBuffer->Update(device, &m_materialInstances[0], m_modelCount);
-    m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex);
-    m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex);
-
-    for (const auto& draw_entry : draw_queue)
-    {
-
-        const Mesh* mesh = GetMesh(device, draw_entry.mesh);
-        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
-        auto normalTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-        auto emissiveTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
-        auto roughMetTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-        auto occlusionTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
-
-        if (mesh == nullptr || baseTex == nullptr)
-            continue;
-
-        using namespace MeshConstants;
-
-        auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-        auto normals = mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
-        auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
-        auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
-        auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
-        m_modelIndexBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_index").rootIndex, draw_entry.modelIndex);
-
-        positions->BindAsVertexData(device, 0);
-        normals->BindAsVertexData(device, 1);
-        uvs->BindAsVertexData(device, 2);
-        tangents->BindAsVertexData(device, 3);
-        indices->BindAsIndexData(device);
-
-        auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
-        auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
-        auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
-        auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
-        auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
-
-        baseTex->Bind(device, baseTexRoot);
-        normalTex->Bind(device, normalTexRoot);
-        emissiveTex->Bind(device, emissiveTexRoot);
-        roughMetTex->Bind(device, roughMetTexRoot);
-        occlusionTex->Bind(device, oucclusionTexRoot);
-
-        commandList->DrawIndexed(indices->GetElementCount());
-    }
-
-    //device.TrackResource(mResourceBuffers[KS::MODEL_MAT_BUFFER]);
     m_modelCount = 0;
     draw_queue.clear();
 }
@@ -220,4 +200,249 @@ KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const KS::Material& material
     info.normalScale = NEAFactor.x;
     info.roughnessFactor = ORMFactor.y;
     return info;
+}
+
+void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+{
+    if (!m_impl->m_updateBVH)
+    {
+        memset(m_impl->m_BLBuffers, 0, 200 * sizeof(Impl::ASBuffers));
+        m_impl->m_BLCount = 0;
+    }
+
+    int i = 0;
+
+    for (const auto& draw_entry : draw_queue)
+    {
+        const Mesh* mesh = GetMesh(device, draw_entry.mesh);
+        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+
+        if (mesh == nullptr || baseTex == nullptr)
+            continue;
+
+        CreateBVHBotomLevelInstance(device, draw_entry, m_impl->m_updateBVH, i);
+        i++;
+    }
+    CreateTopLevelAS(device, m_impl->m_updateBVH);
+}
+
+void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+{
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
+
+    commandList->BindPipeline(pipeline);
+    renderTarget->Bind(device, depthStencil.get());
+    renderTarget->Clear(device);
+    depthStencil->Clear(device);
+
+    m_modelMatsBuffer->Update(device, &m_modelMatrices[0], m_modelCount);
+    m_materialInfoBuffer->Update(device, &m_materialInstances[0], m_modelCount);
+    m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex);
+    m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex);
+
+    for (const auto& draw_entry : draw_queue)
+    {
+
+        const Mesh* mesh = GetMesh(device, draw_entry.mesh);
+        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+        auto normalTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
+        auto emissiveTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
+        auto roughMetTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
+        auto occlusionTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
+
+        if (mesh == nullptr || baseTex == nullptr)
+            continue;
+
+        using namespace MeshConstants;
+
+        auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+        auto normals = mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
+        auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
+        auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
+        auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+        m_modelIndexBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_index").rootIndex, draw_entry.modelIndex);
+
+        positions->BindAsVertexData(device, 0);
+        normals->BindAsVertexData(device, 1);
+        uvs->BindAsVertexData(device, 2);
+        tangents->BindAsVertexData(device, 3);
+        indices->BindAsIndexData(device);
+
+        auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
+        auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
+        auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
+        auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
+        auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
+
+        baseTex->Bind(device, baseTexRoot);
+        normalTex->Bind(device, normalTexRoot);
+        emissiveTex->Bind(device, emissiveTexRoot);
+        roughMetTex->Bind(device, roughMetTexRoot);
+        occlusionTex->Bind(device, oucclusionTexRoot);
+
+        commandList->DrawIndexed(indices->GetElementCount());
+    }
+}
+
+void KS::ModelRenderer::CreateBottomLevelAS(const Device& device, const Mesh* mesh)
+{
+    nv_helpers_dx12::BottomLevelASGenerator bottomLevelASGen;
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+
+    using namespace MeshConstants;
+    auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+    auto positionsResource = reinterpret_cast<DXResource*>(positions->GetResource());
+    auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+    auto indicesResource = reinterpret_cast<DXResource*>(indices->GetResource());
+
+    commandList->ResourceBarrier(*positionsResource->Get(), positionsResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    positionsResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    commandList->ResourceBarrier(*indicesResource->Get(), indicesResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    indicesResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+    DXGI_FORMAT indexFormat;
+    switch (indices->GetBufferStride())
+    {
+    case sizeof(unsigned char):
+        indexFormat = DXGI_FORMAT_R8_UINT;
+        break;
+    case sizeof(unsigned short):
+        indexFormat = DXGI_FORMAT_R16_UINT;
+        break;
+    case sizeof(unsigned int):
+        indexFormat = DXGI_FORMAT_R32_UINT;
+        break;
+    default:
+        indexFormat = DXGI_FORMAT_R16_UINT;
+        break;
+    }
+
+    bottomLevelASGen.AddVertexBuffer(positionsResource->Get(), 0, static_cast<uint32_t>(positions->GetElementCount()), sizeof(glm::vec3),
+        indicesResource->Get(), 0, static_cast<uint32_t>(indices->GetElementCount()), indexFormat, nullptr, 0, true);
+
+    // The AS build requires some scratch space to store temporary information.
+    // The amount of scratch memory is dependent on the scene complexity.
+    UINT64 scratchSizeInBytes = 0;
+    // The final AS also needs to be stored in addition to the existing vertex
+    // buffers. It size is also dependent on the scene complexity.
+    UINT64 resultSizeInBytes = 0;
+
+    bottomLevelASGen.ComputeASBufferSizes(engineDevice, false, &scratchSizeInBytes,
+        &resultSizeInBytes);
+
+    auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    heapProps.CreationNodeMask = 0;
+    heapProps.VisibleNodeMask = 0;
+
+    m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "SCRATCH  BUFFER");
+
+    bufDesc.Width = resultSizeInBytes;
+    m_impl->m_BLBuffers[m_impl->m_BLCount].pResult = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "RESULT  BUFFER", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+
+    bottomLevelASGen.Generate(commandList->GetCommandList().Get(), m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch->Get(),
+        m_impl->m_BLBuffers[m_impl->m_BLCount].pResult->Get(), false, nullptr);
+
+    commandList->TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch->GetResource());
+    commandList->TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pResult->GetResource());
+}
+
+void KS::ModelRenderer::CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex)
+{
+    if (!updateOnly)
+    {
+        const Mesh* mesh = GetMesh(device, draw_entry.mesh);
+        if (!mesh)
+            return;
+
+        CreateBottomLevelAS(device, mesh);
+
+        m_impl->m_instances[m_impl->m_BLCount].first = m_impl->m_BLBuffers[m_impl->m_BLCount].pResult;
+        m_impl->m_instances[m_impl->m_BLCount].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
+
+        m_impl->m_topLevelASGenerator.AddInstance(m_impl->m_instances[m_impl->m_BLCount].first->Get(),
+            m_impl->m_instances[m_impl->m_BLCount].second, static_cast<uint32_t>(m_impl->m_BLCount),
+            static_cast<uint32_t>(0));
+
+        m_impl->m_BLCount++;
+    }
+    else
+    {
+        m_impl->m_instances[entryIndex].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
+    }
+}
+
+void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
+{
+    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    if (!updateOnly)
+    {
+        // As for the bottom-level AS, the building the AS requires some scratch space
+        // to store temporary data in addition to the actual AS. In the case of the
+        // top-level AS, the instance descriptors also need to be stored in GPU
+        // memory. This call outputs the memory requirements for each (scratch,
+        // results, instance descriptors) so that the application can allocate the
+        // corresponding memory
+        UINT64 scratchSize, resultSize, instanceDescsSize;
+
+        m_impl->m_topLevelASGenerator.ComputeASBufferSizes(engineDevice, true, &scratchSize,
+            &resultSize, &instanceDescsSize);
+
+        //// Create the scratch and result buffers. Since the build is all done on GPU,
+        //// those can be allocated on the default heap
+
+        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        heapProps.CreationNodeMask = 0;
+        heapProps.VisibleNodeMask = 0;
+
+        m_impl->m_topLevelASBuffers.pScratch = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
+        bufDesc.Width = resultSize;
+        m_impl->m_topLevelASBuffers.pResult = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+
+        // The buffer describing the instances: ID, shader binding information,
+        // matrices ... Those will be copied into the buffer by the helper through
+        // mapping, so the buffer has to be allocated on the upload heap.
+        bufDesc.Width = instanceDescsSize;
+        bufDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        heapProps.CreationNodeMask = 0;
+        heapProps.VisibleNodeMask = 0;
+        m_impl->m_topLevelASBuffers.pInstanceDesc = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
+
+        commandList->ResourceBarrier(*m_impl->m_topLevelASBuffers.pInstanceDesc->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc->GetState(), D3D12_RESOURCE_STATE_GENERIC_READ);
+        m_impl->m_topLevelASBuffers.pInstanceDesc->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
+    }
+
+    // After all the buffers are allocated, or if only an update is required, we
+    // can build the acceleration structure. Note that in the case of the update
+    // we also pass the existing AS as the 'previous' AS, so that it can be
+    // refitted in place.
+    m_impl->m_topLevelASGenerator.Generate(commandList->GetCommandList().Get(),
+        m_impl->m_topLevelASBuffers.pScratch->Get(),
+        m_impl->m_topLevelASBuffers.pResult->Get(),
+        m_impl->m_topLevelASBuffers.pInstanceDesc->Get(),
+        updateOnly, m_impl->m_topLevelASBuffers.pResult->Get());
+
+    if (!updateOnly)
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.RaytracingAccelerationStructure.Location = m_impl->m_topLevelASBuffers.pResult->Get()->GetGPUVirtualAddress();
+
+        m_impl->m_BHVHandle = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())->AllocateResource(m_impl->m_topLevelASBuffers.pResult.get(), &srvDesc);
+    }
+
+    commandList->TrackResource(m_impl->m_topLevelASBuffers.pScratch->GetResource());
+    commandList->TrackResource(m_impl->m_topLevelASBuffers.pResult->GetResource());
+    commandList->TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc->GetResource());
 }

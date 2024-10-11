@@ -55,7 +55,14 @@ DXHeapHandle DXDescHeap::AllocateResource(DXResource* resource, D3D12_SHADER_RES
     }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
-    m_device->CreateShaderResourceView(resource->Get(), desc, handle);
+    if (desc->ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
+    {
+        m_device->CreateShaderResourceView(nullptr, desc, handle);
+    }
+    else
+    {
+        m_device->CreateShaderResourceView(resource->Get(), desc, handle);
+    }
 
     return DXHeapHandle(slot, shared_from_this());
 }

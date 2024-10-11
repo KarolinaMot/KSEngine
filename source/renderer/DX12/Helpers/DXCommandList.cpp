@@ -234,6 +234,9 @@ void DXCommandList::BindVertexData(const std::unique_ptr<DXResource>& buffer, si
         return;
     }
 
+    ResourceBarrier(*buffer->Get(), buffer->GetState(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    buffer->ChangeState(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = buffer->Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     vertexBufferView.StrideInBytes = bufferStride;
@@ -254,6 +257,9 @@ void DXCommandList::BindIndexData(const std::unique_ptr<DXResource>& buffer, siz
     D3D12_INDEX_BUFFER_VIEW indexBufferView {};
     indexBufferView.BufferLocation = buffer->Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     indexBufferView.SizeInBytes = buffer->GetResourceSize();
+
+    ResourceBarrier(*buffer->Get(), buffer->GetState(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    buffer->ChangeState(D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
     switch (bufferStride)
     {
@@ -309,7 +315,7 @@ void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY
     m_command_list->Dispatch(threadGroupX, threadgGroupY, threadGroupZ);
 }
 
-void DXCommandList::ResourceBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState)
+void DXCommandList::ResourceBarrier(ID3D12Resource& resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState)
 {
     if (!m_isOpen)
     {
@@ -320,7 +326,7 @@ void DXCommandList::ResourceBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOU
     if (dstState == srcState)
         return;
 
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), srcState, dstState);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(&resource, srcState, dstState);
     m_command_list->ResourceBarrier(1, &barrier);
 }
 
@@ -339,6 +345,11 @@ void DXCommandList::Open(std::shared_ptr<DXCommandAllocator> allocator)
 
     m_allocator = allocator;
     m_isOpen = true;
+}
+
+void DXCommandList::TrackResource(ComPtr<ID3D12Resource> buffer)
+{
+    m_allocator->TrackResource(buffer);
 }
 
 void DXCommandList::Close()

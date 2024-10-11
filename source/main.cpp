@@ -187,6 +187,7 @@ int main()
         model_renderer->QueueModel(*device, model, transform);
         model_renderer->QueueModel(*device, model, transform2);
         model_renderer->QueueModel(*device, model, transform3);
+        model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
         device->EndFrame();
     }

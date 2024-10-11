@@ -40,8 +40,9 @@ public:
     void DrawIndexed(int indexCount, int instancesCount = 1);
     void CopyResource(std::unique_ptr<DXResource>& source, std::unique_ptr<DXResource>& dest);
     void DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ);
-    void ResourceBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState);
+    void ResourceBarrier(ID3D12Resource& resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState);
     void Open(std::shared_ptr<DXCommandAllocator> allocator);
+    void TrackResource(ComPtr<ID3D12Resource> buffer);
     void Close();
 
     ComPtr<ID3D12GraphicsCommandList4> GetCommandList() const;

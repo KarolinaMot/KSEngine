@@ -61,7 +61,7 @@ void DXResource::CreateUploadBuffer(const ComPtr<ID3D12Device5>& device, int dat
 
 void DXResource::Update(DXCommandList* list, D3D12_SUBRESOURCE_DATA data, D3D12_RESOURCE_STATES dstState, int currentSubresource, int totalSubresources)
 {
-    list->ResourceBarrier(mResource, mState, D3D12_RESOURCE_STATE_COPY_DEST);
+    list->ResourceBarrier(*mResource.Get(), mState, D3D12_RESOURCE_STATE_COPY_DEST);
     UpdateSubresources(list->GetCommandList().Get(), mResource.Get(), mUploadBuffers[currentSubresource]->mResource.Get(), 0, currentSubresource, totalSubresources, &data);
-    list->ResourceBarrier(mResource, D3D12_RESOURCE_STATE_COPY_DEST, mState);
+    list->ResourceBarrier(*mResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, mState);
 }

@@ -141,6 +141,9 @@ void KS::Renderer::Raytrace(Device& device, const RendererRenderParams& params)
 {
     device.GetRenderTarget()->Bind(device, device.GetDepthStencil().get());
     device.GetRenderTarget()->Clear(device);
+    device.GetDepthStencil()->Clear(device);
+
+    m_subrenderers[0]->Render(device, params.cpuFrame, device.GetRenderTarget(), device.GetDepthStencil());
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

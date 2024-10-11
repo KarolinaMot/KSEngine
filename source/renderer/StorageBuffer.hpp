@@ -76,6 +76,7 @@ public:
     size_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
     size_t GetElementCount() const { return m_num_elements; }
+    void* GetResource();
 
 private:
     void CreateBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);

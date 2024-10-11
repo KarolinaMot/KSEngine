@@ -64,3 +64,8 @@ void KS::StorageBuffer::BindAsIndexData(const Device& device, uint32_t elementOf
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     commandList->BindIndexData(m_impl->m_buffer->GetResource(), m_buffer_stride, elementOffset);
 }
+
+void* KS::StorageBuffer::GetResource()
+{
+    return m_impl->m_buffer->GetResource().get();
+}

@@ -44,6 +44,7 @@ struct DrawEntry
     ResourceHandle<Mesh> mesh {};
     Material material {};
     int modelIndex;
+    glm::mat4x4 modelMat;
 };
 
 struct ModelMat

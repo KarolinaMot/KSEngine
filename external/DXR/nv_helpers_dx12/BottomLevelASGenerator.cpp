@@ -30,6 +30,7 @@ Contacts for feedback:
 */
 
 #include "BottomLevelASGenerator.h"
+#include <stdexcept>
 
 // Helper to compute aligned buffer sizes
 #ifndef ROUND_UP
@@ -58,9 +59,9 @@ void BottomLevelASGenerator::AddVertexBuffer(
     bool isOpaque /* = true */ // If true, the geometry is considered opaque,
                                // optimizing the search for a closest hit
 ) {
-  AddVertexBuffer(vertexBuffer, vertexOffsetInBytes, vertexCount,
-                  vertexSizeInBytes, nullptr, 0, 0, transformBuffer,
-                  transformOffsetInBytes, isOpaque);
+    AddVertexBuffer(vertexBuffer, vertexOffsetInBytes, vertexCount,
+        vertexSizeInBytes, nullptr, 0, 0, DXGI_FORMAT_UNKNOWN, transformBuffer,
+        transformOffsetInBytes, isOpaque);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -72,48 +73,46 @@ void BottomLevelASGenerator::AddVertexBuffer(
 //   - 3xfloat32 format
 //   - 32-bit indices
 void BottomLevelASGenerator::AddVertexBuffer(
-    ID3D12Resource *vertexBuffer, // Buffer containing the vertex coordinates,
+    ID3D12Resource* vertexBuffer, // Buffer containing the vertex coordinates,
                                   // possibly interleaved with other vertex data
     UINT64
         vertexOffsetInBytes, // Offset of the first vertex in the vertex buffer
-    uint32_t vertexCount,    // Number of vertices to consider in the buffer
-    UINT vertexSizeInBytes,  // Size of a vertex including all its other data,
-                             // used to stride in the buffer
-    ID3D12Resource *indexBuffer, // Buffer containing the vertex indices
+    uint32_t vertexCount, // Number of vertices to consider in the buffer
+    UINT vertexSizeInBytes, // Size of a vertex including all its other data,
+                            // used to stride in the buffer
+    ID3D12Resource* indexBuffer, // Buffer containing the vertex indices
                                  // describing the triangles
     UINT64 indexOffsetInBytes, // Offset of the first index in the index buffer
-    uint32_t indexCount,       // Number of indices to consider in the buffer
-    ID3D12Resource *transformBuffer, // Buffer containing a 4x4 transform matrix
+    uint32_t indexCount, // Number of indices to consider in the buffer
+    DXGI_FORMAT indexFormat,
+    ID3D12Resource* transformBuffer, // Buffer containing a 4x4 transform matrix
                                      // in GPU memory, to be applied to the
                                      // vertices. This buffer cannot be nullptr
-    UINT64 transformOffsetInBytes,   // Offset of the transform matrix in the
-                                     // transform buffer
+    UINT64 transformOffsetInBytes, // Offset of the transform matrix in the
+                                   // transform buffer
     bool isOpaque /* = true */ // If true, the geometry is considered opaque,
                                // optimizing the search for a closest hit
-) {
-  // Create the DX12 descriptor representing the input data, assumed to be
-  // opaque triangles, with 3xf32 vertex coordinates and 32-bit indices
-  D3D12_RAYTRACING_GEOMETRY_DESC descriptor = {};
-  descriptor.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-  descriptor.Triangles.VertexBuffer.StartAddress =
-      vertexBuffer->GetGPUVirtualAddress() + vertexOffsetInBytes;
-  descriptor.Triangles.VertexBuffer.StrideInBytes = vertexSizeInBytes;
-  descriptor.Triangles.VertexCount = vertexCount;
-  descriptor.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-  descriptor.Triangles.IndexBuffer =
-      indexBuffer ? (indexBuffer->GetGPUVirtualAddress() + indexOffsetInBytes)
-                  : 0;
-  descriptor.Triangles.IndexFormat =
-      indexBuffer ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_UNKNOWN;
-  descriptor.Triangles.IndexCount = indexCount;
-  descriptor.Triangles.Transform3x4 =
-      transformBuffer
-          ? (transformBuffer->GetGPUVirtualAddress() + transformOffsetInBytes)
-          : 0;
-  descriptor.Flags = isOpaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE
-                              : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+)
+{
+    // Create the DX12 descriptor representing the input data, assumed to be
+    // opaque triangles, with 3xf32 vertex coordinates and 32-bit indices
+    D3D12_RAYTRACING_GEOMETRY_DESC descriptor = {};
+    descriptor.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+    descriptor.Triangles.VertexBuffer.StartAddress = vertexBuffer->GetGPUVirtualAddress() + vertexOffsetInBytes;
+    descriptor.Triangles.VertexBuffer.StrideInBytes = vertexSizeInBytes;
+    descriptor.Triangles.VertexCount = vertexCount;
+    descriptor.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+    descriptor.Triangles.IndexBuffer = indexBuffer ? (indexBuffer->GetGPUVirtualAddress() + indexOffsetInBytes)
+                                                   : 0;
+    descriptor.Triangles.IndexFormat = indexBuffer ? indexFormat : DXGI_FORMAT_UNKNOWN;
+    descriptor.Triangles.IndexCount = indexCount;
+    descriptor.Triangles.Transform3x4 = transformBuffer
+        ? (transformBuffer->GetGPUVirtualAddress() + transformOffsetInBytes)
+        : 0;
+    descriptor.Flags = isOpaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE
+                                : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 
-  m_vertexBuffers.push_back(descriptor);
+    m_vertexBuffers.push_back(descriptor);
 }
 
 //--------------------------------------------------------------------------------------------------
