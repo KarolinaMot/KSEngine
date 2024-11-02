@@ -5,19 +5,19 @@
             "name": "Launch Debug",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/Challenges.exe",
+            "program": "${workspaceFolder}/build/Debug/KSEngine.exe",
             "preLaunchTask": "Build Debug",
             "cwd": "${workspaceRoot}",
-            "console": "externalTerminal",
+            "console": "integratedTerminal",
         },
         {
             "name": "Launch Release",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Release/Challenges.exe",
+            "program": "${workspaceFolder}/build/Release/KSEngine.exe",
             "preLaunchTask": "Build Release",
             "cwd": "${workspaceRoot}",
-            "console": "externalTerminal",
+            "console": "integratedTerminal",
         },
     ]
 }
