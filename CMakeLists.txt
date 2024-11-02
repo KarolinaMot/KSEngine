@@ -1,27 +1,22 @@
 # PROJECT
 
 cmake_minimum_required(VERSION 3.15)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake-modules")
-
 project(KSEngine)
 
-# PROJECT GENERAL FLAGS (COMPILER SPECIFIC IN TOOLCHAIN)
+# OPTIONS
 
-add_library(CompilerSettings INTERFACE)
-target_compile_features(CompilerSettings INTERFACE cxx_std_20)
-target_compile_definitions(CompilerSettings INTERFACE "WIN32_LEAN_AND_MEAN" "NOMINMAX")
+option(ENABLE_PCH "Compile with Precompiled Headers" ON)
+option(UNITY_BUILDS "Compile with Unity Builds" ON)
 
-# MAIN FILES
+# INCLUDES
 
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "source/*.cpp")
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "source/*.hpp")
+include(FetchContent)
+include(scripts/cmake/code-modules.cmake)
 
-# EXTERNAL DIRECTORIES
-add_subdirectory(external)
+# MAIN EXECUTABLE
 
-# MAIN PROJECT
-add_executable(KSEngine ${sources} ${headers})
-target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt PUBLIC assimp PUBLIC cereal)
-target_include_directories(KSEngine PUBLIC source PUBLIC external)
+add_subdirectory(Engine)
+
+add_executable(KSEngine "engine/main.cpp")
+target_link_libraries(KSEngine PRIVATE Engine)
