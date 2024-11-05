@@ -1,29 +1,30 @@
-#include "engine.hpp"
+#include <Engine.hpp>
 #include <algorithm>
+#include <utility>
 
 void Engine::SetExit(int code)
 {
-    _exitRequested = true;
-    _exitCode = code;
+    m_exitRequested = true;
+    m_exitCode = code;
 }
 
 void Engine::Reset()
 {
-    for (auto it = _initOrder.rbegin(); it != _initOrder.rend(); ++it)
+    for (auto it = m_initOrder.rbegin(); it != m_initOrder.rend(); ++it)
     {
         auto* module = *it;
         module->Shutdown(*this);
         delete module;
     }
 
-    _modules.clear();
-    _initOrder.clear();
-    _exitRequested = false;
-    _exitCode = 0;
+    m_modules.clear();
+    m_initOrder.clear();
+    m_exitRequested = false;
+    m_exitCode = 0;
 }
 ModuleInterface* Engine::GetModuleUntyped(std::type_index type) const
 {
-    if (auto it = _modules.find(type); it != _modules.end())
+    if (auto it = m_modules.find(type); it != m_modules.end())
     {
         return it->second;
     }
@@ -32,25 +33,26 @@ ModuleInterface* Engine::GetModuleUntyped(std::type_index type) const
         return nullptr;
     }
 }
-// void Engine::AddModuleToTickList(ModuleInterface* module, ModuleTickOrder priority)
-// {
-//     // sorted emplace, based on tick priority
+Engine& Engine::AddExecutionDelegate(Delegate<void(Engine&)>&& delegate, ExecutionOrder order)
+{
+    // sorted emplace, based on tick priority
+    auto compare = [](const auto& new_elem, const auto& old_elem)
+    {
+        return new_elem.second < old_elem.second;
+    };
 
-//     auto compare = [](const auto& new_elem, const auto& old_elem)
-//     {
-//         return new_elem.priority < old_elem.priority;
-//     };
+    auto pair = std::make_pair(std::move(delegate), order);
 
-//     auto pair = ModulePriorityPair { module, priority };
+    auto insert_it = std::upper_bound(
+        m_execution.begin(), m_execution.end(), pair, compare);
 
-//     auto insertIt = std::upper_bound(
-//         _tickOrder.begin(), _tickOrder.end(), pair, compare);
-
-//     _tickOrder.insert(insertIt, pair);
-// }
+    m_execution.emplace(insert_it, std::move(pair));
+    return *this;
+}
 
 void Engine::RegisterNewModule(std::type_index moduleType, ModuleInterface* module)
 {
-    auto [it, success] = _modules.emplace(moduleType, module);
-    _initOrder.emplace_back(it->second);
+    module->Initialize(*this);
+    auto [it, success] = m_modules.emplace(moduleType, module);
+    m_initOrder.emplace_back(it->second);
 }
