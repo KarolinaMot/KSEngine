@@ -8,18 +8,17 @@
 #include <renderer/Renderer.hpp>
 #include <renderer/ShaderInputsBuilder.hpp>
 
-
 class Model;
 
-class ApplicationModule : public ModuleInterface
+class OldApplicationModule : public ModuleInterface
 {
 public:
-    virtual ~ApplicationModule() = default;
+    virtual ~OldApplicationModule() = default;
 
 private:
     void Initialize(Engine& e) override;
 
-    void Shutdown(Engine& e) override
+    void Shutdown(MAYBE_UNUSED Engine& e) override
     {
     }
 

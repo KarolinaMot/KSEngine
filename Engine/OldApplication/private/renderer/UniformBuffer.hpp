@@ -1,5 +1,6 @@
 #pragma once
 #include <Log.hpp>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,14 +22,14 @@ public:
         m_num_elements = instances;
 
         CreateUniformBuffer(device, name, sizeof(T), m_num_elements);
-        for (int i = 0; i < m_num_elements; i++)
+        for (size_t i = 0; i < m_num_elements; i++)
             Upload(device, &data, i);
     }
 
     template <typename T>
-    void Update(const Device& device, const T& data, int member = 0)
+    void Update(const Device& device, const T& data, size_t member = 0)
     {
-        int dataSize = sizeof(T);
+        size_t dataSize = sizeof(T);
         if (dataSize != m_buffer_stride)
         {
             Log("Buffer {} type on update does not fit the original format. Command has been ignored.", m_name);
@@ -54,7 +55,7 @@ private:
 
     size_t m_total_buffer_size = 0;
     size_t m_buffer_stride = 0;
-    int m_num_elements = 0;
+    size_t m_num_elements = 0;
     std::string m_name;
 
     class Impl;

@@ -1,4 +1,5 @@
 #pragma once
+#include <Common.hpp>
 #include <glm/glm.hpp>
 #include <memory>
 #include <string>
@@ -16,7 +17,7 @@ class Texture;
 class SubRenderer
 {
 public:
-    SubRenderer(const Device& device, std::shared_ptr<Shader> shader)
+    SubRenderer(MAYBE_UNUSED const Device& device, std::shared_ptr<Shader> shader)
         : m_shader(shader) { };
     virtual ~SubRenderer() = default;
     virtual void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0) = 0;

@@ -17,7 +17,7 @@
 
 Renderer::Renderer(Device& device, const RendererInitParams& params)
 {
-    for (int i = 0; i < params.shaders.size(); i++)
+    for (size_t i = 0; i < params.shaders.size(); i++)
     {
         if (params.shaders[i]->GetShaderType() == ShaderType::ST_MESH_RENDER)
         {
@@ -137,7 +137,7 @@ void Renderer::Rasterize(Device& device, const RendererRenderParams& params)
     device.GetRenderTarget()->CopyTo(device, m_pbrResRT, 0, 0);
 }
 
-void Renderer::Raytrace(Device& device, const RendererRenderParams& params)
+void Renderer::Raytrace(Device& device, MAYBE_UNUSED const RendererRenderParams& params)
 {
     device.GetRenderTarget()->Bind(device, device.GetDepthStencil().get());
     device.GetRenderTarget()->Clear(device);

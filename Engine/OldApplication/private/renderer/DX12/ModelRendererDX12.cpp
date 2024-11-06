@@ -77,7 +77,7 @@ void ModelRenderer::QueueModel(const Device& device, ResourceHandle<Model> model
         }
     }
 }
-void ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void ModelRenderer::Render(Device& device, MAYBE_UNUSED int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, MAYBE_UNUSED Texture** previoiusPassResults, MAYBE_UNUSED int numTextures)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());

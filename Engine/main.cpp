@@ -35,7 +35,7 @@ int main(int argc, const char* argv[])
 
     return MainEngine()
         .AddModule<TimeModule>()
-        .AddModule<ApplicationModule>()
+        .AddModule<OldApplicationModule>()
         .AddExecutionDelegate(print_frame_time, ExecutionOrder::LAST)
         .Run();
 }

@@ -70,7 +70,7 @@ Camera FreeCamSystem(std::shared_ptr<RawInput> input, entt::registry& registry, 
     return Camera {};
 }
 
-void ApplicationModule::Initialize(Engine& e)
+void OldApplicationModule::Initialize(Engine& e)
 {
     model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
@@ -138,11 +138,11 @@ void ApplicationModule::Initialize(Engine& e)
         registry.emplace<ComponentFirstPersonCamera>(e);
     }
 
-    e.AddExecutionDelegate(this, &ApplicationModule::UpdateWindow, ExecutionOrder::FIRST);
-    e.AddExecutionDelegate(this, &ApplicationModule::RenderFrame, ExecutionOrder::RENDER);
+    e.AddExecutionDelegate(this, &OldApplicationModule::UpdateWindow, ExecutionOrder::FIRST);
+    e.AddExecutionDelegate(this, &OldApplicationModule::RenderFrame, ExecutionOrder::RENDER);
 }
 
-void ApplicationModule::RenderFrame(Engine& e)
+void OldApplicationModule::RenderFrame(Engine& e)
 {
     auto dt = e.GetModule<TimeModule>().GetDeltaTime();
 

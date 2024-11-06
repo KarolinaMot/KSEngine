@@ -82,7 +82,7 @@ private:
     bool m_read_write = false;
     size_t m_total_buffer_size = 0;
     size_t m_buffer_stride = 0;
-    int m_num_elements = 0;
+    size_t m_num_elements = 0;
     std::string m_name;
 
     class Impl;
