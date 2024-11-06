@@ -1,5 +1,5 @@
-#include "Common.hpp"
 #include <ApplicationModule.hpp>
+#include <DXBackendModule.hpp>
 #include <Log.hpp>
 #include <MainEngine.hpp>
 #include <TimeModule.hpp>
@@ -9,8 +9,8 @@
 void print_frame_time(Engine& e)
 {
     static int fps = 0;
-    static DeltaMS accum = {};
-    constexpr DeltaMS MAX = DeltaMS { 1000 };
+    static DeltaMS accum { 0 };
+    constexpr DeltaMS MAX { 1000 };
 
     fps++;
 
@@ -35,7 +35,8 @@ int main(int argc, const char* argv[])
 
     return MainEngine()
         .AddModule<TimeModule>()
-        .AddModule<OldApplicationModule>()
+        .AddModule<DXBackendModule>()
+        .AddModule<ApplicationModule>()
         .AddExecutionDelegate(print_frame_time, ExecutionOrder::LAST)
         .Run();
 }

@@ -19,7 +19,7 @@ enum class ExecutionOrder : uint32_t
 };
 
 // Service locator for all modules
-// Instantiate a MainEngine to run the engine, which inherits from this
+// Instantiate a MainEngine to run the engine, which inherits from this class
 class Engine
 {
 public:

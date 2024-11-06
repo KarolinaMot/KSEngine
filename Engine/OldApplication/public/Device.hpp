@@ -6,11 +6,6 @@
 #include <string>
 #include <vector>
 
-#define NOMINMAX
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <glfw3.h>
-#include <glfw3native.h>
-
 #include <renderer/DepthStencil.hpp>
 #include <renderer/RenderTarget.hpp>
 #include <resources/Texture.hpp>
