@@ -1,2 +1,2 @@
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "*.hpp")
-add_library(entt INTERFACE ${headers})
+add_subdirectory(entt)
+target_include_directories(entt INTERFACE ".")

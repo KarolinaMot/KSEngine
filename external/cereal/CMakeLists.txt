@@ -1,2 +1,2 @@
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "*.hpp")
-add_library(cereal INTERFACE ${sources})
+add_subdirectory(cereal)
+target_include_directories(cereal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

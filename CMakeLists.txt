@@ -17,6 +17,7 @@ include(scripts/cmake/code-modules.cmake)
 # MAIN EXECUTABLE
 
 add_subdirectory(Engine)
+add_subdirectory(external)
 
 add_executable(KSEngine "engine/main.cpp")
 target_link_libraries(KSEngine PRIVATE Engine)

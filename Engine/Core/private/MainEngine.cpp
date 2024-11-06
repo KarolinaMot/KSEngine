@@ -1,7 +1,5 @@
-#include "engine.hpp"
 #include <MainEngine.hpp>
 #include <cassert>
-#include <log.hpp>
 
 int MainEngine::Run()
 {

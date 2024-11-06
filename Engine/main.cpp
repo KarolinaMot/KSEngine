@@ -1,29 +1,10 @@
+#include "Common.hpp"
+#include <ApplicationModule.hpp>
 #include <Log.hpp>
 #include <MainEngine.hpp>
+#include <TimeModule.hpp>
 #include <Timers.hpp>
-
-class TimeModule : public ModuleInterface
-{
-public:
-    DeltaMS GetDeltaTime() const { return m_frame_timer.GetElapsed(); }
-    DeltaMS GetTotalTime() const { return m_total_timer.GetElapsed(); }
-
-private:
-    void Initialize(Engine& e) override
-    {
-        e.AddExecutionDelegate(this, &TimeModule::ResetFrameTimer, ExecutionOrder::FIRST);
-    }
-
-    void Shutdown(Engine& e) override { }
-
-    void ResetFrameTimer(Engine& e)
-    {
-        m_frame_timer.Reset();
-    }
-
-    Stopwatch m_frame_timer {};
-    Stopwatch m_total_timer {};
-};
+#include <glm/glm.hpp>
 
 void print_frame_time(Engine& e)
 {
@@ -54,6 +35,7 @@ int main(int argc, const char* argv[])
 
     return MainEngine()
         .AddModule<TimeModule>()
+        .AddModule<ApplicationModule>()
         .AddExecutionDelegate(print_frame_time, ExecutionOrder::LAST)
         .Run();
 }
