@@ -136,5 +136,5 @@ void CALLBACK DXFactory::debug_output_callback(
         }
     };
 
-    Log("D3D12 {} [{}]: {} (Error code: {})", MessageSeverity(Severity), MessageCategory(Category), pDescription, ID);
+    Log("D3D12 {} [{}]: {} (Error code: {})", MessageSeverity(Severity), MessageCategory(Category), pDescription, static_cast<uint32_t>(ID));
 }

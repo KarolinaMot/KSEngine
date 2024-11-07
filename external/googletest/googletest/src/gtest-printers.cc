@@ -53,8 +53,8 @@
 #include <string>
 #include <type_traits>
 
+#include "gtest-internal-inl.h"
 #include "gtest/internal/gtest-port.h"
-#include "src/gtest-internal-inl.h"
 
 namespace testing {
 

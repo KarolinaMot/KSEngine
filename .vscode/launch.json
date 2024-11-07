@@ -19,5 +19,14 @@
             "cwd": "${workspaceRoot}",
             "console": "integratedTerminal",
         },
+        {
+            "name": "Run Tests",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/KSTests.exe",
+            "preLaunchTask": "Build Debug",
+            "cwd": "${workspaceRoot}",
+            "console": "integratedTerminal",
+        },
     ]
 }

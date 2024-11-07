@@ -1,8 +1,7 @@
 #include <cassert>
 #include <sync/DXFence.hpp>
 
-
-DXFence::DXFence(ComPtr<ID3D12Device> device)
+DXFence::DXFence(ID3D12Device* device)
 {
     // Create fence
     CheckDX(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_object)));
@@ -16,7 +15,7 @@ DXFence::~DXFence()
     CloseHandle(fence_wait_event);
 }
 
-void DXFence::Signal(ComPtr<ID3D12CommandQueue> command_queue, uint64_t value)
+void DXFence::Signal(ID3D12CommandQueue* command_queue, uint64_t value)
 {
     CheckDX(command_queue->Signal(fence_object.Get(), value));
 }

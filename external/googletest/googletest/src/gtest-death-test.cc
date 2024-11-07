@@ -87,9 +87,9 @@
 
 #endif  // GTEST_HAS_DEATH_TEST
 
+#include "gtest-internal-inl.h"
 #include "gtest/gtest-message.h"
 #include "gtest/internal/gtest-string.h"
-#include "src/gtest-internal-inl.h"
 
 namespace testing {
 

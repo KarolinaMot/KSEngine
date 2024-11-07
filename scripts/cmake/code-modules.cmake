@@ -32,9 +32,20 @@ function(module_default_init module)
     endif ()
 
     if (ENABLE_TESTS)
+
         file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS "tests/*.cpp")
-        target_link_libraries(KSTests PRIVATE ${module})
-        target_sources(KSTests PRIVATE ${test_sources} PRIVATE ${private_headers})
+
+        if (test_sources)
+            message(STATUS "HELLO")
+            add_library(${module}Tests)
+            
+            target_link_libraries(KSTests PRIVATE ${module}Tests)
+            target_sources(${module}Tests PRIVATE ${test_sources})
+           
+            target_include_directories(${module}Tests PRIVATE "private")
+            target_link_libraries(${module}Tests PRIVATE ${module} PRIVATE gmock)
+        endif ()
+        
     endif ()
 
     if (ENABLE_UNITY)
