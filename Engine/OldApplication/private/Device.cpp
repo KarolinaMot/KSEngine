@@ -38,9 +38,6 @@ public:
         NUM_DESC_HEAPS
     };
 
-    GLFWwindow* m_window;
-    GLFWmonitor* m_monitor;
-
     ComPtr<ID3D12Device5> m_device;
     ComPtr<IDXGISwapChain3> m_swapchain;
 

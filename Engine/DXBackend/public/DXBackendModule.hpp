@@ -16,3 +16,5 @@ private:
     std::unique_ptr<DXFactory> factory {};
     std::unique_ptr<DXDevice> device {};
 };
+
+void Test();

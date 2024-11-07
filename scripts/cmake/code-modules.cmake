@@ -19,10 +19,11 @@ endfunction()
 # FUNCTION THAT DECLARES ALL THE DEFAULTS OF A MODULE
 function(module_default_init module)
 
-    file(GLOB_RECURSE public_files CONFIGURE_DEPENDS "public/*.hpp")
-    file(GLOB_RECURSE private_files CONFIGURE_DEPENDS "private/*.hpp" "private/*.cpp")
+    file(GLOB_RECURSE public_headers CONFIGURE_DEPENDS "public/*.hpp")
+    file(GLOB_RECURSE private_sources CONFIGURE_DEPENDS "private/*.cpp")
+    file(GLOB_RECURSE private_headers CONFIGURE_DEPENDS "private/*.hpp")
 
-    target_sources(${module} PUBLIC ${public_files} PRIVATE ${private_files})
+    target_sources(${module} PUBLIC ${public_files} PRIVATE ${private_headers} PRIVATE ${private_sources})
     target_include_directories(${module} PUBLIC "public" PRIVATE "private")
 
     if (ENABLE_PCH)
@@ -30,7 +31,13 @@ function(module_default_init module)
         target_precompile_headers(${module} REUSE_FROM PCH)
     endif ()
 
-    if (USE_UNITY_BUILD)
+    if (ENABLE_TESTS)
+        file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS "tests/*.cpp")
+        target_link_libraries(KSTests PRIVATE ${module})
+        target_sources(KSTests PRIVATE ${test_sources} PRIVATE ${private_headers})
+    endif ()
+
+    if (ENABLE_UNITY)
         target_enable_unity(${module})
     endif ()
 
