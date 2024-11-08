@@ -1,5 +1,7 @@
 #pragma once
-#include "DXIncludes.hpp"
+#include <Common.hpp>
+#include <DXCommon.hpp>
+
 #include <dxcapi.h>
 #include <memory>
 #include <vector>

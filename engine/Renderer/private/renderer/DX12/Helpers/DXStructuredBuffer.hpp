@@ -1,6 +1,7 @@
 #pragma once
-#include "DXHeapHandle.hpp"
-#include "DXIncludes.hpp"
+#include <Common.hpp>
+#include <DXCommon.hpp>
+#include <descriptors/DXDescriptorHandle.hpp>
 #include <memory>
 #include <optional>
 
@@ -20,8 +21,8 @@ public:
 
     void Bind(DXCommandList* commandList, int rootSlot, bool readOnly, DXDescHeap* descriptorHeap);
 
-    const DXHeapHandle& GetUAVHandle() { return m_UAV_handle; }
-    const DXHeapHandle& GetSRVHandle() { return m_SRV_handle; }
+    const DXDescriptorHandle& GetUAVHandle() { return m_UAV_handle; }
+    const DXDescriptorHandle& GetSRVHandle() { return m_SRV_handle; }
     const std::unique_ptr<DXResource>& GetResource() const { return m_resource; }
 
 private:
@@ -29,8 +30,8 @@ private:
     void AllocateAsSRV(DXDescHeap* descriptorHeap);
 
     std::unique_ptr<DXResource> m_resource;
-    DXHeapHandle m_UAV_handle;
-    DXHeapHandle m_SRV_handle;
+    DXDescriptorHandle m_UAV_handle;
+    DXDescriptorHandle m_SRV_handle;
 
     size_t m_dataSize = 0;
     size_t m_numberOfElements = 0;

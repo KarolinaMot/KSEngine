@@ -29,8 +29,12 @@ DXCommandList DXCommandQueue::MakeCommandList(ID3D12Device* device, const wchar_
 
 DXFuture DXCommandQueue::SubmitCommandList(DXCommandList&& command_list)
 {
+    CheckDX(command_list.command_list->Close());
+
     ID3D12CommandList* pList = command_list.command_list.Get();
     command_queue->ExecuteCommandLists(1, &pList);
+
+    command_list.command_list = nullptr;
 
     fence->Signal(command_queue.Get(), ++next_fence_value);
     auto result_future = DXFuture(fence.get(), next_fence_value);

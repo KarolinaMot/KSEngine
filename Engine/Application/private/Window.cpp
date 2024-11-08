@@ -46,8 +46,3 @@ void* Window::GetNativeWindowHandle() const
 {
     return glfwGetWin32Window(window_handle);
 }
-
-void Window::SwapBuffers()
-{
-    glfwSwapBuffers(window_handle);
-}

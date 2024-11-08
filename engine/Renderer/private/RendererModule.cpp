@@ -80,11 +80,11 @@ void RendererModule::Initialize(Engine& e)
 
     // Initialize device
     device = std::make_shared<Device>(params);
+
     device->InitializeSwapchain();
     device->FinishInitialization();
 
     ecs = std::make_shared<EntityComponentSystem>();
-    raw_input = std::make_shared<RawInput>(device);
 
     device->NewFrame();
 
@@ -138,8 +138,7 @@ void RendererModule::Initialize(Engine& e)
         registry.emplace<ComponentFirstPersonCamera>(e);
     }
 
-    e.AddExecutionDelegate(this, &OldApplicationModule::UpdateWindow, ExecutionOrder::FIRST);
-    e.AddExecutionDelegate(this, &OldApplicationModule::RenderFrame, ExecutionOrder::RENDER);
+    e.AddExecutionDelegate(this, &RendererModule::RenderFrame, ExecutionOrder::RENDER);
 }
 
 void RendererModule::RenderFrame(Engine& e)

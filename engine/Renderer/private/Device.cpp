@@ -20,26 +20,6 @@ public:
     UINT GetFramebufferIndex();
 
     // void BindSwapchainRT();
-    void StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor);
-    void EndFrame(int cpuFrame);
-
-    enum DXResources
-    {
-        RT,
-        DEPTH_STENCIL_RSC = FRAME_BUFFER_COUNT,
-        NUM_RESOURCES
-    };
-
-    ComPtr<ID3D12Device5> m_device;
-    ComPtr<IDXGISwapChain3> m_swapchain;
-
-    std::unique_ptr<DXCommandQueue> m_command_queue;
-    std::unique_ptr<DXCommandList> m_command_list;
-    std::shared_ptr<DXCommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT];
-    DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
-
-    std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
-    const DXGI_FORMAT m_depth_format = DXGI_FORMAT_D32_FLOAT;
 };
 
 Device::Device(const DeviceInitParams& params)
@@ -58,7 +38,6 @@ Device::Device(const DeviceInitParams& params)
 Device::~Device()
 {
     Flush();
-    glfwDestroyWindow(m_impl->m_window);
 }
 
 void* Device::GetDevice() const
@@ -69,25 +48,6 @@ void* Device::GetDevice() const
 void* Device::GetCommandList() const
 {
     return m_impl->m_command_list.get();
-}
-
-void* Device::GetResourceHeap() const
-{
-    return m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP].get();
-}
-void* Device::GetDepthHeap() const
-{
-    return m_impl->m_descriptor_heaps[Impl::DXHeaps::DEPTH_HEAP].get();
-}
-
-void* Device::GetRenderTargetHeap() const
-{
-    return m_impl->m_descriptor_heaps[Impl::DXHeaps::RT_HEAP].get();
-}
-
-void* Device::GetWindowHandle() const
-{
-    return m_impl->m_window;
 }
 
 void Device::NewFrame()
@@ -148,43 +108,6 @@ void Device::Flush()
     m_impl->m_command_queue->Flush();
 }
 
-void window_close_callback(GLFWwindow* window)
-{
-    glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
-
-void Device::Impl::InitializeWindow(const DeviceInitParams& params)
-{
-    if (!glfwInit())
-    {
-        Log("GLFW could not be initialized");
-    }
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-
-    m_monitor = glfwGetPrimaryMonitor();
-
-    std::string applicationName = params.name;
-    if (applicationName.empty())
-    {
-        applicationName += "Unnamed application";
-    }
-
-    glfwWindowHint(GLFW_RESIZABLE, 1);
-    m_window = glfwCreateWindow(params.window_width, params.window_height, applicationName.c_str(), nullptr, nullptr);
-
-    if (m_window == nullptr)
-    {
-        Log("GLFW window could not be created.");
-    }
-
-    glfwMakeContextCurrent(m_window);
-    glfwShowWindow(m_window);
-    glfwSetWindowCloseCallback(m_window, window_close_callback);
-}
-
 UINT Device::Impl::GetFramebufferIndex()
 {
     return m_swapchain->GetCurrentBackBufferIndex();
@@ -214,58 +137,6 @@ void Device::Impl::EndFrame(int cpuFrame)
     const DXCommandList* commandLists[] = { m_command_list.get() };
 
     m_fence_values[cpuFrame] = m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
-}
-
-void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
-{
-    switch (Severity)
-    {
-    case D3D12_MESSAGE_SEVERITY_CORRUPTION:
-        Log("{}", pDescription);
-        break;
-    case D3D12_MESSAGE_SEVERITY_ERROR:
-        Log("{}", pDescription);
-        break;
-    case D3D12_MESSAGE_SEVERITY_WARNING:
-        Log("{}", pDescription);
-        break;
-    case D3D12_MESSAGE_SEVERITY_INFO:
-        Log("{}", pDescription);
-        break;
-    case D3D12_MESSAGE_SEVERITY_MESSAGE:
-        Log("{}", pDescription);
-        break;
-    }
-}
-
-void SetupDebugOutputToConsole(ComPtr<ID3D12Device5> device)
-{
-    ComPtr<ID3D12InfoQueue1> infoQueue;
-    HRESULT hr = device->QueryInterface(IID_PPV_ARGS(&infoQueue));
-    if (FAILED(hr))
-    {
-        Log("Failed to query interface");
-    }
-    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-
-    D3D12_MESSAGE_ID hide[] = {
-        D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
-        D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
-    };
-
-    D3D12_INFO_QUEUE_FILTER filter = {};
-    filter.DenyList.NumIDs = _countof(hide);
-    filter.DenyList.pIDList = hide;
-    infoQueue->AddStorageFilterEntries(&filter);
-
-    DWORD callbackCookie = 0;
-    hr = infoQueue->RegisterMessageCallback(DebugOutputCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &callbackCookie);
-    if (FAILED(hr))
-    {
-        Log("Failed to set message callback");
-    }
 }
 
 void Device::Impl::InitializeDevice(const DeviceInitParams& params)

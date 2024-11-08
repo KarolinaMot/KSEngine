@@ -1,5 +1,6 @@
 #pragma once
-#include "DXIncludes.hpp"
+#include <Common.hpp>
+#include <DXCommon.hpp>
 #include <memory>
 #include <vector>
 

@@ -21,22 +21,10 @@ private:
     {
     }
 
-    void UpdateWindow(Engine& e)
-    {
-        if (device->IsWindowOpen() == false)
-        {
-            e.SetExit(0);
-            return;
-        }
-
-        raw_input->ProcessInput();
-    }
-
     void RenderFrame(Engine& e);
 
     std::shared_ptr<Device> device {};
     std::shared_ptr<EntityComponentSystem> ecs {};
-    std::shared_ptr<RawInput> raw_input {};
     std::shared_ptr<ShaderInputs> mainInputs {};
     std::shared_ptr<Renderer> renderer {};
 

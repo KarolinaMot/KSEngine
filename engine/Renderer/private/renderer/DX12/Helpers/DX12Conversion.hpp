@@ -1,5 +1,5 @@
 #pragma once
-#include <renderer/DX12/Helpers/DXIncludes.hpp>
+#include <DXCommon.hpp>
 #include <renderer/InfoStructs.hpp>
 
 

@@ -1,10 +1,11 @@
 #include <Device.hpp>
+#include <commands/DXCommandList.hpp>
 #include <renderer/ComputeRenderer.hpp>
-#include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/RenderTarget.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputs.hpp>
 #include <resources/Texture.hpp>
+
 
 ComputeRenderer::ComputeRenderer(const Device& device, std::shared_ptr<Shader> shader)
     : SubRenderer(device, shader)

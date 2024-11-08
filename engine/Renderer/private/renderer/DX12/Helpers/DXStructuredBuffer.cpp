@@ -1,9 +1,8 @@
 #include "DXStructuredBuffer.hpp"
-#include "DXCommandList.hpp"
-#include "DXDescHeap.hpp"
 #include "DXResource.hpp"
 #include "Log.hpp"
-
+#include <commands/DXCommandList.hpp>
+#include <descriptors/DXDescriptorHeap.hpp>
 
 DXStructuredBuffer::DXStructuredBuffer(const ComPtr<ID3D12Device5>& device, size_t dataSize, int numOfElements, const char* bufferDebugName, int frameNumber, D3D12_RESOURCE_FLAGS flags)
 {
@@ -62,7 +61,7 @@ void DXStructuredBuffer::AllocateAsUAV(DXDescHeap* descriptorHeap)
     uavDesc.Buffer.StructureByteStride = m_dataSize;
     uavDesc.Buffer.NumElements = m_numberOfElements;
 
-    m_UAV_handle = descriptorHeap->AllocateUAV(m_resource.get(), &uavDesc);
+    m_UAV_handle = descriptorHeap->Allocate(m_resource.get(), &uavDesc);
 }
 
 void DXStructuredBuffer::AllocateAsSRV(DXDescHeap* descriptorHeap)

@@ -2,6 +2,7 @@
 #include <DXBackendModule.hpp>
 #include <Log.hpp>
 #include <MainEngine.hpp>
+// #include <RendererModule.hpp>
 #include <TimeModule.hpp>
 #include <Timers.hpp>
 #include <glm/glm.hpp>
@@ -36,6 +37,12 @@ void check_k(Engine& e)
     if (input.GetKeyboard(KeyboardKey::K) == InputState::Release)
     {
         Log("Up K");
+    }
+
+    auto& window = e.GetModule<ApplicationModule>().GetMainWindow();
+    if (window.IsVisible())
+    {
+        Log("Window is minimized");
     }
 }
 

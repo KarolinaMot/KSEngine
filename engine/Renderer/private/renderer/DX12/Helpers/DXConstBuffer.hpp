@@ -1,8 +1,10 @@
 #pragma once
-#include "DXIncludes.hpp"
 #include "DXResource.hpp"
+#include <Common.hpp>
+#include <DXCommon.hpp>
 #include <memory>
 #include <vector>
+
 
 class DXCommandList;
 class DXConstBuffer

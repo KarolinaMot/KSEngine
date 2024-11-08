@@ -1,7 +1,8 @@
 #include "DXConstBuffer.hpp"
-#include "DXCommandList.hpp"
 #include "DXResource.hpp"
 #include <cassert>
+#include <commands/DXCommandList.hpp>
+
 
 DXConstBuffer::DXConstBuffer(const ComPtr<ID3D12Device5>& device, size_t dataSize, int numberOfObjects, const char* bufferDebugName, int frameNumber)
 {

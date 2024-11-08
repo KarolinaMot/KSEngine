@@ -1,10 +1,11 @@
 #include "../ModelRenderer.hpp"
 #include "../Shader.hpp"
 #include "../ShaderInputs.hpp"
-#include "Helpers/DXCommandList.hpp"
-#include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXPipeline.hpp"
 #include <Device.hpp>
+#include <commands/DXCommandList.hpp>
+#include <descriptors/DXDescriptorHandle.hpp>
+
 
 #include <fileio/FileIO.hpp>
 #include <fileio/Serialization.hpp>

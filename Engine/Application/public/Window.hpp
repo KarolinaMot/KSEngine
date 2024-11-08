@@ -28,7 +28,6 @@ public:
     NON_MOVABLE(Window)
 
     void SetVisibility(bool val);
-    void SwapBuffers();
 
     glm::uvec2 GetSize() const { return window_size; }
     bool IsVisible() const { return is_visible; };
