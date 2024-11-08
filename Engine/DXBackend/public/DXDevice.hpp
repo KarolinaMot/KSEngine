@@ -5,7 +5,6 @@
 #include <commands/DXCommandQueue.hpp>
 #include <dxgi1_6.h>
 
-
 class DXDevice
 {
 public:
