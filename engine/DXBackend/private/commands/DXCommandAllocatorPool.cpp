@@ -13,6 +13,7 @@ ID3D12CommandAllocator* DXCommandAllocatorPool::GetAllocator(ID3D12Device* devic
     {
         it->info = {};
         it->info.in_use = true;
+        CheckDX(it->command_allocator->Reset());
         return it->command_allocator.Get();
     }
     else
@@ -39,7 +40,21 @@ void DXCommandAllocatorPool::DiscardAllocator(ID3D12CommandAllocator* allocator,
 
     auto it = std::find_if(available_allocators.begin(), available_allocators.end(), find_discard_slot);
 
-    it->info.in_use = false;
-    it->info.complete_future = future;
-    it->info.tracked_resources = std::move(tracked_resources);
+    if (it != available_allocators.end())
+    {
+        it->info.in_use = false;
+        it->info.complete_future = future;
+        it->info.tracked_resources = std::move(tracked_resources);
+    }
+}
+
+void DXCommandAllocatorPool::FreeUnused()
+{
+    auto find_unused_slots = [](const CommandAllocatorSlot& s)
+    {
+        return s.info.in_use == false && s.info.complete_future.IsComplete();
+    };
+
+    auto it = std::remove_if(available_allocators.begin(), available_allocators.end(), find_unused_slots);
+    available_allocators.erase(it, available_allocators.end());
 }

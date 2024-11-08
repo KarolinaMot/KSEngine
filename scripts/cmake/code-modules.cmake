@@ -35,15 +35,10 @@ function(module_default_init module)
 
         file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS "tests/*.cpp")
 
-        if (test_sources)
-            message(STATUS "HELLO")
-            add_library(${module}Tests)
-            
-            target_link_libraries(KSTests PRIVATE ${module}Tests)
-            target_sources(${module}Tests PRIVATE ${test_sources})
-           
-            target_include_directories(${module}Tests PRIVATE "private")
-            target_link_libraries(${module}Tests PRIVATE ${module} PRIVATE gmock)
+        if (test_sources)    
+            target_sources(KSTests PRIVATE ${test_sources})
+            target_link_libraries(KSTests PRIVATE ${module})
+            target_include_directories(KSTests PRIVATE "private")
         endif ()
         
     endif ()

@@ -1,30 +1,34 @@
 
-// #pragma once
+#pragma once
 
-// #include "DXGPUSync.hpp"
-// #include <memory>
-// #include <renderer/DX12/Helpers/DXIncludes.hpp>
-// #include <string>
+#include <Common.hpp>
+#include <commands/DXCommandAllocatorPool.hpp>
+#include <commands/DXCommandList.hpp>
+#include <memory>
+#include <string>
+#include <sync/DXFuture.hpp>
 
-// class DXCommandList;
-// class DXCommandQueue
-// {
-// public:
-//     DXCommandQueue(const ComPtr<ID3D12Device5>& device, const std::wstring& name);
-//     ~DXCommandQueue();
+class DXCommandList;
+class DXCommandQueue
+{
+public:
+    constexpr static inline auto DEFAULT_NAME = L"Command Queue";
 
-//     // Waits the calling thread until all pending operations are executed
-//     void Flush();
+    DXCommandQueue(ID3D12Device* device, const wchar_t* name = DEFAULT_NAME);
+    ~DXCommandQueue();
 
-//     DXGPUFuture ExecuteCommandLists(const DXCommandList** ppCommandLists, uint32_t commandListCount = 1);
+    NON_COPYABLE(DXCommandQueue);
+    NON_MOVABLE(DXCommandQueue);
 
-//     ID3D12CommandQueue* Get() const
-//     {
-//         return m_command_queue.Get();
-//     }
+    // Waits the calling thread until all pending operations are executed
+    void Flush();
 
-// private:
-//     ComPtr<ID3D12CommandQueue> m_command_queue;
-//     std::shared_ptr<DXGPUFence> m_fence {};
-//     uint64_t m_next_fence_value = 0;
-//};
+    DXCommandList MakeCommandList(ID3D12Device* device, const wchar_t* name = DXCommandList::DEFAULT_NAME);
+    DXFuture SubmitCommandList(DXCommandList&& command_list);
+
+private:
+    ComPtr<ID3D12CommandQueue> command_queue {};
+    std::unique_ptr<DXFence> fence {};
+    std::unique_ptr<DXCommandAllocatorPool> allocator_pool {};
+    uint64_t next_fence_value = 0;
+};

@@ -1,63 +1,47 @@
-// #include "DXCommandList.hpp"
-// #include <Log.hpp>
-// #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <commands/DXCommandList.hpp>
 
-// DXCommandAllocator::DXCommandAllocator(ComPtr<ID3D12Device5> device, const char* name)
-// {
-//     HRESULT hr = device->CreateCommandAllocator(
-//         D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_allocator));
-//     if (FAILED(hr))
-//     {
-//         Log("Failed to create command allocator");
-//     }
-// }
+DXCommandList::DXCommandList(ID3D12Device* device, ID3D12CommandAllocator* allocator, const wchar_t* name)
+{
+    CheckDX(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator, NULL, IID_PPV_ARGS(&command_list)));
+    command_list->SetName(name);
+    parent_allocator = allocator;
+}
 
-// DXCommandAllocator::~DXCommandAllocator()
-// {
-//     m_trackedResources.clear();
-// }
+DXCommandList::~DXCommandList()
+{
+    if (command_list != nullptr)
+    {
+        CheckDX(command_list->Close());
+    }
+}
 
-// void DXCommandAllocator::TrackResource(ComPtr<ID3D12Resource> buffer)
-// {
-//     m_trackedResources.emplace_back(buffer);
-// }
+DXCommandList::DXCommandList(DXCommandList&& other)
+{
+    command_list = other.command_list;
+    other.command_list = nullptr;
+    parent_allocator = other.parent_allocator;
+    other.parent_allocator = nullptr;
+    tracked_resources = std::move(other.tracked_resources);
+}
 
-// void DXCommandAllocator::Reset()
-// {
-//     m_trackedResources.clear();
-//     if (FAILED(m_allocator->Reset()))
-//     {
-//         Log("Failed to reset command allocator");
-//     }
-// }
+DXCommandList& DXCommandList::operator=(DXCommandList&& other)
+{
+    if (&other == this)
+        return *this;
 
-// ComPtr<ID3D12CommandAllocator> DXCommandAllocator::GetAllocator() const
-// {
-//     return m_allocator;
-// }
+    if (command_list != nullptr)
+    {
+        CheckDX(command_list->Close());
+    }
 
-// DXCommandList::DXCommandList(ComPtr<ID3D12Device5> device, std::shared_ptr<DXCommandAllocator> allocator, const char* name)
-// {
-//     HRESULT hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-//         allocator->GetAllocator().Get(), NULL,
-//         IID_PPV_ARGS(&m_command_list));
-//     if (FAILED(hr))
-//     {
-//         Log("Failed to create command list");
-//     }
+    command_list = other.command_list;
+    other.command_list = nullptr;
+    parent_allocator = other.parent_allocator;
+    other.parent_allocator = nullptr;
+    tracked_resources = std::move(other.tracked_resources);
 
-//     wchar_t wString[4096];
-//     MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
-//     m_command_list->SetName(wString);
-//     m_isOpen = true;
-//     m_allocator = allocator;
-// }
-
-// DXCommandList::~DXCommandList()
-// {
-//     if (m_isOpen)
-//         Close();
-// }
+    return *this;
+}
 
 // void DXCommandList::BindPipeline(ComPtr<ID3D12PipelineState> pipeline)
 // {
