@@ -34,5 +34,7 @@ void ApplicationModule::ProcessInput(Engine& e)
         e.SetExit(0);
         return;
     }
+
+    main_window->GetInputHandler().UpdateInputState();
     glfwPollEvents();
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include <Common.hpp>
+#include <RawInputHandler.hpp>
 #include <glm/vec2.hpp>
+#include <memory>
 #include <string>
 
 struct GLFWwindow;
@@ -28,17 +30,21 @@ public:
     void SetVisibility(bool val);
     void SwapBuffers();
 
+    glm::uvec2 GetSize() const { return window_size; }
     bool IsVisible() const { return is_visible; };
     bool ShouldClose() const { return should_close; };
 
+    RawInputHandler& GetInputHandler() { return *input_handler; }
     GLFWwindow* GetWindowHandle() const { return window_handle; }
     void* GetNativeWindowHandle() const;
 
 private:
+    glm::uvec2 window_size {};
     bool should_close = false;
     bool is_visible = true;
 
     GLFWwindow* window_handle = nullptr;
+    std::unique_ptr<RawInputHandler> input_handler {};
 
     static void window_exit_callback(GLFWwindow* window);
 };

@@ -22,7 +22,10 @@ public:
 
     class Impl; // public because of user pointers
 private:
-    std::unique_ptr<Impl> m_Impl;
+    std::unordered_map<KeyboardKey, InputState> keys;
+    std::unordered_map<MouseButton, InputState> mouse_buttons;
 
-    std::weak_ptr<Device> m_Device;
+    float mouseX {}, mouseY {};
+    float deltaX {}, deltaY {};
+    float mouseScrollX {}, mouseScrollY {};
 };

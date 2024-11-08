@@ -6,6 +6,9 @@
 #include <queue>
 #include <variant>
 
+// TODO: Not optimized for huge amounts of descriptors
+// TODO: Free list allocator is not memory efficient
+// TODO: Does not handle Samplers
 class DXDescriptorHeap
 {
     friend class DXDescriptorHandle;

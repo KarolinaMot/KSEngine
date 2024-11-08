@@ -30,14 +30,6 @@ public:
         NUM_RESOURCES
     };
 
-    enum DXHeaps
-    {
-        RT_HEAP,
-        DEPTH_HEAP,
-        RESOURCE_HEAP,
-        NUM_DESC_HEAPS
-    };
-
     ComPtr<ID3D12Device5> m_device;
     ComPtr<IDXGISwapChain3> m_swapchain;
 

@@ -3,11 +3,11 @@
 #include <Engine.hpp>
 #include <initialization/DXFactory.hpp>
 
-
 class DXBackendModule : public ModuleInterface
 {
 public:
     virtual ~DXBackendModule() = default;
+    DXDevice& GetDevice() { return *device; }
 
 private:
     void Initialize(Engine& e) override;

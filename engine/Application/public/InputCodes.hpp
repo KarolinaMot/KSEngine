@@ -1,11 +1,12 @@
 #pragma once
+#include <cstdint>
 
 // <summary>
 /// An enum listing all supported keyboard keys.
 /// This uses the same numbering as in GLFW input, so a GLFW-based implementation can use it directly without any further
 /// mapping.
 /// </summary>
-enum class KeyboardKey
+enum class KeyboardKey : uint32_t
 {
     Space = 32,
     Apostrophe = 39,
@@ -134,14 +135,14 @@ enum class KeyboardKey
 /// This uses the same numbering as in GLFW input, so a GLFW-based implementation can use it directly without any further
 /// mapping.
 /// </summary>
-enum class MouseButton
+enum class MouseButton : uint32_t
 {
     Left = 0,
     Right = 1,
     Middle = 2
 };
 
-enum InputState
+enum InputState : uint32_t
 {
     None,
     Release,

@@ -8,6 +8,8 @@ class ApplicationModule : public ModuleInterface
 public:
     virtual ~ApplicationModule() = default;
 
+    Window& GetMainWindow() { return *main_window; }
+
 private:
     void Initialize(Engine& e) override;
     void Shutdown(Engine& e) override;

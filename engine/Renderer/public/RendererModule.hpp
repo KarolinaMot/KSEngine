@@ -1,6 +1,5 @@
 #include <Device.hpp>
 #include <Engine.hpp>
-#include <ModuleInterface.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <fileio/ResourceHandle.hpp>
 #include <input/RawInput.hpp>
@@ -10,10 +9,10 @@
 
 class Model;
 
-class OldApplicationModule : public ModuleInterface
+class RendererModule : public ModuleInterface
 {
 public:
-    virtual ~OldApplicationModule() = default;
+    virtual ~RendererModule() = default;
 
 private:
     void Initialize(Engine& e) override;

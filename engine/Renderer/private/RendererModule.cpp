@@ -1,6 +1,6 @@
 #include "renderer/Renderer.hpp"
 #include "renderer/ShaderInputs.hpp"
-#include <ApplicationModule.hpp>
+#include <RendererModule.hpp>
 #include <memory>
 #include <renderer/Shader.hpp>
 
@@ -70,7 +70,7 @@ Camera FreeCamSystem(std::shared_ptr<RawInput> input, entt::registry& registry, 
     return Camera {};
 }
 
-void OldApplicationModule::Initialize(Engine& e)
+void RendererModule::Initialize(Engine& e)
 {
     model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
@@ -142,7 +142,7 @@ void OldApplicationModule::Initialize(Engine& e)
     e.AddExecutionDelegate(this, &OldApplicationModule::RenderFrame, ExecutionOrder::RENDER);
 }
 
-void OldApplicationModule::RenderFrame(Engine& e)
+void RendererModule::RenderFrame(Engine& e)
 {
     auto dt = e.GetModule<TimeModule>().GetDeltaTime();
 

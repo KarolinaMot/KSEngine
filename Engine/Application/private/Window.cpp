@@ -24,6 +24,9 @@ Window::Window(const CreateParameters& params)
     SetVisibility(is_visible);
     glfwSetWindowUserPointer(window_handle, this);
     glfwSetWindowCloseCallback(window_handle, window_exit_callback);
+
+    input_handler = std::make_unique<RawInputHandler>(window_handle);
+    window_size = params.size;
 }
 
 Window::~Window()

@@ -39,7 +39,12 @@ DXDescriptorHeap::DXDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_T
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
     desc.NumDescriptors = size;
     desc.Type = type;
-    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    desc.Flags = {};
+
+    if (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+    {
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    }
 
     CheckDX(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptor_heap)));
     descriptor_heap->SetName(name);
