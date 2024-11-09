@@ -72,11 +72,17 @@ Camera FreeCamSystem(std::shared_ptr<RawInput> input, entt::registry& registry, 
 
 void RendererModule::Initialize(Engine& e)
 {
-    model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    // Preamble
+    {
+        model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
-    DeviceInitParams params {};
-    params.window_width = 1280;
-    params.window_height = 720;
+        ecs = std::make_shared<EntityComponentSystem>();
+        auto& registry = ecs->GetWorld();
+        auto e = registry.create();
+
+        registry.emplace<ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
+        registry.emplace<ComponentFirstPersonCamera>(e);
+    }
 
     // Initialize device
     device = std::make_shared<Device>(params);
@@ -128,15 +134,6 @@ void RendererModule::Initialize(Engine& e)
     renderer = std::make_shared<Renderer>(*device, initParams);
 
     device->EndFrame();
-
-    // Scene Setup
-    {
-        auto& registry = ecs->GetWorld();
-        auto e = registry.create();
-
-        registry.emplace<ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
-        registry.emplace<ComponentFirstPersonCamera>(e);
-    }
 
     e.AddExecutionDelegate(this, &RendererModule::RenderFrame, ExecutionOrder::RENDER);
 }

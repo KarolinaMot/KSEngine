@@ -83,6 +83,34 @@ ComPtr<ID3D12Device> DXFactory::CreateDevice(DXGI_GPU_PREFERENCE preference, std
     return nullptr;
 }
 
+ComPtr<IDXGISwapChain> DXFactory::CreateSwapchainForWindow(DXCommandList& command_list, HWND native_handle, glm::uvec2 size)
+{
+    DXGI_SWAP_CHAIN_DESC1 swapchain_info = {};
+
+    swapchain_info.Width = size.x;
+    swapchain_info.Height = size.y;
+
+    swapchain_info.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapchain_info.Stereo = FALSE;
+
+    swapchain_info.SampleDesc = { 1, 0 };
+
+    swapchain_info.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapchain_info.BufferCount = FRAME_BUFFER_COUNT;
+
+    swapchain_info.Scaling = DXGI_SCALING_STRETCH;
+    swapchain_info.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapchain_info.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+
+    swapchain_info.Flags = 0;
+    if (SupportsTearing())
+        swapchain_info.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+    ComPtr<IDXGISwapChain3> swapchain;
+    CheckDX(factory->CreateSwapChainForHwnd(command_list.Get(), native_handle, &swapchain_info, nullptr, nullptr, &swapchain));
+    return swapchain;
+}
+
 void CALLBACK DXFactory::debug_output_callback(
     D3D12_MESSAGE_CATEGORY Category,
     D3D12_MESSAGE_SEVERITY Severity,

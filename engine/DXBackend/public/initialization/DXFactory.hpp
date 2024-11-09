@@ -3,17 +3,21 @@
 #include <Common.hpp>
 #include <DXCommon.hpp>
 
+#include <commands/DXCommandList.hpp>
 #include <dxgi1_6.h>
 #include <functional>
+#include <glm/vec2.hpp>
 
 class DXFactory
 {
 public:
     DXFactory(bool enable_debug);
-    IDXGIFactory6* Handle() const { return factory.Get(); }
+    IDXGIFactory6* Get() const { return factory.Get(); }
 
     bool SupportsTearing() const;
+
     ComPtr<ID3D12Device> CreateDevice(DXGI_GPU_PREFERENCE preference, std::function<bool(CD3DX12FeatureSupport)> feature_eval);
+    ComPtr<IDXGISwapChain> CreateSwapchainForWindow(DXCommandList& command_list, HWND native_handle, glm::uvec2 size);
 
     NON_COPYABLE(DXFactory);
     NON_MOVABLE(DXFactory);

@@ -1,11 +1,8 @@
-#include <Device.hpp>
 #include <Engine.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <fileio/ResourceHandle.hpp>
-#include <input/RawInput.hpp>
 #include <memory>
-#include <renderer/Renderer.hpp>
-#include <renderer/ShaderInputsBuilder.hpp>
+#include <rendering/Swapchain.hpp>
 
 class Model;
 
@@ -23,10 +20,12 @@ private:
 
     void RenderFrame(Engine& e);
 
+    std::unique_ptr<Swapchain> main_swapchain {};
+
     std::shared_ptr<Device> device {};
     std::shared_ptr<EntityComponentSystem> ecs {};
-    std::shared_ptr<ShaderInputs> mainInputs {};
-    std::shared_ptr<Renderer> renderer {};
+    // std::shared_ptr<ShaderInputs> mainInputs {};
+    // std::shared_ptr<Renderer> renderer {};
 
     ResourceHandle<Model> model {};
 };

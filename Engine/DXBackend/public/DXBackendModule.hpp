@@ -8,6 +8,7 @@ class DXBackendModule : public ModuleInterface
 public:
     virtual ~DXBackendModule() = default;
     DXDevice& GetDevice() { return *device; }
+    DXFactory& GetFactory() { return *factory; }
 
 private:
     void Initialize(Engine& e) override;

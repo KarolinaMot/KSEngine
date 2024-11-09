@@ -19,6 +19,8 @@ public:
     DXCommandList(DXCommandList&&);
     DXCommandList& operator=(DXCommandList&&);
 
+    ID3D12GraphicsCommandList* Get() { return command_list.Get(); }
+
     // void BindPipeline(ComPtr<ID3D12PipelineState> pipeline);
     // void BindRootSignature(ComPtr<ID3D12RootSignature> signature, bool computePipeline = false);
     // void BindDescriptorHeaps(DXDescHeap* rscHeap, DXDescHeap* rtHeap, DXDescHeap* depthHeap);

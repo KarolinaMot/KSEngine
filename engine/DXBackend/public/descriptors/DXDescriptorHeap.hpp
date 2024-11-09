@@ -6,6 +6,35 @@
 #include <queue>
 #include <variant>
 
+namespace ViewParams
+{
+struct CBV
+{
+    const D3D12_CONSTANT_BUFFER_VIEW_DESC& desc;
+};
+
+struct UAV
+{
+    const D3D12_UNORDERED_ACCESS_VIEW_DESC& desc;
+    ID3D12Resource* counter_resource {};
+};
+
+struct SRV
+{
+    const D3D12_SHADER_RESOURCE_VIEW_DESC& desc;
+};
+
+struct RTV
+{
+    const D3D12_RENDER_TARGET_VIEW_DESC& desc;
+};
+
+struct DSV
+{
+    const D3D12_DEPTH_STENCIL_VIEW_DESC& desc;
+};
+}
+
 // TODO: Not optimized for huge amounts of descriptors
 // TODO: Free list allocator is not memory efficient
 // TODO: Does not handle Samplers
@@ -21,33 +50,7 @@ public:
     NON_COPYABLE(DXDescriptorHeap);
     NON_MOVABLE(DXDescriptorHeap);
 
-    struct CBVParameters
-    {
-        const D3D12_CONSTANT_BUFFER_VIEW_DESC& desc;
-    };
-
-    struct UAVParameters
-    {
-        const D3D12_UNORDERED_ACCESS_VIEW_DESC& desc;
-        ID3D12Resource* counter_resource {};
-    };
-
-    struct SRVParameters
-    {
-        const D3D12_SHADER_RESOURCE_VIEW_DESC& desc;
-    };
-
-    struct RTVParameters
-    {
-        const D3D12_RENDER_TARGET_VIEW_DESC& desc;
-    };
-
-    struct DSVParameters
-    {
-        const D3D12_DEPTH_STENCIL_VIEW_DESC& desc;
-    };
-
-    using AllocateParameters = std::variant<CBVParameters, UAVParameters, SRVParameters, RTVParameters, DSVParameters>;
+    using AllocateParameters = std::variant<ViewParams::CBV, ViewParams::UAV, ViewParams::SRV, ViewParams::RTV, ViewParams::DSV>;
 
     // In the case of Constant Buffer Views, pass a nullptr resource
     std::optional<DXDescriptorHandle> Allocate(ID3D12Device* device, ID3D12Resource* resource, const AllocateParameters& parameters);

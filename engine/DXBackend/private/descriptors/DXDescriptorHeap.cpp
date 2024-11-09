@@ -1,30 +1,30 @@
 #include <Log.hpp>
 #include <descriptors/DXDescriptorHeap.hpp>
 
-namespace detail
+namespace ViewParams
 {
 
-void CreateView(ID3D12Device* device, MAYBE_UNUSED ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const DXDescriptorHeap::CBVParameters& p)
+void CreateView(ID3D12Device* device, MAYBE_UNUSED ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const CBV& p)
 {
     device->CreateConstantBufferView(&p.desc, handle);
 }
 
-void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const DXDescriptorHeap::SRVParameters& p)
+void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const SRV& p)
 {
     device->CreateShaderResourceView(resource, &p.desc, handle);
 }
 
-void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const DXDescriptorHeap::UAVParameters& p)
+void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const UAV& p)
 {
     device->CreateUnorderedAccessView(resource, p.counter_resource, &p.desc, handle);
 }
 
-void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const DXDescriptorHeap::RTVParameters& p)
+void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const RTV& p)
 {
     device->CreateRenderTargetView(resource, &p.desc, handle);
 }
 
-void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const DXDescriptorHeap::DSVParameters& p)
+void CreateView(ID3D12Device* device, ID3D12Resource* resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle, const DSV& p)
 {
     device->CreateDepthStencilView(resource, &p.desc, handle);
 }
@@ -89,7 +89,7 @@ std::optional<DXDescriptorHandle> DXDescriptorHeap::Allocate(ID3D12Device* devic
         index, descriptor_stride);
 
     auto create_visitor = [device, resource, handle](const auto& p)
-    { detail::CreateView(device, resource, handle, p); };
+    { ViewParams::CreateView(device, resource, handle, p); };
 
     std::visit(create_visitor, parameters);
 
