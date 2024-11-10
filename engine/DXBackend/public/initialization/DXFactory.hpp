@@ -16,8 +16,8 @@ public:
 
     bool SupportsTearing() const;
 
-    ComPtr<ID3D12Device> CreateDevice(DXGI_GPU_PREFERENCE preference, std::function<bool(CD3DX12FeatureSupport)> feature_eval);
-    ComPtr<IDXGISwapChain> CreateSwapchainForWindow(DXCommandList& command_list, HWND native_handle, glm::uvec2 size);
+    ComPtr<ID3D12Device> CreateDevice(DXGI_GPU_PREFERENCE preference, std::function<bool(CD3DX12FeatureSupport)> feature_eval) const;
+    ComPtr<IDXGISwapChain> CreateSwapchainForWindow(ID3D12CommandQueue* device, HWND native_handle, glm::uvec2 size) const;
 
     NON_COPYABLE(DXFactory);
     NON_MOVABLE(DXFactory);

@@ -8,6 +8,7 @@ DXCommandQueue::DXCommandQueue(ID3D12Device* device, const wchar_t* name)
     command_queue->SetName(name);
 
     fence = std::make_unique<DXFence>(device);
+    allocator_pool = std::make_unique<DXCommandAllocatorPool>();
 }
 
 DXCommandQueue::~DXCommandQueue()

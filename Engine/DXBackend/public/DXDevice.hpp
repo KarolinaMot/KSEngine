@@ -19,7 +19,7 @@ public:
     DXDevice(ComPtr<ID3D12Device> device);
     ~DXDevice() = default;
 
-    ID3D12Device* GetDeviceHandle() { return device.Get(); }
+    ID3D12Device* Get() { return device.Get(); }
     DXCommandQueue& GetCommandQueue() { return *command_queue; }
     DXDescriptorHeap& GetDescriptorHeap(DescriptorHeap heap) { return *descriptor_heaps.at(static_cast<size_t>(heap)); }
 

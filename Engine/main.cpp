@@ -2,7 +2,7 @@
 #include <DXBackendModule.hpp>
 #include <Log.hpp>
 #include <MainEngine.hpp>
-// #include <RendererModule.hpp>
+#include <RendererModule.hpp>
 #include <TimeModule.hpp>
 #include <Timers.hpp>
 #include <glm/glm.hpp>
@@ -59,6 +59,7 @@ int main(int argc, const char* argv[])
         .AddModule<TimeModule>()
         .AddModule<DXBackendModule>()
         .AddModule<ApplicationModule>()
+        .AddModule<RendererModule>()
         .AddExecutionDelegate(print_frame_time, ExecutionOrder::LAST)
         .AddExecutionDelegate(check_k, ExecutionOrder::UPDATE)
         .Run();

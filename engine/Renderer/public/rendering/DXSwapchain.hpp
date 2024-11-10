@@ -9,15 +9,19 @@
 #include <glm/vec2.hpp>
 
 // TODO: no function to recreate swapchain (for resizeable windows)
-class Swapchain
+class DXSwapchain
 {
-    Swapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap);
-    ~Swapchain();
+public:
+    DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap);
+    ~DXSwapchain() = default;
 
+    uint32_t GetBackbufferIndex() { return swapchain->GetCurrentBackBufferIndex(); }
     DXDescriptorHandle& GetRTV(size_t frame_index) { return render_views.at(frame_index); }
 
-    NON_COPYABLE(Swapchain);
-    NON_MOVABLE(Swapchain);
+    void SwapBuffers(bool vsync) const;
+
+    NON_COPYABLE(DXSwapchain);
+    NON_MOVABLE(DXSwapchain);
 
 private:
     ComPtr<IDXGISwapChain3> swapchain {};

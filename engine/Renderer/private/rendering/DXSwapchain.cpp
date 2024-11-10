@@ -1,6 +1,6 @@
-#include <rendering/Swapchain.hpp>
+#include <rendering/DXSwapchain.hpp>
 
-Swapchain::Swapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap)
+DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap)
 {
     CheckDX(swapchain_handle.As(&swapchain));
 
@@ -17,4 +17,9 @@ Swapchain::Swapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* devi
 
         render_views.at(i) = rendertarget_heap.Allocate(device, buffer.Get(), ViewParams::RTV { desc }).value();
     }
+}
+
+void DXSwapchain::SwapBuffers(bool vsync) const
+{
+    swapchain->Present(static_cast<uint32_t>(vsync), 0);
 }

@@ -32,7 +32,7 @@ bool DXFactory::SupportsTearing() const
     return tear_support;
 }
 
-ComPtr<ID3D12Device> DXFactory::CreateDevice(DXGI_GPU_PREFERENCE preference, std::function<bool(CD3DX12FeatureSupport)> feature_eval)
+ComPtr<ID3D12Device> DXFactory::CreateDevice(DXGI_GPU_PREFERENCE preference, std::function<bool(CD3DX12FeatureSupport)> feature_eval) const
 {
     ComPtr<ID3D12Device> device;
 
@@ -83,7 +83,7 @@ ComPtr<ID3D12Device> DXFactory::CreateDevice(DXGI_GPU_PREFERENCE preference, std
     return nullptr;
 }
 
-ComPtr<IDXGISwapChain> DXFactory::CreateSwapchainForWindow(DXCommandList& command_list, HWND native_handle, glm::uvec2 size)
+ComPtr<IDXGISwapChain> DXFactory::CreateSwapchainForWindow(ID3D12CommandQueue* queue, HWND native_handle, glm::uvec2 size) const
 {
     DXGI_SWAP_CHAIN_DESC1 swapchain_info = {};
 
@@ -106,8 +106,8 @@ ComPtr<IDXGISwapChain> DXFactory::CreateSwapchainForWindow(DXCommandList& comman
     if (SupportsTearing())
         swapchain_info.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
-    ComPtr<IDXGISwapChain3> swapchain;
-    CheckDX(factory->CreateSwapChainForHwnd(command_list.Get(), native_handle, &swapchain_info, nullptr, nullptr, &swapchain));
+    ComPtr<IDXGISwapChain1> swapchain;
+    CheckDX(factory->CreateSwapChainForHwnd(queue, native_handle, &swapchain_info, nullptr, nullptr, &swapchain));
     return swapchain;
 }
 

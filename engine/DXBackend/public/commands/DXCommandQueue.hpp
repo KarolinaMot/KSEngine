@@ -20,6 +20,8 @@ public:
     NON_COPYABLE(DXCommandQueue);
     NON_MOVABLE(DXCommandQueue);
 
+    ID3D12CommandQueue* Get() { return command_queue.Get(); }
+
     // Waits the calling thread until all pending operations are executed
     void Flush();
 

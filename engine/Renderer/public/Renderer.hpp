@@ -1,9 +1,14 @@
 #pragma once
 #include <Common.hpp>
-#include <rendering/Swapchain.hpp>
+#include <initialization/DXFactory.hpp>
+#include <rendering/DXSwapchain.hpp>
 
-// class Renderer
-// {
-//     Renderer(ID3D12Device* device);
+class Renderer
+{
+public:
+    Renderer();
+    ~Renderer() = default;
 
-// };
+    NON_COPYABLE(Renderer);
+    NON_MOVABLE(Renderer);
+};

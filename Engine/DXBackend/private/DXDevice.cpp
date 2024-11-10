@@ -15,7 +15,7 @@ DXDevice::DXDevice(ComPtr<ID3D12Device> _device)
     dsv_heap = std::make_unique<DXDescriptorHeap>(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, HEAP_MAX_CAPACITY,
         L"Depth Stencil Descriptor Heap");
 
-    auto& res_heap = descriptor_heaps.at(static_cast<size_t>(DescriptorHeap::RT_HEAP));
+    auto& res_heap = descriptor_heaps.at(static_cast<size_t>(DescriptorHeap::RESOURCE_HEAP));
     res_heap = std::make_unique<DXDescriptorHeap>(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, HEAP_MAX_CAPACITY,
         L"Resource Descriptor Heap");
 }

@@ -4,7 +4,7 @@
 #include <containers/ByteBuffer.hpp>
 #include <map>
 #include <memory>
-#include <renderer/StorageBuffer.hpp>
+// #include <renderer/StorageBuffer.hpp>
 
 namespace MeshConstants
 {
@@ -75,14 +75,14 @@ inline void MeshData::load(A& ar, const uint32_t v)
     }
 }
 
-class Mesh
-{
-public:
-    Mesh(const Device& device, const MeshData& data);
-    std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
+// class Mesh
+// {
+// public:
+//     Mesh(const Device& device, const MeshData& data);
+//     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
 
-private:
-    std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
-};
+// private:
+//     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
+// };
 
 CEREAL_CLASS_VERSION(MeshData, 0);
