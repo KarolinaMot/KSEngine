@@ -14,11 +14,6 @@ void Engine::Reset()
     {
         auto* module = *it;
         module->Shutdown(*this);
-    }
-
-    for (auto it = m_initOrder.rbegin(); it != m_initOrder.rend(); ++it)
-    {
-        auto* module = *it;
         delete module;
     }
 

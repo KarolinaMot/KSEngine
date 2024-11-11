@@ -1,4 +1,4 @@
-#include <fileio/FileIO.hpp>
+#include <FileIO.hpp>
 #include <filesystem>
 
 std::optional<std::ifstream> FileIO::OpenReadStream(const Path& path,

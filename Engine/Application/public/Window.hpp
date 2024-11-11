@@ -27,10 +27,9 @@ public:
     NON_COPYABLE(Window)
     NON_MOVABLE(Window)
 
-    void SetVisibility(bool val);
-
     glm::uvec2 GetSize() const { return window_size; }
-    bool IsVisible() const { return is_visible; };
+    bool IsMinimized() const;
+    bool IsFocused() const;
     bool ShouldClose() const { return should_close; };
 
     RawInputHandler& GetInputHandler() { return *input_handler; }
@@ -40,7 +39,6 @@ public:
 private:
     glm::uvec2 window_size {};
     bool should_close = false;
-    bool is_visible = true;
 
     GLFWwindow* window_handle = nullptr;
     std::unique_ptr<RawInputHandler> input_handler {};

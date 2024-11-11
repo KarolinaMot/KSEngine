@@ -1,10 +1,11 @@
 #include <Engine.hpp>
 #include <Renderer.hpp>
+#include <display/DXSwapchain.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <fileio/ResourceHandle.hpp>
 #include <memory>
-#include <rendering/DXSwapchain.hpp>
 #include <sync/DXFuture.hpp>
+
 
 class Model;
 
@@ -15,7 +16,7 @@ public:
 
 private:
     void Initialize(Engine& e) override;
-    void Shutdown(MAYBE_UNUSED Engine& e) override { };
+    void Shutdown(MAYBE_UNUSED Engine& e) override;
 
     void RenderFrame(Engine& e);
 
@@ -29,6 +30,4 @@ private:
     ResourceHandle<Model> model {};
 
     // TODO: move Swapchain sync stuff somewhere else
-    std::array<DXFuture, FRAME_BUFFER_COUNT> frame_futures {};
-    size_t current_cpu_frame {};
 };

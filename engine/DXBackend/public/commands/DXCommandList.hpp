@@ -2,6 +2,8 @@
 #pragma once
 #include <Common.hpp>
 #include <DXCommon.hpp>
+#include <descriptors/DXDescriptorHandle.hpp>
+#include <glm/vec4.hpp>
 #include <memory>
 
 class DXCommandList
@@ -20,6 +22,9 @@ public:
     DXCommandList& operator=(DXCommandList&&);
 
     ID3D12GraphicsCommandList* Get() { return command_list.Get(); }
+
+    void ClearRenderTarget(const DXDescriptorHandle& rtv_handle, const glm::vec4& clear_colour);
+    void SetResourceBarriers(size_t num_barriers, const D3D12_RESOURCE_BARRIER* barriers);
 
     // void BindPipeline(ComPtr<ID3D12PipelineState> pipeline);
     // void BindRootSignature(ComPtr<ID3D12RootSignature> signature, bool computePipeline = false);

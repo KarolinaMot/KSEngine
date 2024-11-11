@@ -29,18 +29,9 @@ void print_frame_time(Engine& e)
 void check_k(Engine& e)
 {
     auto& input = e.GetModule<ApplicationModule>().GetMainWindow().GetInputHandler();
-    if (input.GetKeyboard(KeyboardKey::K) == InputState::Down)
-    {
-        Log("Down K");
-    }
-
-    if (input.GetKeyboard(KeyboardKey::K) == InputState::Release)
-    {
-        Log("Up K");
-    }
-
     auto& window = e.GetModule<ApplicationModule>().GetMainWindow();
-    if (window.IsVisible())
+
+    if (window.IsMinimized())
     {
         Log("Window is minimized");
     }

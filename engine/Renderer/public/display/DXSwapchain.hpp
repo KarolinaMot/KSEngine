@@ -16,7 +16,8 @@ public:
     ~DXSwapchain() = default;
 
     uint32_t GetBackbufferIndex() { return swapchain->GetCurrentBackBufferIndex(); }
-    DXDescriptorHandle& GetRTV(size_t frame_index) { return render_views.at(frame_index); }
+    DXDescriptorHandle& GetRenderTargetView(size_t frame_index) { return render_views.at(frame_index); }
+    ID3D12Resource* GetBufferResource(size_t frame_index) { return buffers.at(frame_index).Get(); }
 
     void SwapBuffers(bool vsync) const;
 

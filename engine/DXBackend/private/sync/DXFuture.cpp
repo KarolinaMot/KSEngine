@@ -15,6 +15,8 @@ void DXFuture::Wait()
 bool DXFuture::IsComplete() const
 {
     if (Valid())
+    {
         return bound_fence->Reached(future_value);
+    }
     return true;
 }

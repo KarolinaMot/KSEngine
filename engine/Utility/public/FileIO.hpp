@@ -1,10 +1,11 @@
 #pragma once
 
 #include <chrono>
-#include <filesystem>
 #include <fstream>
 #include <optional>
+#include <string>
 #include <vector>
+
 
 /// @brief File interface system for opening and closing files
 namespace FileIO
@@ -13,7 +14,7 @@ constexpr int DEFAULT_READ_FLAGS = std::ios::in | std::ios::binary;
 constexpr int DEFAULT_WRITE_FLAGS = std::ios::out | std::ios::trunc | std::ios::binary;
 
 using FileTime = std::chrono::time_point<std::chrono::file_clock>;
-using Path = std::filesystem::path;
+using Path = std::string;
 
 /// <summary>
 /// Open a file stream for reading. Specify 0 or std::ios::flags

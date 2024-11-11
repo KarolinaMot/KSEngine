@@ -23,7 +23,7 @@ public:
 
     NON_COPYABLE(DXDescriptorHandle);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Get() const { return cpu_handle; }
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCPUHandle() const { return cpu_handle; }
 
 private:
     DXDescriptorHeap* parent_heap {};

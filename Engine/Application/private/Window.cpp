@@ -21,7 +21,6 @@ Window::Window(const CreateParameters& params)
         params.name.c_str(),
         nullptr, nullptr);
 
-    SetVisibility(is_visible);
     glfwSetWindowUserPointer(window_handle, this);
     glfwSetWindowCloseCallback(window_handle, window_exit_callback);
 
@@ -34,12 +33,16 @@ Window::~Window()
     glfwDestroyWindow(window_handle);
 }
 
-void Window::SetVisibility(bool val)
+bool Window::IsMinimized() const
 {
-    if (val)
-        glfwShowWindow(window_handle);
-    else
-        glfwHideWindow(window_handle);
+    bool minimized = (bool)glfwGetWindowAttrib(window_handle, GLFW_ICONIFIED);
+    return minimized;
+}
+
+bool Window::IsFocused() const
+{
+    bool minimized = (bool)glfwGetWindowAttrib(window_handle, GLFW_FOCUSED);
+    return minimized;
 }
 
 void* Window::GetNativeWindowHandle() const

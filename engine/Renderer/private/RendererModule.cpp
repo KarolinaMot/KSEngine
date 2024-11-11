@@ -1,5 +1,6 @@
 #include <ApplicationModule.hpp>
 #include <DXBackendModule.hpp>
+#include <Log.hpp>
 #include <RawInputHandler.hpp>
 #include <RendererModule.hpp>
 #include <TimeModule.hpp>
@@ -73,7 +74,7 @@ void RendererModule::Initialize(Engine& e)
 {
     // Preamble
     {
-        model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+        // model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
         ecs = std::make_unique<EntityComponentSystem>();
         auto& registry = ecs->GetWorld();
@@ -91,19 +92,10 @@ void RendererModule::Initialize(Engine& e)
     auto& dx_device = backend.GetDevice();
 
     auto swapchain = dx_factory.CreateSwapchainForWindow(dx_device.GetCommandQueue().Get(), static_cast<HWND>(window.GetNativeWindowHandle()), window.GetSize());
-
     auto& dx_render_target_heap = dx_device.GetDescriptorHeap(DXDevice::DescriptorHeap::RT_HEAP);
     main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get(), dx_render_target_heap);
 
-    // Initialize device
-    // device = std::make_shared<Device>(params);
-
-    // device->InitializeSwapchain();
-    // device->FinishInitialization();
-
-    // ecs = std::make_shared<EntityComponentSystem>();
-
-    // device->NewFrame();
+    renderer = std::make_unique<Renderer>();
 
     // std::shared_ptr<ShaderInputs> mainInputs = ShaderInputsBuilder()
     //                                                .AddUniform(ShaderInputVisibility::COMPUTE, "camera_matrix")
@@ -149,30 +141,15 @@ void RendererModule::Initialize(Engine& e)
     e.AddExecutionDelegate(this, &RendererModule::RenderFrame, ExecutionOrder::RENDER);
 }
 
+void RendererModule::Shutdown(Engine& e)
+{
+    e.GetModule<DXBackendModule>().GetDevice().GetCommandQueue().Flush();
+}
+
 void RendererModule::RenderFrame(Engine& e)
 {
     auto& backend = e.GetModule<DXBackendModule>();
-
-    auto& dx_device = backend.GetDevice();
-    auto& dx_command_queue = dx_device.GetCommandQueue();
-
-    // Command List and Acquire next framebuffer
-    auto command_list = dx_command_queue.MakeCommandList(dx_device.Get());
-
-    current_cpu_frame = (current_cpu_frame + 1) % FRAME_BUFFER_COUNT;
-    frame_futures.at(current_cpu_frame).Wait();
-
-    // Submit and set future
-    frame_futures.at(current_cpu_frame) = dx_command_queue.SubmitCommandList(std::move(command_list));
-
-    size_t next_gpu_frame = main_swapchain->GetBackbufferIndex();
-
-    if (frame_futures.at(next_gpu_frame).IsComplete())
-    {
-        main_swapchain->SwapBuffers(true);
-    }
-
-    // Acquire next CPU frame
+    renderer->RenderFrame(backend.GetDevice(), *main_swapchain);
 
     // auto dt = e.GetModule<TimeModule>().GetDeltaTime();
 

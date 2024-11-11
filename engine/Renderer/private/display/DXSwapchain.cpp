@@ -1,4 +1,4 @@
-#include <rendering/DXSwapchain.hpp>
+#include <display/DXSwapchain.hpp>
 
 DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap)
 {
@@ -8,6 +8,11 @@ DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* 
     {
         ComPtr<ID3D12Resource> buffer;
         CheckDX(swapchain->GetBuffer(i, IID_PPV_ARGS(&buffer)));
+
+        std::wstring name = L"Swapchain Resource ";
+        name += std::to_wstring(i);
+        buffer->SetName(name.c_str());
+
         buffers.at(i) = buffer;
 
         D3D12_RENDER_TARGET_VIEW_DESC desc {};
@@ -21,5 +26,6 @@ DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* 
 
 void DXSwapchain::SwapBuffers(bool vsync) const
 {
-    swapchain->Present(static_cast<uint32_t>(vsync), 0);
+    auto flags = vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
+    swapchain->Present(static_cast<uint32_t>(vsync), flags);
 }
