@@ -1,4 +1,5 @@
 #pragma once
+#include <Common.hpp>
 #include <chrono>
 
 using DeltaMS = std::chrono::duration<float, std::milli>;

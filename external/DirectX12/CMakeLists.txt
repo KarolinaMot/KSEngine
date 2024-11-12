@@ -14,11 +14,10 @@ add_custom_command(
 
 # Custom target to execute the custom command
 add_custom_target(copy_dll ALL DEPENDS ${CMAKE_BINARY_DIR}/dxcompiler.dll ${CMAKE_BINARY_DIR}/dxil.dll)
-target_link_libraries(DirectX12 INTERFACE d3d12.lib dxgi.lib dxguid.lib)
+target_link_libraries(DirectX12 INTERFACE d3d12.lib dxgi.lib dxguid.lib dxcompiler.lib)
 target_include_directories(DirectX12 INTERFACE ".")
 
 target_compile_definitions(DirectX12 
     INTERFACE "NOMINMAX" 
-    INTERFACE "GLFW_EXPOSE_NATIVE_WIN32"
     INTERFACE "WIN32_LEAN_AND_MEAN"
 )

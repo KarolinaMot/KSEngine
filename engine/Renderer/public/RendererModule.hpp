@@ -1,13 +1,8 @@
 #include <Engine.hpp>
 #include <Renderer.hpp>
 #include <display/DXSwapchain.hpp>
-#include <ecs/EntityComponentSystem.hpp>
-#include <fileio/ResourceHandle.hpp>
 #include <memory>
 #include <sync/DXFuture.hpp>
-
-
-class Model;
 
 class RendererModule : public ModuleInterface
 {
@@ -20,14 +15,13 @@ private:
 
     void RenderFrame(Engine& e);
 
-    std::shared_ptr<EntityComponentSystem> ecs {};
     std::unique_ptr<DXSwapchain> main_swapchain {};
     std::unique_ptr<Renderer> renderer {};
 
     // std::shared_ptr<Device> device {};
     //  std::shared_ptr<ShaderInputs> mainInputs {};
     //  std::shared_ptr<Renderer> renderer {};
-    ResourceHandle<Model> model {};
+    // ResourceHandle<Model> model {};
 
     // TODO: move Swapchain sync stuff somewhere else
 };

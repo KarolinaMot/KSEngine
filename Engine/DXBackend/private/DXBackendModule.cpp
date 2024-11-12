@@ -21,6 +21,8 @@ void DXBackendModule::Initialize(Engine& e)
 
     device = std::make_unique<DXDevice>(
         factory->CreateDevice(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, selection_criteria));
+
+    shader_compiler = std::make_unique<DXShaderCompiler>();
 }
 
 void DXBackendModule::Shutdown(Engine& e)

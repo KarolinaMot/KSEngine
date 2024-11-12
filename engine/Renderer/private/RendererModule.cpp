@@ -4,85 +4,85 @@
 #include <RawInputHandler.hpp>
 #include <RendererModule.hpp>
 #include <TimeModule.hpp>
-#include <components/ComponentCamera.hpp>
-#include <components/ComponentTransform.hpp>
+// #include <components/ComponentCamera.hpp>
+// #include <components/ComponentTransform.hpp>
 
 // #include <renderer/ModelRenderer.hpp>
-#include <resources/Model.hpp>
+// #include <resources/Model.hpp>
 
-Camera FreeCamSystem(const RawInputHandler& input, entt::registry& registry, float dt)
-{
-    constexpr float MOUSE_SENSITIVITY = 0.003f;
-    constexpr float CAM_SPEED = 0.003f;
+// Camera FreeCamSystem(const RawInputHandler& input, entt::registry& registry, float dt)
+// {
+//     constexpr float MOUSE_SENSITIVITY = 0.003f;
+//     constexpr float CAM_SPEED = 0.003f;
 
-    auto mouse_delta = input.GetMouseDelta();
-    glm::vec3 eulerDelta {};
+//     auto mouse_delta = input.GetMouseDelta();
+//     glm::vec3 eulerDelta {};
 
-    if (input.GetMouseButton(MouseButton::Right) == InputState::Pressed)
-    {
-        eulerDelta.y = mouse_delta.x * MOUSE_SENSITIVITY;
-        eulerDelta.x = mouse_delta.y * MOUSE_SENSITIVITY;
-        eulerDelta.x = glm::clamp(eulerDelta.x, -glm::radians(89.9f), glm::radians(89.9f));
-    }
+//     if (input.GetMouseButton(MouseButton::Right) == InputState::Pressed)
+//     {
+//         eulerDelta.y = mouse_delta.x * MOUSE_SENSITIVITY;
+//         eulerDelta.x = mouse_delta.y * MOUSE_SENSITIVITY;
+//         eulerDelta.x = glm::clamp(eulerDelta.x, -glm::radians(89.9f), glm::radians(89.9f));
+//     }
 
-    glm::vec3 movement_dir {};
-    if (input.GetKeyboard(KeyboardKey::W) == InputState::Pressed)
-        movement_dir += World::FORWARD;
+//     glm::vec3 movement_dir {};
+//     if (input.GetKeyboard(KeyboardKey::W) == InputState::Pressed)
+//         movement_dir += World::FORWARD;
 
-    if (input.GetKeyboard(KeyboardKey::S) == InputState::Pressed)
-        movement_dir -= World::FORWARD;
+//     if (input.GetKeyboard(KeyboardKey::S) == InputState::Pressed)
+//         movement_dir -= World::FORWARD;
 
-    if (input.GetKeyboard(KeyboardKey::D) == InputState::Pressed)
-        movement_dir += World::RIGHT;
+//     if (input.GetKeyboard(KeyboardKey::D) == InputState::Pressed)
+//         movement_dir += World::RIGHT;
 
-    if (input.GetKeyboard(KeyboardKey::A) == InputState::Pressed)
-        movement_dir -= World::RIGHT;
+//     if (input.GetKeyboard(KeyboardKey::A) == InputState::Pressed)
+//         movement_dir -= World::RIGHT;
 
-    if (input.GetKeyboard(KeyboardKey::E) == InputState::Pressed)
-        movement_dir += World::UP;
+//     if (input.GetKeyboard(KeyboardKey::E) == InputState::Pressed)
+//         movement_dir += World::UP;
 
-    if (input.GetKeyboard(KeyboardKey::Q) == InputState::Pressed)
-        movement_dir -= World::UP;
+//     if (input.GetKeyboard(KeyboardKey::Q) == InputState::Pressed)
+//         movement_dir -= World::UP;
 
-    if (glm::length(movement_dir) != 0.0f)
-    {
-        movement_dir = glm::normalize(movement_dir);
-    }
+//     if (glm::length(movement_dir) != 0.0f)
+//     {
+//         movement_dir = glm::normalize(movement_dir);
+//     }
 
-    auto view = registry.view<ComponentFirstPersonCamera, ComponentTransform>();
-    for (auto&& [e, camera, transform] : view.each())
-    {
+//     auto view = registry.view<ComponentFirstPersonCamera, ComponentTransform>();
+//     for (auto&& [e, camera, transform] : view.each())
+//     {
 
-        camera.eulerAngles += eulerDelta;
-        camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
+//         camera.eulerAngles += eulerDelta;
+//         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
-        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
+//         // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
 
-        auto rotation = glm::quat(camera.eulerAngles);
-        auto translation = transform.GetLocalTranslation();
+//         auto rotation = glm::quat(camera.eulerAngles);
+//         auto translation = transform.GetLocalTranslation();
 
-        transform.SetLocalTranslation(translation + rotation * (movement_dir * dt * CAM_SPEED));
-        transform.SetLocalRotation(rotation);
+//         transform.SetLocalTranslation(translation + rotation * (movement_dir * dt * CAM_SPEED));
+//         transform.SetLocalRotation(rotation);
 
-        return camera.GenerateCamera(transform.GetWorldMatrix());
-    }
+//         return camera.GenerateCamera(transform.GetWorldMatrix());
+//     }
 
-    return Camera {};
-}
+//     return Camera {};
+// }
 
 void RendererModule::Initialize(Engine& e)
 {
     // Preamble
-    {
-        // model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    // {
+    //     // model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
-        ecs = std::make_unique<EntityComponentSystem>();
-        auto& registry = ecs->GetWorld();
-        auto e = registry.create();
+    //     ecs = std::make_unique<EntityComponentSystem>();
+    //     auto& registry = ecs->GetWorld();
+    //     auto e = registry.create();
 
-        registry.emplace<ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
-        registry.emplace<ComponentFirstPersonCamera>(e);
-    }
+    //     registry.emplace<ComponentTransform>(e, glm::vec3(0.f, 0.f, -1.f));
+    //     registry.emplace<ComponentFirstPersonCamera>(e);
+    // }
 
     auto& application = e.GetModule<ApplicationModule>();
     auto& backend = e.GetModule<DXBackendModule>();
@@ -91,11 +91,28 @@ void RendererModule::Initialize(Engine& e)
     auto& dx_factory = backend.GetFactory();
     auto& dx_device = backend.GetDevice();
 
-    auto swapchain = dx_factory.CreateSwapchainForWindow(dx_device.GetCommandQueue().Get(), static_cast<HWND>(window.GetNativeWindowHandle()), window.GetSize());
+    HWND win_handle = static_cast<HWND>(window.GetNativeWindowHandle());
+    auto swapchain = dx_factory.CreateSwapchainForWindow(dx_device.GetCommandQueue().Get(), win_handle, window.GetSize());
+
     auto& dx_render_target_heap = dx_device.GetDescriptorHeap(DXDevice::DescriptorHeap::RT_HEAP);
     main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get(), dx_render_target_heap);
 
     renderer = std::make_unique<Renderer>();
+
+    auto& compiler = backend.GetShaderCompiler();
+    compiler.AddIncludeDirectory(L"assets/shaders");
+
+    auto deferred_vs = compiler
+                           .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainVS")
+                           .value();
+
+    auto deferred_ps = compiler
+                           .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainPS")
+                           .value();
+
+    auto pbr_resolve_cs = compiler
+                              .CompileFromPath("assets/shaders/Main.hlsl", DXShader::Type::COMPUTE, L"main")
+                              .value();
 
     // std::shared_ptr<ShaderInputs> mainInputs = ShaderInputsBuilder()
     //                                                .AddUniform(ShaderInputVisibility::COMPUTE, "camera_matrix")

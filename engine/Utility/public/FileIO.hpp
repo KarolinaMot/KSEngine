@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Common.hpp>
+
 #include <chrono>
 #include <fstream>
 #include <optional>
@@ -31,7 +33,7 @@ std::optional<std::ofstream> OpenWriteStream(const Path& path,
 /// <summary>
 /// Dumps all bytes of a stream into a vector
 /// </summary>
-std::vector<char> DumpFullStream(std::istream& stream);
+std::vector<std::byte> DumpFullStream(std::istream& stream);
 
 /// <summary>
 /// Check if a file exists.

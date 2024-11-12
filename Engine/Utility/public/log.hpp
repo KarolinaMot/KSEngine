@@ -1,4 +1,6 @@
 #pragma once
+#include <Common.hpp>
+
 #include <format>
 #include <iostream>
 

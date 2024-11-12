@@ -56,12 +56,12 @@ FileIO::GetLastModifiedTime(const Path& path)
     }
 }
 
-std::vector<char> FileIO::DumpFullStream(std::istream& stream)
+std::vector<std::byte> FileIO::DumpFullStream(std::istream& stream)
 {
     stream.seekg(0, std::ios::end);
     size_t size = stream.tellg();
-    std::vector<char> out(size, '\0');
+    std::vector<std::byte> out(size, {});
     stream.seekg(0);
-    stream.read(out.data(), size);
+    stream.read((char*)out.data(), size);
     return out;
 }
