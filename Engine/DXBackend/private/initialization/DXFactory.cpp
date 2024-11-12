@@ -51,6 +51,11 @@ ComPtr<ID3D12Device> DXFactory::CreateDevice(DXGI_GPU_PREFERENCE preference, std
             if (feature_eval(features))
             {
                 device = test_device;
+
+                DXGI_ADAPTER_DESC1 adapterDesc;
+                adapter->GetDesc1(&adapterDesc);
+
+                Log(L"Using GPU Device: {}", adapterDesc.Description);
                 break;
             }
         }
