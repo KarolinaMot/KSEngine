@@ -99,55 +99,8 @@ void RendererModule::Initialize(Engine& e)
     auto& dx_render_target_heap = dx_device.GetDescriptorHeap(DXDevice::DescriptorHeap::RT_HEAP);
     main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get(), dx_render_target_heap);
 
-    renderer = std::make_unique<Renderer>();
-
     auto& compiler = backend.GetShaderCompiler();
-    compiler.AddIncludeDirectory(L"assets/shaders");
-
-    auto deferred_vs = compiler
-                           .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainVS")
-                           .value();
-
-    auto deferred_ps = compiler
-                           .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainPS")
-                           .value();
-
-    auto pbr_resolve_cs = compiler
-                              .CompileFromPath("assets/shaders/Main.hlsl", DXShader::Type::COMPUTE, L"main")
-                              .value();
-
-    auto builder = DXShaderInputsBuilder();
-
-    builder
-        // Uniforms
-        .AddUniformBuffer("camera_matrix", 0, D3D12_SHADER_VISIBILITY_ALL)
-        .AddUniformBuffer("model_index", 1, D3D12_SHADER_VISIBILITY_ALL)
-        .AddUniformBuffer("light_info", 2, D3D12_SHADER_VISIBILITY_ALL)
-
-        // Textures (RO)
-        .AddDescriptorTable("base_tex", 0, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddDescriptorTable("normal_tex", 1, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddDescriptorTable("emissive_tex", 2, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddDescriptorTable("roughmet_tex", 3, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddDescriptorTable("occlusion_tex", 4, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-
-        // StorageBuffers (RO)
-        .AddDescriptorTable("dir_lights", 5, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddDescriptorTable("point_lights", 6, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddDescriptorTable("model_matrix", 7, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_VERTEX)
-        .AddDescriptorTable("material_info", 8, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-
-        // Render Targets (RW)
-        .AddDescriptorTable("PBRRes", 0, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddDescriptorTable("GBuffer1", 1, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddDescriptorTable("GBuffer2", 2, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddDescriptorTable("GBuffer3", 3, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddDescriptorTable("GBuffer4", 4, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-
-        // Static Sampler
-        .AddStaticSampler("main_sampler", 0, {}, D3D12_SHADER_VISIBILITY_ALL);
-
-    auto shader_inputs = builder.Build(dx_device.Get(), L"Deferred Pipeline Inputs").value();
+    renderer = std::make_unique<Renderer>(dx_device, compiler);
 
     // std::string shaderPath = "assets/shaders/Deferred.hlsl";
     // Formats formats[4] = { Formats::R32G32B32A32_FLOAT, Formats::R8G8B8A8_UNORM, Formats::R8G8B8A8_UNORM, Formats::R8G8B8A8_UNORM };

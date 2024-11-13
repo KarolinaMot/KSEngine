@@ -11,6 +11,8 @@
 class DXShaderInputs
 {
 public:
+    DXShaderInputs() = default;
+
     DXShaderInputs(ComPtr<ID3D12RootSignature> root_signature, const std::unordered_map<std::string, uint32_t>& input_table)
         : root_signature(root_signature)
         , input_table(input_table)
@@ -52,9 +54,10 @@ public:
         uint32_t size_in_32_bits,
         D3D12_SHADER_VISIBILITY visibility);
 
-    Self& AddUniformBuffer(
+    Self& AddStorageBuffer(
         const std::string& name,
         uint32_t shader_register,
+        D3D12_ROOT_PARAMETER_TYPE buffer_type,
         D3D12_SHADER_VISIBILITY visibility);
 
     Self& AddDescriptorTable(

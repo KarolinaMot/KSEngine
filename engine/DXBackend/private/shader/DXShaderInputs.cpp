@@ -53,7 +53,7 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootConstant(const std::string&
     return *this;
 }
 
-DXShaderInputsBuilder& DXShaderInputsBuilder::AddUniformBuffer(const std::string& name, uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
+DXShaderInputsBuilder& DXShaderInputsBuilder::AddStorageBuffer(const std::string& name, uint32_t shaderRegister, D3D12_ROOT_PARAMETER_TYPE buffer_type, D3D12_SHADER_VISIBILITY shader)
 {
     AddNameIndexMapping(name, shaderRegister);
 
@@ -63,7 +63,7 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddUniformBuffer(const std::string
     desc.Flags = {};
 
     D3D12_ROOT_PARAMETER1 par {};
-    par.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    par.ParameterType = buffer_type;
     par.Descriptor = desc;
     par.ShaderVisibility = shader;
 

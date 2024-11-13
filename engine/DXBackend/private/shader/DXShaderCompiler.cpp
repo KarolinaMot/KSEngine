@@ -92,11 +92,13 @@ std::optional<DXShader> DXShaderCompiler::CompileFromPath(const std::string& pat
     if (auto stream = FileIO::OpenReadStream(path))
     {
         auto dump = FileIO::DumpFullStream(stream.value());
+
+        Log("Shader Compilation: Compiling {}", path);
         return CompileFromBytes(dump, type, entry_point);
     }
     else
     {
-        Log("Could not read from file: {}", path);
+        Log("Shader Compilation Error: Could not open file {}", path);
         return std::nullopt;
     }
 }
