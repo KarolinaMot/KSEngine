@@ -2,53 +2,109 @@
 
 Renderer::Renderer(DXDevice& device, DXShaderCompiler& shader_compiler)
 {
-    shader_compiler.AddIncludeDirectory(L"assets/shaders");
+    // Root Signature Setup
+    {
+        auto builder = DXShaderInputsBuilder();
 
-    auto deferred_vs = shader_compiler
-                           .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainVS")
-                           .value();
+        builder
+            // Uniforms
+            .AddStorageBuffer("camera_matrix", 0, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddStorageBuffer("model_index", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddStorageBuffer("light_info", 2, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
 
-    auto deferred_ps = shader_compiler
-                           .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainPS")
-                           .value();
+            // Textures (RO)
+            .AddStorageBuffer("base_tex", 0, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddStorageBuffer("normal_tex", 1, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddStorageBuffer("emissive_tex", 2, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddStorageBuffer("roughmet_tex", 3, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddStorageBuffer("occlusion_tex", 4, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
 
-    auto pbr_resolve_cs = shader_compiler
+            // Data Buffers (RO)
+            .AddStorageBuffer("dir_lights", 5, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddStorageBuffer("point_lights", 6, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddStorageBuffer("model_matrix", 7, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_VERTEX)
+            .AddStorageBuffer("material_info", 8, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+
+            // Render Targets (RW)
+            .AddDescriptorTable("PBRRes", 0, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddDescriptorTable("GBuffer1", 1, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddDescriptorTable("GBuffer2", 2, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddDescriptorTable("GBuffer3", 3, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddDescriptorTable("GBuffer4", 4, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
+
+            // Static Sampler
+            .AddStaticSampler("main_sampler", 0, {}, D3D12_SHADER_VISIBILITY_ALL);
+
+        shader_inputs = builder.Build(device.Get(), L"Deferred Pipeline Inputs").value();
+    }
+
+    // Pipeline Setup
+    {
+        shader_compiler.AddIncludeDirectory(L"assets/shaders");
+
+        auto deferred_vs = shader_compiler
+                               .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainVS")
+                               .value();
+
+        auto deferred_ps = shader_compiler
+                               .CompileFromPath("assets/shaders/Deferred.hlsl", DXShader::Type::VERTEX, L"mainPS")
+                               .value();
+
+        auto resolve_cs = shader_compiler
                               .CompileFromPath("assets/shaders/Main.hlsl", DXShader::Type::COMPUTE, L"main")
                               .value();
 
-    auto builder = DXShaderInputsBuilder();
+        auto builder = DXPipelineBuilder();
 
-    builder
-        // Uniforms
-        .AddStorageBuffer("camera_matrix", 0, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("model_index", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("light_info", 2, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
+        builder
+            // Inputs
+            .AddInput(0, "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
+            .AddInput(1, "NORMALS", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
+            .AddInput(2, "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, false)
+            .AddInput(3, "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
 
-        // Textures (RO)
-        .AddStorageBuffer("base_tex", 0, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddStorageBuffer("normal_tex", 1, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddStorageBuffer("emissive_tex", 2, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddStorageBuffer("roughmet_tex", 3, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-        .AddStorageBuffer("occlusion_tex", 4, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            // Shaders
+            .SetRootSignature(shader_inputs.GetSignature())
+            .AttachShader(deferred_ps)
+            .AttachShader(deferred_vs)
+            .AttachShader(resolve_cs)
 
-        // Data Buffers (RO)
-        .AddStorageBuffer("dir_lights", 5, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("point_lights", 6, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("model_matrix", 7, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_VERTEX)
-        .AddStorageBuffer("material_info", 8, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            // Output formats (for graphics pass)
+            .AddRenderTarget(DXGI_FORMAT_R32G32B32_FLOAT)
+            .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM)
+            .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM)
+            .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM);
 
-        // Render Targets (RW)
-        .AddStorageBuffer("PBRRes", 0, D3D12_ROOT_PARAMETER_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("GBuffer1", 1, D3D12_ROOT_PARAMETER_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("GBuffer2", 2, D3D12_ROOT_PARAMETER_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("GBuffer3", 3, D3D12_ROOT_PARAMETER_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
-        .AddStorageBuffer("GBuffer4", 4, D3D12_ROOT_PARAMETER_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
+        graphics_deferred_pipeline = builder.BuildGraphicsPipeline(device.Get(), L"Deferred Graphics Pipeline").value();
 
-        // Static Sampler
-        .AddStaticSampler("main_sampler", 0, {}, D3D12_SHADER_VISIBILITY_ALL);
+        builder
+            // Output formats (for compute pass)
+            .ClearOutputDescription()
+            .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM);
 
-    shader_inputs = builder.Build(device.Get(), L"Deferred Pipeline Inputs").value();
+        compute_pbr_pipeline = builder.BuildComputePipeline(device.Get(), L"Compute PBR Pipeline").value();
+    }
 }
+
+// auto builder = DXPipelineBuilder()
+//                            .AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, VDS_POSITIONS)
+//                            .AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, VDS_NORMALS)
+//                            .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV)
+//                            .AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS)
+//                            .SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
+
+//         if (!rtFormats)
+//         {
+//             LOG(Log::Severity::WARN, "Render target format has not been passed. A default format of R8G8B8A8_UNORM will be added instead");
+//             builder.AddRenderTarget(KSFormatsToDXGI(Formats::R8G8B8A8_UNORM));
+//         }
+//         else
+//         {
+//             for (int i = 0; i < numFormats; i++)
+//             {
+//                 builder.AddRenderTarget(KSFormatsToDXGI(rtFormats[i]));
+//             }
+//         }
 
 void Renderer::RenderFrame(DXDevice& device, DXSwapchain& swapchain_target)
 {

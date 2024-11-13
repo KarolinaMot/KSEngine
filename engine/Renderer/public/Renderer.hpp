@@ -2,6 +2,7 @@
 #include <Common.hpp>
 #include <DXDevice.hpp>
 #include <display/DXSwapchain.hpp>
+#include <shader/DXPipeline.hpp>
 #include <shader/DXShaderCompiler.hpp>
 #include <shader/DXShaderInputs.hpp>
 #include <sync/DXFuture.hpp>
@@ -20,6 +21,9 @@ public:
 
 private:
     DXShaderInputs shader_inputs {};
+    DXPipeline graphics_deferred_pipeline {};
+    DXPipeline compute_pbr_pipeline {};
+
     std::array<DXFuture, FRAME_BUFFER_COUNT> frame_futures {};
     size_t cpu_frame {};
 };
