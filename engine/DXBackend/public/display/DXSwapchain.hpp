@@ -15,8 +15,10 @@ public:
     DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap);
     ~DXSwapchain() = default;
 
-    uint32_t GetBackbufferIndex() { return swapchain->GetCurrentBackBufferIndex(); }
+    glm::uvec2 GetResolution() const;
     DXDescriptorHandle& GetRenderTargetView(size_t frame_index) { return render_views.at(frame_index); }
+
+    uint32_t GetBackbufferIndex() { return swapchain->GetCurrentBackBufferIndex(); }
     ID3D12Resource* GetBufferResource(size_t frame_index) { return buffers.at(frame_index).Get(); }
 
     void SwapBuffers(bool vsync) const;

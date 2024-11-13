@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Common.hpp>
+
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

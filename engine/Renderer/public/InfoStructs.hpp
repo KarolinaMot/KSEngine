@@ -1,10 +1,6 @@
 #pragma once
-#include <resources/Material.hpp>
-#include <resources/Mesh.hpp>
+#include <Common.hpp>
 #include <glm/glm.hpp>
-
-namespace KS
-{
 
 enum StorageBuffers
 {
@@ -39,12 +35,12 @@ enum Formats
     R16_FLOAT,
 };
 
-struct DrawEntry
-{
-    ResourceHandle<Mesh> mesh {};
-    Material material {};
-    int modelIndex;
-};
+// struct DrawEntry
+// {
+//     ResourceHandle<Mesh> mesh {};
+//     Material material {};
+//     int modelIndex;
+// };
 
 struct ModelMat
 {
@@ -88,11 +84,10 @@ struct MaterialInfo
     uint32_t useOcclusionTex = 0;
 };
 
-struct CameraMats
+struct CameraData
 {
     glm::mat4x4 m_view = glm::mat4x4(1.f);
     glm::mat4x4 m_proj = glm::mat4x4(1.f);
     glm::mat4x4 m_camera = glm::mat4x4(1.f);
     glm::vec4 m_cameraPos = glm::vec4(1.f);
-};
 };

@@ -4,7 +4,6 @@
 #include <DXCommon.hpp>
 #include <descriptors/DXDescriptorHandle.hpp>
 #include <glm/vec4.hpp>
-#include <memory>
 
 class DXCommandList
 {

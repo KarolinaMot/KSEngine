@@ -1,6 +1,8 @@
 #pragma once
 #include <Common.hpp>
 #include <DXDevice.hpp>
+
+#include <Geometry.hpp>
 #include <display/DXSwapchain.hpp>
 #include <shader/DXPipeline.hpp>
 #include <shader/DXShaderCompiler.hpp>
@@ -17,7 +19,7 @@ public:
     NON_COPYABLE(Renderer);
     NON_MOVABLE(Renderer);
 
-    void RenderFrame(DXDevice& device, DXSwapchain& swapchain_target);
+    void RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& swapchain_target);
 
 private:
     DXShaderInputs shader_inputs {};
@@ -26,4 +28,6 @@ private:
 
     std::array<DXFuture, FRAME_BUFFER_COUNT> frame_futures {};
     size_t cpu_frame {};
+
+    ComPtr<ID3D12Resource> camera_data {};
 };

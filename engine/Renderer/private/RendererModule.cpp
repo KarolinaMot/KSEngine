@@ -132,8 +132,20 @@ void RendererModule::Shutdown(Engine& e)
 
 void RendererModule::RenderFrame(Engine& e)
 {
+    glm::vec2 screen_size = main_swapchain->GetResolution();
+
+    Log("Screen size: {}, {}", screen_size.x, screen_size.y);
+
+    Camera camera = Camera::Perspective(
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        World::FORWARD,
+        screen_size.x / screen_size.y,
+        glm::pi<float>() / 2,
+        0.1f,
+        100.0f);
+
     auto& backend = e.GetModule<DXBackendModule>();
-    renderer->RenderFrame(backend.GetDevice(), *main_swapchain);
+    renderer->RenderFrame(camera, backend.GetDevice(), *main_swapchain);
 
     // auto dt = e.GetModule<TimeModule>().GetDeltaTime();
 

@@ -24,6 +24,13 @@ DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* 
     }
 }
 
+glm::uvec2 DXSwapchain::GetResolution() const
+{
+    glm::uvec2 res;
+    swapchain->GetSourceSize(&res.x, &res.y);
+    return res;
+}
+
 void DXSwapchain::SwapBuffers(bool vsync) const
 {
     auto flags = vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
