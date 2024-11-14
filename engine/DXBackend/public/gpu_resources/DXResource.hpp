@@ -3,6 +3,7 @@
 #include <Common.hpp>
 #include <DXCommon.hpp>
 
+#include <glm/vec3.hpp>
 #include <optional>
 
 class DXResource
@@ -12,8 +13,9 @@ public:
 
     DXResource() = default;
 
-    DXResource(ComPtr<ID3D12Resource> resource)
+    DXResource(ComPtr<ID3D12Resource> resource, glm::uvec3 dimensions)
         : resource(resource)
+        , dimensions(dimensions)
     {
     }
 
@@ -26,6 +28,7 @@ public:
 
     ID3D12Resource* Get() { return resource.Get(); }
     D3D12_GPU_VIRTUAL_ADDRESS GetAddress() const { return resource->GetGPUVirtualAddress(); }
+    glm::uvec3 GetDimensions() const { return dimensions; }
 
     MappedAddress Map(size_t read_start, size_t read_end, uint32_t subresource = 0);
     MappedAddress Map(uint32_t subresource = 0);
@@ -34,6 +37,7 @@ public:
 
 private:
     ComPtr<ID3D12Resource> resource {};
+    glm::uvec3 dimensions {};
 
     // Helper class for memory mapping
 public:

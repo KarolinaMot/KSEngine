@@ -18,6 +18,7 @@ private:
     std::unique_ptr<DXSwapchain> main_swapchain {};
     std::unique_ptr<Renderer> renderer {};
 
+    Mesh test_mesh {};
     // std::shared_ptr<Device> device {};
     //  std::shared_ptr<ShaderInputs> mainInputs {};
     //  std::shared_ptr<Renderer> renderer {};

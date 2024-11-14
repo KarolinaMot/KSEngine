@@ -6,7 +6,7 @@
 #include <commands/DXCommandList.hpp>
 #include <dxgi1_6.h>
 #include <glm/vec2.hpp>
-#include <resources/DXDescriptorHeap.hpp>
+#include <gpu_resources/DXDescriptorHeap.hpp>
 
 // TODO: no function to recreate swapchain (for resizeable windows)
 class DXSwapchain

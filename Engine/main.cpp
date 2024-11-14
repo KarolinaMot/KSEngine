@@ -46,11 +46,15 @@ int main(int argc, const char* argv[])
         Log("Argument {}: {}", i, argv[i]);
     }
 
-    return MainEngine()
+    auto engine = MainEngine();
+
+    engine
         .AddModule<TimeModule>()
         .AddModule<DXBackendModule>()
         .AddModule<ApplicationModule>()
-        .AddModule<RendererModule>()
+        .AddModule<RendererModule>();
+
+    return engine
         .AddExecutionDelegate(print_frame_time, ExecutionOrder::LAST)
         .AddExecutionDelegate(check_k, ExecutionOrder::UPDATE)
         .Run();

@@ -1,5 +1,5 @@
 #include <Log.hpp>
-#include <resources/DXResource.hpp>
+#include <gpu_resources/DXResource.hpp>
 
 DXResource::MappedAddress DXResource::Map(size_t read_start, size_t read_end, uint32_t subresource)
 {

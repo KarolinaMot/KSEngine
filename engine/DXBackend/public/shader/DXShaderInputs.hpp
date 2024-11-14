@@ -87,7 +87,9 @@ public:
     std::optional<DXShaderInputs> Build(ID3D12Device* device, const wchar_t* name = DEFAULT_INPUT_NAME, const D3D12_ROOT_SIGNATURE_FLAGS& flags = DEFAULT_INPUT_FLAGS) const;
 
 private:
-    void AddNameIndexMapping(const std::string& name, uint32_t index);
+    void AddNameIndexMapping(const std::string& name);
+
+    uint32_t index_counter = 0;
     std::unordered_map<std::string, uint32_t> name_index_map {};
 
     // Deque used to not invalidate pointers as resizing occurs

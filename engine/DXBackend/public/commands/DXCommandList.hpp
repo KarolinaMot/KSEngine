@@ -3,7 +3,7 @@
 #include <Common.hpp>
 #include <DXCommon.hpp>
 #include <glm/vec4.hpp>
-#include <resources/DXResource.hpp>
+#include <gpu_resources/DXResource.hpp>
 
 class DXCommandList
 {
@@ -23,6 +23,11 @@ public:
     ID3D12GraphicsCommandList* Get() { return command_list.Get(); }
 
     void ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle, const glm::vec4& clear_colour);
+    void ClearDepthStencil(CD3DX12_CPU_DESCRIPTOR_HANDLE dsv_handle, float depth, uint32_t stencil);
+
+    // Warning: resources must be in the correct state
+    void CopyBuffer(DXResource& source, size_t source_offset, DXResource& destination, size_t destination_offset, size_t count);
+
     void SetResourceBarriers(size_t num_barriers, const D3D12_RESOURCE_BARRIER* barriers);
     void BindRootCBV(const DXResource& resource, uint32_t index);
 

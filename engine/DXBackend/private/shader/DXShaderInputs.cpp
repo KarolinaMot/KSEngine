@@ -40,7 +40,7 @@ std::optional<DXShaderInputs> DXShaderInputsBuilder::Build(ID3D12Device* device,
 
 DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootConstant(const std::string& name, uint32_t shaderRegister, uint32_t size_in_32_bits, D3D12_SHADER_VISIBILITY shader)
 {
-    AddNameIndexMapping(name, shaderRegister);
+    AddNameIndexMapping(name);
 
     D3D12_ROOT_PARAMETER1 par = {};
     par.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -55,7 +55,7 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootConstant(const std::string&
 
 DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootDescriptor(const std::string& name, uint32_t shaderRegister, D3D12_ROOT_PARAMETER_TYPE buffer_type, D3D12_SHADER_VISIBILITY shader)
 {
-    AddNameIndexMapping(name, shaderRegister);
+    AddNameIndexMapping(name);
 
     D3D12_ROOT_DESCRIPTOR1 desc {};
     desc.RegisterSpace = 0;
@@ -73,7 +73,7 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootDescriptor(const std::strin
 
 DXShaderInputsBuilder& DXShaderInputsBuilder::AddDescriptorTable(const std::string& name, uint32_t shader_register, uint32_t num_descriptors, D3D12_DESCRIPTOR_RANGE_TYPE rangeType, D3D12_SHADER_VISIBILITY shader)
 {
-    AddNameIndexMapping(name, shader_register);
+    AddNameIndexMapping(name);
 
     D3D12_DESCRIPTOR_RANGE1 range {};
     range.NumDescriptors = num_descriptors;
@@ -100,7 +100,7 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddDescriptorTable(const std::stri
 
 DXShaderInputsBuilder& DXShaderInputsBuilder::AddStaticSampler(const std::string& name, uint32_t shaderRegister, const StaticSamplerParameters& sampler_desc, D3D12_SHADER_VISIBILITY shader)
 {
-    AddNameIndexMapping(name, shaderRegister);
+    AddNameIndexMapping(name);
 
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter = sampler_desc.filter;
@@ -123,12 +123,12 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddStaticSampler(const std::string
     return *this;
 }
 
-void DXShaderInputsBuilder::AddNameIndexMapping(const std::string& name, uint32_t index)
+void DXShaderInputsBuilder::AddNameIndexMapping(const std::string& name)
 {
     if (name_index_map.contains(name))
     {
         Log("Shader Input Builder Warning: {} is already an existing parameter name, this will break name-index mappings", name);
     }
 
-    name_index_map[name] = index;
+    name_index_map[name] = index_counter++;
 }

@@ -1,5 +1,5 @@
 #include <Log.hpp>
-#include <resources/DXDescriptorHeap.hpp>
+#include <gpu_resources/DXDescriptorHeap.hpp>
 
 namespace detail
 {
@@ -42,7 +42,7 @@ DXDescriptorHeapBase::DXDescriptorHeapBase(ID3D12Device* device, D3D12_DESCRIPTO
 
     if (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
     {
-        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        desc.Flags |= D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     }
 
     CheckDX(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptor_heap)));
@@ -80,7 +80,7 @@ bool DXDescriptorHeap<T>::Allocate(ID3D12Device* device, const T& description, s
 {
     if (index >= max_size)
     {
-        Log(L"DXDescriptor Heap Error: Attempting to allocate beyond {} bounds ({}), size is {}", index, max_size);
+        Log(L"DXDescriptor Heap Error: Attempting to allocate beyond bounds ({}), size is {}", index, max_size);
         return false;
     }
 

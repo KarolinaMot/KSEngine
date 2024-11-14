@@ -1,9 +1,14 @@
 #include <ApplicationModule.hpp>
 #include <DXBackendModule.hpp>
+#include <FileIO.hpp>
 #include <Log.hpp>
 #include <RawInputHandler.hpp>
 #include <RendererModule.hpp>
 #include <TimeModule.hpp>
+#include <gpu_resources/DXResourceBuilder.hpp>
+#include <resources/Mesh.hpp>
+#include <resources/Model.hpp>
+#include <resources/Serialization.hpp>
 #include <shader/DXShaderInputs.hpp>
 
 // #include <components/ComponentCamera.hpp>
@@ -99,29 +104,84 @@ void RendererModule::Initialize(Engine& e)
     main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get());
 
     auto& compiler = backend.GetShaderCompiler();
-    renderer = std::make_unique<Renderer>(dx_device, compiler);
-
-    // std::string shaderPath = "assets/shaders/Deferred.hlsl";
-    // Formats formats[4] = { Formats::R32G32B32A32_FLOAT, Formats::R8G8B8A8_UNORM, Formats::R8G8B8A8_UNORM, Formats::R8G8B8A8_UNORM };
-    // std::shared_ptr<Shader> mainShader = std::make_shared<Shader>(*device,
-    //     ShaderType::ST_MESH_RENDER,
-    //     mainInputs,
-    //     shaderPath,
-    //     formats, 4);
-
-    // std::shared_ptr<Shader> computePBRShader = std::make_shared<Shader>(*device,
-    //     ShaderType::ST_COMPUTE,
-    //     mainInputs,
-    //     "assets/shaders/Main.hlsl");
-
-    // RendererInitParams initParams {};
-    // initParams.shaders.push_back(mainShader);
-    // initParams.shaders.push_back(computePBRShader);
-    // renderer = std::make_shared<Renderer>(*device, initParams);
-
-    // device->EndFrame();
+    renderer = std::make_unique<Renderer>(dx_device, compiler, main_swapchain->GetResolution());
 
     e.AddExecutionDelegate(this, &RendererModule::RenderFrame, ExecutionOrder::RENDER);
+
+    // Load test model
+
+    MeshData mesh_data {};
+
+    {
+        auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
+        JSONLoader model_loader { model_file };
+
+        Model model {};
+        model_loader(model);
+
+        auto mesh_file = FileIO::OpenReadStream(model.meshes.front().path).value();
+        BinaryLoader mesh_loader { mesh_file };
+
+        mesh_loader(mesh_data);
+
+        Log("Successfully loaded mesh data");
+    }
+
+    {
+        auto* positions = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_POSITIONS_NAME);
+        auto* normals = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME);
+        auto* texture_uvs = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME);
+        auto* tangents = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_TANGENTS_NAME);
+        auto* indices = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME);
+
+        auto upload_data = [](ID3D12Device* device, const ByteBuffer* data)
+        {
+            DXResourceBuilder builder {};
+            builder
+                .WithHeapType(D3D12_HEAP_TYPE_UPLOAD)
+                .WithInitialState(D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+            auto upload_buffer = builder.MakeBuffer(device, data->GetSize()).value();
+            auto mapped_ptr = upload_buffer.Map(0);
+            std::memcpy(mapped_ptr.Get(), data->GetData(), data->GetSize());
+            upload_buffer.Unmap(std::move(mapped_ptr));
+
+            return upload_buffer;
+        };
+
+        auto positions_upload_data = upload_data(dx_device.Get(), positions);
+        auto normals_upload_data = upload_data(dx_device.Get(), normals);
+        auto texture_uvs_upload_data = upload_data(dx_device.Get(), texture_uvs);
+        auto tangents_upload_data = upload_data(dx_device.Get(), tangents);
+        auto indices_upload_data = upload_data(dx_device.Get(), indices);
+
+        auto command_list = dx_device.GetCommandQueue().MakeCommandList(dx_device.Get());
+
+        auto stage_data = [](ID3D12Device* device, DXCommandList& command_list, DXResource& upload_resource, size_t size)
+        {
+            DXResourceBuilder builder {};
+            auto resource = builder.MakeBuffer(device, size).value();
+            command_list.CopyBuffer(upload_resource, 0, resource, 0, size);
+
+            CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                resource.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_GENERIC_READ);
+
+            command_list.SetResourceBarriers(1, &barrier);
+
+            return resource;
+        };
+
+        test_mesh.position = stage_data(dx_device.Get(), command_list, positions_upload_data, positions->GetSize());
+        test_mesh.normals = stage_data(dx_device.Get(), command_list, normals_upload_data, normals->GetSize());
+        test_mesh.uvs = stage_data(dx_device.Get(), command_list, texture_uvs_upload_data, texture_uvs->GetSize());
+        test_mesh.tangents = stage_data(dx_device.Get(), command_list, tangents_upload_data, tangents->GetSize());
+        test_mesh.indices = stage_data(dx_device.Get(), command_list, indices_upload_data, indices->GetSize());
+        test_mesh.index_count = indices->GetView<uint32_t>().count();
+
+        dx_device.GetCommandQueue().SubmitCommandList(std::move(command_list)).Wait();
+    }
 }
 
 void RendererModule::Shutdown(Engine& e)
@@ -142,6 +202,9 @@ void RendererModule::RenderFrame(Engine& e)
         100.0f);
 
     auto& backend = e.GetModule<DXBackendModule>();
+
+    auto transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
+    renderer->QueueModel(transform, &test_mesh);
     renderer->RenderFrame(camera, backend.GetDevice(), *main_swapchain);
 
     // auto dt = e.GetModule<TimeModule>().GetDeltaTime();

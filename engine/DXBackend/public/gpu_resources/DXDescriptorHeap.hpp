@@ -3,6 +3,7 @@
 #include <DXCommon.hpp>
 #include <optional>
 
+// TODO: Descriptor heaps are uninitialized when initially allocated
 class DXDescriptorHeapBase
 {
 public:

@@ -49,6 +49,14 @@ void DXCommandList::ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle, 
     command_list->ClearRenderTargetView(rtv_handle, colour, 0, nullptr);
 }
 
+void DXCommandList::ClearDepthStencil(CD3DX12_CPU_DESCRIPTOR_HANDLE dsv_handle, float depth, uint32_t stencil)
+{
+    command_list->ClearDepthStencilView(
+        dsv_handle,
+        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+        depth, stencil, 0, nullptr);
+}
+
 void DXCommandList::SetResourceBarriers(size_t num_barriers, const D3D12_RESOURCE_BARRIER* barriers)
 {
     command_list->ResourceBarrier(num_barriers, barriers);
@@ -57,6 +65,11 @@ void DXCommandList::SetResourceBarriers(size_t num_barriers, const D3D12_RESOURC
 void DXCommandList::BindRootCBV(const DXResource& resource, uint32_t index)
 {
     command_list->SetGraphicsRootConstantBufferView(index, resource.GetAddress());
+}
+
+void DXCommandList::CopyBuffer(DXResource& source, size_t source_offset, DXResource& destination, size_t destination_offset, size_t count)
+{
+    command_list->CopyBufferRegion(destination.Get(), destination_offset, source.Get(), source_offset, count);
 }
 
 // void DXCommandList::BindPipeline(ComPtr<ID3D12PipelineState> pipeline)
