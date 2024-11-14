@@ -43,16 +43,22 @@ DXCommandList& DXCommandList::operator=(DXCommandList&& other)
     return *this;
 }
 
-void DXCommandList::ClearRenderTarget(const DXDescriptorHandle& rtv_handle, const glm::vec4& clear_colour)
+void DXCommandList::ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle, const glm::vec4& clear_colour)
 {
     float colour[4] = { clear_colour.x, clear_colour.y, clear_colour.z, clear_colour.w };
-    command_list->ClearRenderTargetView(rtv_handle.GetCPUHandle(), colour, 0, nullptr);
+    command_list->ClearRenderTargetView(rtv_handle, colour, 0, nullptr);
 }
 
 void DXCommandList::SetResourceBarriers(size_t num_barriers, const D3D12_RESOURCE_BARRIER* barriers)
 {
     command_list->ResourceBarrier(num_barriers, barriers);
 }
+
+void DXCommandList::BindRootCBV(const DXResource& resource, uint32_t index)
+{
+    command_list->SetGraphicsRootConstantBufferView(index, resource.GetAddress());
+}
+
 // void DXCommandList::BindPipeline(ComPtr<ID3D12PipelineState> pipeline)
 // {
 //     if (!m_isOpen)

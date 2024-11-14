@@ -94,10 +94,9 @@ void RendererModule::Initialize(Engine& e)
     auto& dx_device = backend.GetDevice();
 
     HWND win_handle = static_cast<HWND>(window.GetNativeWindowHandle());
-    auto swapchain = dx_factory.CreateSwapchainForWindow(dx_device.GetCommandQueue().Get(), win_handle, window.GetSize());
 
-    auto& dx_render_target_heap = dx_device.GetDescriptorHeap(DXDevice::DescriptorHeap::RT_HEAP);
-    main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get(), dx_render_target_heap);
+    auto swapchain = dx_factory.CreateSwapchainForWindow(dx_device.GetCommandQueue().Get(), win_handle, window.GetSize());
+    main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get());
 
     auto& compiler = backend.GetShaderCompiler();
     renderer = std::make_unique<Renderer>(dx_device, compiler);
@@ -133,8 +132,6 @@ void RendererModule::Shutdown(Engine& e)
 void RendererModule::RenderFrame(Engine& e)
 {
     glm::vec2 screen_size = main_swapchain->GetResolution();
-
-    Log("Screen size: {}, {}", screen_size.x, screen_size.y);
 
     Camera camera = Camera::Perspective(
         glm::vec3(0.0f, 0.0f, 0.0f),

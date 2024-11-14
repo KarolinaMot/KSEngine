@@ -107,31 +107,31 @@ DXPipelineBuilder& DXPipelineBuilder::AddInput(uint32_t slot, const char* semant
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetRootSignature(ID3D12RootSignature* root_signature)
+DXPipelineBuilder& DXPipelineBuilder::WithRootSignature(ID3D12RootSignature* root_signature)
 {
     pipeline_desc.pRootSignature = root_signature;
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetRasterizer(const CD3DX12_RASTERIZER_DESC2& rasterizer)
+DXPipelineBuilder& DXPipelineBuilder::WithRasterizer(const CD3DX12_RASTERIZER_DESC2& rasterizer)
 {
     pipeline_desc.RasterizerState = rasterizer;
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetBlendState(const CD3DX12_BLEND_DESC& blendState)
+DXPipelineBuilder& DXPipelineBuilder::WithBlendState(const CD3DX12_BLEND_DESC& blendState)
 {
     pipeline_desc.BlendState = blendState;
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetDepthState(const CD3DX12_DEPTH_STENCIL_DESC2& depthStencil)
+DXPipelineBuilder& DXPipelineBuilder::WithDepthState(const CD3DX12_DEPTH_STENCIL_DESC2& depthStencil)
 {
     pipeline_desc.DepthStencilState = depthStencil;
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetDepthFormat(const DXGI_FORMAT& format)
+DXPipelineBuilder& DXPipelineBuilder::WithDepthFormat(const DXGI_FORMAT& format)
 {
     pipeline_desc.DSVFormat = format;
     return *this;
@@ -159,7 +159,7 @@ DXPipelineBuilder& DXPipelineBuilder::AttachShader(const DXShader& shader)
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetMSAA(uint32_t count, uint32_t quality)
+DXPipelineBuilder& DXPipelineBuilder::WithMSAA(uint32_t count, uint32_t quality)
 {
     pipeline_desc.SampleDesc = { count, quality };
     return *this;
@@ -181,7 +181,7 @@ DXPipelineBuilder& DXPipelineBuilder::AddRenderTarget(DXGI_FORMAT format)
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetPrimitiveTopology(const D3D12_PRIMITIVE_TOPOLOGY_TYPE& topology)
+DXPipelineBuilder& DXPipelineBuilder::WithPrimitiveTopology(const D3D12_PRIMITIVE_TOPOLOGY_TYPE& topology)
 {
     pipeline_desc.PrimitiveTopologyType = topology;
     return *this;

@@ -6,7 +6,7 @@ cbuffer Camera : register(b0)
     CameraMats cameraMats;
 };
 
-cbuffer LightInfoBuffer : register(b3)
+cbuffer LightInfoBuffer : register(b2)
 {
     LightInfo lightInfo;
 };
@@ -16,7 +16,6 @@ RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
 RWTexture2D<float4> GBufferC : register(u3);
 RWTexture2D<float4> GBufferD : register(u4);
-
 SamplerState mainSampler : register(s0);
 
 StructuredBuffer<DirLight> dirLights : register(t5);

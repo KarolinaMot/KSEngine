@@ -54,7 +54,7 @@ public:
         uint32_t size_in_32_bits,
         D3D12_SHADER_VISIBILITY visibility);
 
-    Self& AddStorageBuffer(
+    Self& AddRootDescriptor(
         const std::string& name,
         uint32_t shader_register,
         D3D12_ROOT_PARAMETER_TYPE buffer_type,

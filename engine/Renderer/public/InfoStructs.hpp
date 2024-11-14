@@ -42,7 +42,7 @@ enum Formats
 //     int modelIndex;
 // };
 
-struct ModelMat
+struct ModelMatrixData
 {
     glm::mat4 mModel = glm::mat4x4(1.f);
     glm::mat4 mTransposed = glm::mat4x4(1.f);

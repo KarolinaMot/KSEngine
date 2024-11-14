@@ -10,6 +10,14 @@
     ClassName(ClassName&&) = delete; \
     ClassName& operator=(ClassName&&) = delete;
 
+#define DEFAULT_COPYABLE(ClassName)        \
+    ClassName(const ClassName&) = default; \
+    ClassName& operator=(const ClassName&) = default;
+
+#define DEFAULT_MOVEABLE(ClassName)   \
+    ClassName(ClassName&&) = default; \
+    ClassName& operator=(ClassName&&) = default;
+
 // Attribute macros
 
 #define MAYBE_UNUSED [[maybe_unused]]

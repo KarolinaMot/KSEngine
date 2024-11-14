@@ -1,8 +1,9 @@
 #include <display/DXSwapchain.hpp>
 
-DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device, DXDescriptorHeap& rendertarget_heap)
+DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* device)
 {
     CheckDX(swapchain_handle.As(&swapchain));
+    render_target_heap = DXDescriptorHeap<RTV>(device, FRAME_BUFFER_COUNT);
 
     for (size_t i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
@@ -20,7 +21,7 @@ DXSwapchain::DXSwapchain(ComPtr<IDXGISwapChain> swapchain_handle, ID3D12Device* 
         desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
         desc.Texture2D.MipSlice = 0;
 
-        render_views.at(i) = rendertarget_heap.Allocate(device, buffer.Get(), ViewParams::RTV { desc }).value();
+        render_target_heap.Allocate(device, RTV { desc, buffer.Get() }, i);
     }
 }
 

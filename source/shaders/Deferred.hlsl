@@ -19,10 +19,10 @@ struct PS_INPUT
 
 struct PSOutput
 {
-    float4 vertexPos : SV_Target0;
-    float4 albedo : SV_Target1;
+    float4 vertexPos : SV_Target1;
+    float4 albedo : SV_Target0;
     float4 normals : SV_Target2;
-    float4 emissive : SV_Target3;
+    float4 emissive : SV_Target2;
 };
 
 cbuffer Camera : register(b0)
@@ -30,35 +30,29 @@ cbuffer Camera : register(b0)
     CameraMats cameraMats;
 };
 
-cbuffer ModelMatrix : register(b1)
+cbuffer ModelIndex : register(b1)
 {
-    ModelMat model_matrix;
+    int meshIndex;
 };
 
-cbuffer MaterialInfo : register(b2)
-{
-    MaterialInfo mat_info;
-}
-
 SamplerState mainSampler : register(s0);
-
 Texture2D baseColorTex : register(t0);
 Texture2D normalTex : register(t1);
 Texture2D emissiveTex : register(t2);
 Texture2D metallicRoughnessTex : register(t3);
 Texture2D occlusionTex : register(t4);
 
-// StructuredBuffer<ModelMat> modelMats : register(t7);
-// StructuredBuffer<MaterialInfo> matInfos : register(t8);
+StructuredBuffer<ModelMat> modelMats : register(t7);
+StructuredBuffer<MaterialInfo> matInfos : register(t8);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
 
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
-    output.vertexPos = mul(model_matrix.mModelMat, float4(input.pos, 1.f));
+    output.vertexPos = mul(modelMats[meshIndex].mModelMat, float4(input.pos, 1.f));
     output.pos = mul(cameraMats.mCamera, output.vertexPos);
-    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)model_matrix.mInvTransposeMat)), 0.f);
+    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)modelMats[meshIndex].mInvTransposeMat)), 0.f);
     output.uv = input.uv;
 
     input.tangents = normalize(input.tangents);
@@ -89,28 +83,28 @@ PSOutput mainPS(PS_INPUT input)
 PBRMaterial GenerateMaterial(PS_INPUT input)
 {
     PBRMaterial mat;
-    if (mat_info.useColorTex)
+    if (matInfos[meshIndex].useColorTex)
     {
         mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.baseColor *= mat_info.colorFactor.rgb;
+        mat.baseColor *= matInfos[meshIndex].colorFactor.rgb;
     }
     else
     {
         mat.baseColor = float3(1.0, 1.0, 1.0);
-        mat.baseColor *= mat_info.colorFactor.rgb;
+        mat.baseColor *= matInfos[meshIndex].colorFactor.rgb;
     }
 
-    if (mat_info.useEmissiveTex)
+    if (matInfos[meshIndex].useEmissiveTex)
     {
         mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.emissiveColor *= mat_info.emissiveFactor.rgb;
+        mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
     }
     else
     {
         mat.emissiveColor = float3(0.0, 0.0, 0.0);
     }
 
-    if (mat_info.useMetallicRoughnessTex)
+    if (matInfos[meshIndex].useMetallicRoughnessTex)
     {
         float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
         mat.roughness = metallicRoughnessColor.g;
@@ -119,17 +113,17 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     else
     {
         mat.occlusionColor = 1.0;
-        mat.metallic = mat_info.metallicFactor;
-        mat.roughness = mat_info.roughnessFactor;
+        mat.metallic = matInfos[meshIndex].metallicFactor;
+        mat.roughness = matInfos[meshIndex].roughnessFactor;
     }
 
     // Occlusion if it is not in matallic roughness texture
-    if (mat_info.useOcclusionTex)
+    if (matInfos[meshIndex].useOcclusionTex)
     {
         mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
     }
 
-    if (mat_info.useNormalTex)
+    if (matInfos[meshIndex].useNormalTex)
     {
         mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
         mat.normalColor = mat.normalColor * 2.0 - 1.0;

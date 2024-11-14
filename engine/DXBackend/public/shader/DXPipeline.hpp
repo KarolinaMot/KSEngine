@@ -37,22 +37,22 @@ public:
     // Input
 
     DXPipelineBuilder& AddInput(uint32_t slot, const char* semantic_name, uint32_t semantic_index, DXGI_FORMAT format, bool instance_data);
-    DXPipelineBuilder& SetRootSignature(ID3D12RootSignature* root_signature);
+    DXPipelineBuilder& WithRootSignature(ID3D12RootSignature* root_signature);
 
     // Rasterizer
 
-    DXPipelineBuilder& SetRasterizer(const CD3DX12_RASTERIZER_DESC2& rasterizer);
-    DXPipelineBuilder& SetBlendState(const CD3DX12_BLEND_DESC& blend);
-    DXPipelineBuilder& SetPrimitiveTopology(const D3D12_PRIMITIVE_TOPOLOGY_TYPE& topology);
+    DXPipelineBuilder& WithRasterizer(const CD3DX12_RASTERIZER_DESC2& rasterizer);
+    DXPipelineBuilder& WithBlendState(const CD3DX12_BLEND_DESC& blend);
+    DXPipelineBuilder& WithPrimitiveTopology(const D3D12_PRIMITIVE_TOPOLOGY_TYPE& topology);
 
     // Depth stencil
 
-    DXPipelineBuilder& SetDepthFormat(const DXGI_FORMAT& format);
-    DXPipelineBuilder& SetDepthState(const CD3DX12_DEPTH_STENCIL_DESC2& depth);
+    DXPipelineBuilder& WithDepthFormat(const DXGI_FORMAT& format);
+    DXPipelineBuilder& WithDepthState(const CD3DX12_DEPTH_STENCIL_DESC2& depth);
 
     // Output
 
-    DXPipelineBuilder& SetMSAA(uint32_t count, uint32_t quality);
+    DXPipelineBuilder& WithMSAA(uint32_t count, uint32_t quality);
     DXPipelineBuilder& AddRenderTarget(DXGI_FORMAT format);
 
     // Shaders

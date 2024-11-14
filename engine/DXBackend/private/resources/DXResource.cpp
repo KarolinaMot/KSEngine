@@ -1,62 +1,65 @@
-// #include <resources/DXResource.hpp>
+#include <Log.hpp>
+#include <resources/DXResource.hpp>
 
-// DXResource::DXResource(ID3D12Device* device, const CD3DX12_HEAP_PROPERTIES& heapProperties, const CD3DX12_RESOURCE_DESC& descr, D3D12_CLEAR_VALUE* clearValue, const char* name, D3D12_RESOURCE_STATES state)
-// {
-//     CheckDX(device->CreateCommittedResource(
-//         &heapProperties,
-//         D3D12_HEAP_FLAG_NONE,
-//         &descr,
-//         state,
-//         clearValue,
-//         IID_PPV_ARGS(&mResource)));
+DXResource::MappedAddress DXResource::Map(size_t read_start, size_t read_end, uint32_t subresource)
+{
+    void* ptr = nullptr;
+    D3D12_RANGE range = { read_start, read_end };
+    resource->Map(subresource, &range, &ptr);
+    return { ptr, subresource, range };
+}
 
-//     mState = state;
-//     mDesc = descr;
+DXResource::MappedAddress DXResource::Map(uint32_t subresource)
+{
+    void* ptr = nullptr;
+    resource->Map(subresource, nullptr, &ptr);
+    return { ptr, subresource, std::nullopt };
+}
 
-//     device->GetCopyableFootprints(&descr, 0, 1, 0, nullptr, nullptr, nullptr, &mResourceSize);
+void DXResource::Unmap(MappedAddress&& ptr)
+{
+    D3D12_RANGE* range = ptr.read_range ? &ptr.read_range.value() : nullptr;
+    resource->Unmap(ptr.subresource, range);
+    ptr.Release();
+}
 
-//     wchar_t wString[4096];
-//     MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
-//     mResource->SetName(wString);
-// }
+DXResource::MappedAddress::~MappedAddress()
+{
+    if (ptr != 0)
+    {
+        Log("Memory Mapping Leak: Forgot to unmap mapped pointer");
+    }
+}
 
-// DXResource::DXResource(ID3D12Device* device, ComPtr<ID3D12Resource> res, D3D12_RESOURCE_STATES resState)
-// {
-//     mResource = res;
-//     mState = resState;
-//     auto description = mResource->GetDesc();
-//     device->GetCopyableFootprints(&description, 0, 1, 0, nullptr, nullptr, nullptr, &mResourceSize);
-// }
+DXResource::MappedAddress::MappedAddress(MappedAddress&& other)
+{
+    ptr = other.ptr;
+    other.ptr = 0;
 
-// DXResource::~DXResource()
-// {
-//     for (size_t i = 0; i < mUploadBuffers.size(); i++)
-//     {
-//         mUploadBuffers[i] = nullptr;
-//     }
-// }
+    read_range = other.read_range;
+    other.read_range = {};
 
-// void DXResource::ChangeState(D3D12_RESOURCE_STATES dstState)
-// {
-//     if (dstState == mState)
-//         return;
+    subresource = other.subresource;
+    other.subresource = 0;
+}
+DXResource::MappedAddress& DXResource::MappedAddress::operator=(MappedAddress&& other)
+{
+    if (this != &other)
+        return *this;
 
-//     mState = dstState;
-// }
+    if (ptr == 0)
+    {
+        Log("Memory Mapping Leak: Forgot to unmap mapped pointer");
+    }
 
-// void DXResource::CreateUploadBuffer(ID3D12Device* device, int dataSize, int currentSubresource)
-// {
-//     auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-//     auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize);
-//     if (mUploadBuffers.size() <= currentSubresource)
-//         mUploadBuffers.resize(currentSubresource + 1);
+    ptr = other.ptr;
+    other.ptr = 0;
 
-//     mUploadBuffers[currentSubresource] = std::make_unique<DXResource>(device, heapProperties, resourceDesc, nullptr, "Upload buffer", D3D12_RESOURCE_STATE_GENERIC_READ);
-// }
+    read_range = other.read_range;
+    other.read_range = {};
 
-// void DXResource::Update(DXCommandList* list, D3D12_SUBRESOURCE_DATA data, D3D12_RESOURCE_STATES dstState, int currentSubresource, int totalSubresources)
-// {
-//     list->Get()->ResourceBarrier(mResource, mState, D3D12_RESOURCE_STATE_COPY_DEST);
-//     UpdateSubresources(list->Get(), mResource.Get(), mUploadBuffers[currentSubresource]->mResource.Get(), 0, currentSubresource, totalSubresources, &data);
-//     list->ResourceBarrier(mResource, D3D12_RESOURCE_STATE_COPY_DEST, mState);
-// }
+    subresource = other.subresource;
+    other.subresource = 0;
+
+    return *this;
+}

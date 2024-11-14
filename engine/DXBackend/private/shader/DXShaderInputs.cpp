@@ -53,7 +53,7 @@ DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootConstant(const std::string&
     return *this;
 }
 
-DXShaderInputsBuilder& DXShaderInputsBuilder::AddStorageBuffer(const std::string& name, uint32_t shaderRegister, D3D12_ROOT_PARAMETER_TYPE buffer_type, D3D12_SHADER_VISIBILITY shader)
+DXShaderInputsBuilder& DXShaderInputsBuilder::AddRootDescriptor(const std::string& name, uint32_t shaderRegister, D3D12_ROOT_PARAMETER_TYPE buffer_type, D3D12_SHADER_VISIBILITY shader)
 {
     AddNameIndexMapping(name, shaderRegister);
 

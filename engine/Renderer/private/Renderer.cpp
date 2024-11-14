@@ -1,5 +1,19 @@
 #include <InfoStructs.hpp>
 #include <Renderer.hpp>
+#include <resources/DXResourceBuilder.hpp>
+
+namespace detail
+{
+
+template <typename T>
+void WriteResource(DXResource& resource, const T& source)
+{
+    auto mapped_ptr = resource.Map(0);
+    std::memcpy(mapped_ptr.Get(), &source, sizeof(T));
+    resource.Unmap(std::move(mapped_ptr));
+}
+
+}
 
 Renderer::Renderer(DXDevice& device, DXShaderCompiler& shader_compiler)
 {
@@ -9,23 +23,21 @@ Renderer::Renderer(DXDevice& device, DXShaderCompiler& shader_compiler)
 
         builder
             // Uniforms
-            .AddStorageBuffer("camera_matrix", 0, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
-            //.AddStorageBuffer("model_index", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
-            .AddStorageBuffer("model_matrix", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_VERTEX)
-            .AddStorageBuffer("light_info", 2, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddRootDescriptor("camera_matrix", 0, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddRootDescriptor("model_matrix", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_VERTEX)
+            .AddRootDescriptor("material_info", 2, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddRootDescriptor("light_info", 3, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
 
             // Textures (RO)
-            .AddStorageBuffer("base_tex", 0, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-            .AddStorageBuffer("normal_tex", 1, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-            .AddStorageBuffer("emissive_tex", 2, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-            .AddStorageBuffer("roughmet_tex", 3, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
-            .AddStorageBuffer("occlusion_tex", 4, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddDescriptorTable("base_tex", 0, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddDescriptorTable("normal_tex", 1, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddDescriptorTable("emissive_tex", 2, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddDescriptorTable("roughmet_tex", 3, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddDescriptorTable("occlusion_tex", 4, 1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
 
             // Data Buffers (RO)
-            .AddStorageBuffer("dir_lights", 5, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
-            .AddStorageBuffer("point_lights", 6, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
-            //.AddStorageBuffer("model_matrix", 7, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_VERTEX)
-            .AddStorageBuffer("material_info", 8, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddRootDescriptor("dir_lights", 5, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
+            .AddRootDescriptor("point_lights", 6, D3D12_ROOT_PARAMETER_TYPE_SRV, D3D12_SHADER_VISIBILITY_ALL)
 
             // Render Targets (RW)
             .AddDescriptorTable("PBRRes", 0, 1, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, D3D12_SHADER_VISIBILITY_ALL)
@@ -66,7 +78,7 @@ Renderer::Renderer(DXDevice& device, DXShaderCompiler& shader_compiler)
             .AddInput(3, "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
 
             // Shaders
-            .SetRootSignature(shader_inputs.GetSignature())
+            .WithRootSignature(shader_inputs.GetSignature())
             .AttachShader(deferred_ps)
             .AttachShader(deferred_vs)
             .AttachShader(resolve_cs)
@@ -87,25 +99,20 @@ Renderer::Renderer(DXDevice& device, DXShaderCompiler& shader_compiler)
         compute_pbr_pipeline = builder.BuildComputePipeline(device.Get(), L"Compute PBR Pipeline").value();
     }
 
-    // Buffer Setup
+    // Constant Buffer Setup
     {
-        auto& resource_heap = device.GetDescriptorHeap(DXDevice::DescriptorHeap::RESOURCE_HEAP);
-
-        // Camera
+        // Uniforms
         {
-            size_t requested_size = sizeof(CameraData) * 2;
-            size_t bufferSize = (requested_size + 255) & ~255;
+            DXResourceBuilder builder = DXResourceBuilder();
 
-            auto heap_props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            auto buffer_props = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+            builder
+                .WithHeapType(D3D12_HEAP_TYPE_UPLOAD)
+                .WithInitialState(D3D12_RESOURCE_STATE_GENERIC_READ);
 
-            CheckDX(device.Get()->CreateCommittedResource(
-                &heap_props,
-                D3D12_HEAP_FLAG_NONE,
-                &buffer_props,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(&camera_data)));
+            camera_data = builder.MakeBuffer(device.Get(), sizeof(CameraData), L"Camera Uniform Buffer").value();
+            model_matrix_data = builder.MakeBuffer(device.Get(), sizeof(ModelMatrixData), L"Model Matrix Uniform Buffer").value();
+            material_info_data = builder.MakeBuffer(device.Get(), sizeof(MaterialInfo), L"Material Info Uniform Buffer").value();
+            light_data = builder.MakeBuffer(device.Get(), sizeof(LightInfo), L"Light Info Uniform Buffer").value();
         }
     }
 }
@@ -115,13 +122,13 @@ void Renderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& 
     // Command List creation
     auto& command_queue = device.GetCommandQueue();
     auto command_list = command_queue.MakeCommandList(device.Get());
-    auto frame_parity = cpu_frame % FRAME_BUFFER_COUNT;
 
     // Clearing swapchain
     {
+        auto current_backbuffer = swapchain_target.GetBackbufferIndex();
 
-        auto* swapchain_buffer_resource = swapchain_target.GetBufferResource(frame_parity);
-        auto& swapchain_view_handle = swapchain_target.GetRenderTargetView(frame_parity);
+        auto* swapchain_buffer_resource = swapchain_target.GetBufferResource(current_backbuffer);
+        auto swapchain_view_handle = swapchain_target.GetRTV(current_backbuffer).value();
 
         auto to_render_target = CD3DX12_RESOURCE_BARRIER::Transition(
             swapchain_buffer_resource,
@@ -140,6 +147,9 @@ void Renderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& 
         command_list.SetResourceBarriers(1, &to_present);
     }
 
+    command_list.Get()->SetGraphicsRootSignature(shader_inputs.GetSignature());
+    command_list.Get()->SetPipelineState(graphics_deferred_pipeline.state.Get());
+
     // Update Camera Data
     {
         CameraData data {};
@@ -148,48 +158,47 @@ void Renderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& 
         data.m_cameraPos = -data.m_view[3];
         data.m_camera = data.m_proj * data.m_view;
 
-        // Map the buffer and copy data
-        void* mappedData;
+        detail::WriteResource(camera_data, data);
+        command_list.BindRootCBV(camera_data, 0);
+    }
+    // Update Light Info
+    {
+        LightInfo data {};
 
-        uint64_t camera_data_start = frame_parity * sizeof(CameraData);
-        CD3DX12_RANGE read_range { camera_data_start, camera_data_start + sizeof(CameraData) };
-        camera_data->Map(0, &read_range, &mappedData);
+        detail::WriteResource(light_data, data);
+        command_list.BindRootCBV(light_data, 3);
+    }
 
-        std::memcpy(mappedData, &data, sizeof(CameraData));
-        camera_data->Unmap(0, &read_range);
+    // For each model, draw
+    {
+        for (const auto& mat : models_to_render)
+        {
+            // Set model matrix
+            {
+                ModelMatrixData data {};
+                data.mModel = mat;
+                data.mTransposed = glm::transpose(mat);
 
-        command_list.Get()->SetGraphicsRootConstantBufferView(0, camera_data->GetGPUVirtualAddress() + camera_data_start);
+                detail::WriteResource(model_matrix_data, data);
+                command_list.BindRootCBV(model_matrix_data, 1);
+            }
+            // Set material data
+            {
+                MaterialInfo data {};
+
+                detail::WriteResource(material_info_data, data);
+                command_list.BindRootCBV(model_matrix_data, 2);
+            }
+            // Set
+        }
+
+        models_to_render.clear();
     }
 
     // Submit and Sync
     {
-        // dx_command_queue.SubmitCommandList(std::move(command_list));
-        // main_swapchain->SwapBuffers(true);
-
-        size_t next_frame_parity = swapchain_target.GetBackbufferIndex();
-
-        if (next_frame_parity == frame_parity)
-        {
-            // Log("Submitted CPU draw commands {}", cpu_frame);
-            frame_futures.at(next_frame_parity) = command_queue.SubmitCommandList(std::move(command_list));
-
-            auto next_parity = (next_frame_parity + 1) % FRAME_BUFFER_COUNT;
-            if (frame_futures.at(next_parity).IsComplete())
-            {
-                // Log("Presented GPU frame {} (non-blocking frame)", gpu_frame++);
-                swapchain_target.SwapBuffers(true);
-            }
-        }
-        else
-        {
-            frame_futures.at(next_frame_parity).Wait();
-            // Log("Presented GPU frame {} (blocking frame)", gpu_frame++);
-            swapchain_target.SwapBuffers(true);
-
-            // Log("Submitted CPU draw commands {}", cpu_frame);
-            frame_futures.at(next_frame_parity) = command_queue.SubmitCommandList(std::move(command_list));
-        }
+        // TODO: correctly implement frames in flight
+        command_queue.SubmitCommandList(std::move(command_list)).Wait();
+        swapchain_target.SwapBuffers(true);
     }
-
-    cpu_frame++;
 }
