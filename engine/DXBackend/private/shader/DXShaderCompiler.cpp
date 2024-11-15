@@ -2,9 +2,10 @@
 #include <Log.hpp>
 #include <shader/DXShaderCompiler.hpp>
 
-DXShaderCompiler::DXShaderCompiler(const wchar_t* shader_model_version)
+DXShaderCompiler::DXShaderCompiler(const wchar_t* shader_model_version, bool enable_optimization)
 {
     shader_version = shader_model_version;
+    optimizations = enable_optimization;
     CheckDX(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utilities)));
     CheckDX(utilities->CreateDefaultIncludeHandler(&include_handler));
     CheckDX(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler)));
@@ -44,6 +45,11 @@ std::optional<DXShader> DXShaderCompiler::CompileFromBytes(const std::vector<std
     {
         arguments.push_back(L"-I");
         arguments.push_back(include_path.c_str());
+    }
+
+    if (!optimizations)
+    {
+        arguments.push_back(L"-O0");
     }
 
     ComPtr<IDxcResult> compilation_result;

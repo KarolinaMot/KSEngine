@@ -26,6 +26,8 @@ function(module_default_init module)
     target_sources(${module} PUBLIC ${public_files} PRIVATE ${private_headers} PRIVATE ${private_sources})
     target_include_directories(${module} PUBLIC "public" PRIVATE "private")
 
+    target_link_libraries(${module} PRIVATE CompileFlags)
+
     if (ENABLE_PCH)
         target_link_libraries(${module} PRIVATE PCH)
         target_precompile_headers(${module} REUSE_FROM PCH)

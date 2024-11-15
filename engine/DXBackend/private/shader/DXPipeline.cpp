@@ -18,10 +18,14 @@ DXPipelineBuilder::DXPipelineBuilder()
 
     pipeline_desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     pipeline_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC2(D3D12_DEFAULT);
-    pipeline_desc.RasterizerState = CD3DX12_RASTERIZER_DESC2(D3D12_DEFAULT);
+
+    auto rasterizer = CD3DX12_RASTERIZER_DESC2(D3D12_DEFAULT);
+    rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+
+    pipeline_desc.RasterizerState = rasterizer;
 
     pipeline_desc.SampleDesc = DXGI_SAMPLE_DESC { 1, 0 };
-    pipeline_desc.SampleMask = 0;
+    pipeline_desc.SampleMask = 0xFFFFFFFF;
 
     pipeline_desc.VS = D3D12_SHADER_BYTECODE { nullptr, 0 };
     pipeline_desc.PS = D3D12_SHADER_BYTECODE { nullptr, 0 };
@@ -46,7 +50,6 @@ DXPipelineBuilder::DXPipelineBuilder()
 
 std::optional<DXPipeline> DXPipelineBuilder::BuildGraphicsPipeline(ID3D12Device* device, const wchar_t* name) const
 {
-
     auto graphics_desc = pipeline_desc.GraphicsDescV0();
 
     ComPtr<ID3D12PipelineState> pipeline;
@@ -145,6 +148,7 @@ DXPipelineBuilder& DXPipelineBuilder::AttachShader(const DXShader& shader)
     {
     case DXShader::Type::PIXEL:
         pipeline_desc.PS = shader_source;
+        break;
     case DXShader::Type::VERTEX:
         pipeline_desc.VS = shader_source;
         break;

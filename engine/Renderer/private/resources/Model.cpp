@@ -259,7 +259,7 @@ std::optional<ResourceHandle<Model>> ModelImporter::ImportFromFile(const FileIO:
 
     FileIO::MakeDirectory(out_dir.string());
 
-    std::vector<ResourceHandle<Mesh>> mesh_paths;
+    std::vector<ResourceHandle<MeshData>> mesh_paths;
 
     // Process all meshes
     {

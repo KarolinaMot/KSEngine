@@ -21,7 +21,7 @@ void ApplicationModule::Initialize(Engine& e)
     e.AddExecutionDelegate(this, &ApplicationModule::ProcessInput, ExecutionOrder::LAST);
 }
 
-void ApplicationModule::Shutdown(Engine& e)
+void ApplicationModule::Shutdown(MAYBE_UNUSED Engine& e)
 {
     main_window.reset();
     glfwTerminate();

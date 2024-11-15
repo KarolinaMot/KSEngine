@@ -13,7 +13,7 @@ public:
     static inline constexpr auto DEFAULT_ENTRY_POINT = L"main";
     static inline constexpr auto DEFAULT_SHADER_MODEL_VERSION = L"6_3";
 
-    DXShaderCompiler(const wchar_t* shader_model_version = DEFAULT_SHADER_MODEL_VERSION);
+    DXShaderCompiler(const wchar_t* shader_model_version = DEFAULT_SHADER_MODEL_VERSION, bool enable_optimizations = true);
 
     NON_COPYABLE(DXShaderCompiler);
     NON_MOVABLE(DXShaderCompiler);
@@ -23,6 +23,7 @@ public:
     std::optional<DXShader> CompileFromPath(const std::string& path, DXShader::Type type, const wchar_t* entry_point = DEFAULT_ENTRY_POINT);
 
 private:
+    bool optimizations {};
     std::wstring shader_version {};
     std::vector<std::wstring> include_paths {};
 

@@ -1,5 +1,6 @@
+#include <DeferredRenderer.hpp>
 #include <Engine.hpp>
-#include <Renderer.hpp>
+#include <ForwardRenderer.hpp>
 #include <display/DXSwapchain.hpp>
 #include <memory>
 #include <sync/DXFuture.hpp>
@@ -14,9 +15,15 @@ private:
     void Shutdown(MAYBE_UNUSED Engine& e) override;
 
     void RenderFrame(Engine& e);
+    void UpdateCamera(Engine& e);
 
     std::unique_ptr<DXSwapchain> main_swapchain {};
-    std::unique_ptr<Renderer> renderer {};
+
+    std::unique_ptr<DeferredRenderer> deferred_renderer {};
+    std::unique_ptr<ForwardRenderer> forward_renderer {};
+
+    glm::vec3 camera_pos = { 0.0f, 0.0f, -3.0f };
+    glm::vec3 camera_rot {};
 
     Mesh test_mesh {};
     // std::shared_ptr<Device> device {};

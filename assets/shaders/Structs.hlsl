@@ -33,8 +33,8 @@ struct PBRMaterial
 
 struct CameraMats
 {
-    float4x4 mProjection;
     float4x4 mView;
+    float4x4 mProjection;
     float4x4 mCamera;
     float4 mCameraPos;
 };

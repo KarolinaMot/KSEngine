@@ -114,7 +114,7 @@ void RawInputHandler::scroll_callback(GLFWwindow* window, double xoffset, double
     }
 }
 
-void RawInputHandler::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void RawInputHandler::key_callback(GLFWwindow* window, int key, MAYBE_UNUSED int scancode, int action, MAYBE_UNUSED int mods)
 {
     if (auto* data = RawInputHandler::get_handler(window))
     {
@@ -132,7 +132,7 @@ void RawInputHandler::key_callback(GLFWwindow* window, int key, int scancode, in
     }
 }
 
-void RawInputHandler::mousebutton_callback(GLFWwindow* window, int button, int action, int mods)
+void RawInputHandler::mousebutton_callback(GLFWwindow* window, int button, int action, MAYBE_UNUSED int mods)
 {
     if (auto* data = RawInputHandler::get_handler(window))
     {

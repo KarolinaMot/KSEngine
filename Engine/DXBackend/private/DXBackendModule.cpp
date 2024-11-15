@@ -10,7 +10,7 @@ constexpr bool DEBUG_MODE = false;
 constexpr bool DEBUG_MODE = true;
 #endif
 
-void DXBackendModule::Initialize(Engine& e)
+void DXBackendModule::Initialize(MAYBE_UNUSED Engine& e)
 {
     factory = std::make_unique<DXFactory>(DEBUG_MODE);
 
@@ -28,9 +28,9 @@ void DXBackendModule::Initialize(Engine& e)
     device = std::make_unique<DXDevice>(
         factory->CreateDevice(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, selection_criteria));
 
-    shader_compiler = std::make_unique<DXShaderCompiler>();
+    shader_compiler = std::make_unique<DXShaderCompiler>(DXShaderCompiler::DEFAULT_SHADER_MODEL_VERSION, false);
 }
 
-void DXBackendModule::Shutdown(Engine& e)
+void DXBackendModule::Shutdown(MAYBE_UNUSED Engine& e)
 {
 }

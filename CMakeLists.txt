@@ -15,6 +15,11 @@ option(ENABLE_UNITY "Compile with Unity Builds" OFF)
 include(FetchContent)
 include(scripts/cmake/code-modules.cmake)
 
+# COMPILE SETTINGS
+
+add_library(CompileFlags INTERFACE)
+target_compile_options(CompileFlags INTERFACE -Wall INTERFACE -Wextra)
+
 # PCH
 
 if (ENABLE_PCH)

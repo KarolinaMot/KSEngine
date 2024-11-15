@@ -35,5 +35,6 @@ glm::uvec2 DXSwapchain::GetResolution() const
 void DXSwapchain::SwapBuffers(bool vsync) const
 {
     auto flags = vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
-    swapchain->Present(static_cast<uint32_t>(vsync), flags);
+    uint32_t sync_interval = vsync ? 1 : 0;
+    swapchain->Present(sync_interval, flags);
 }

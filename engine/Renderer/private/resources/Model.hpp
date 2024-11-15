@@ -2,11 +2,11 @@
 #include <Common.hpp>
 
 #include "Material.hpp"
+
 #include <FileIO.hpp>
 #include <assimp/postprocess.h>
+#include <resources/Mesh.hpp>
 #include <resources/Serialization.hpp>
-
-class Mesh;
 
 // Imported models are flat, without a transform hierarchy
 class Model
@@ -22,7 +22,7 @@ public:
     };
 
     std::vector<Node> nodes;
-    std::vector<ResourceHandle<Mesh>> meshes;
+    std::vector<ResourceHandle<MeshData>> meshes;
     std::vector<Material> materials;
 
 private:
