@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include <Log.hpp>
+#include <Timers.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <resources/Image.hpp>
@@ -12,7 +13,6 @@
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <serialization/MathTypes.hpp>
-
 
 #include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
@@ -229,6 +229,7 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 
 std::optional<Model> ModelUtility::ImportFromFile(const std::string& source_model, uint32_t post_processing_flags)
 {
+    SectionStopwatch import_timer { "Model Import Time" };
     std::filesystem::path source_model_path = source_model;
 
     Assimp::Importer importer;

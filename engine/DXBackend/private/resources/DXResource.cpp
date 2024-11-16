@@ -1,25 +1,19 @@
 #include <Log.hpp>
 #include <gpu_resources/DXResource.hpp>
 
-DXResource::MappedAddress DXResource::Map(size_t read_start, size_t read_end, uint32_t subresource)
+DXResource::MappedAddress DXResource::Map(uint32_t subresource, std::optional<D3D12_RANGE> read_range)
 {
     void* ptr = nullptr;
-    D3D12_RANGE range = { read_start, read_end };
-    resource->Map(subresource, &range, &ptr);
-    return { ptr, subresource, range };
+    D3D12_RANGE* read = read_range ? &read_range.value() : nullptr;
+
+    resource->Map(subresource, read, &ptr);
+    return { ptr, subresource };
 }
 
-DXResource::MappedAddress DXResource::Map(uint32_t subresource)
+void DXResource::Unmap(MappedAddress&& ptr, std::optional<D3D12_RANGE> write_range)
 {
-    void* ptr = nullptr;
-    resource->Map(subresource, nullptr, &ptr);
-    return { ptr, subresource, std::nullopt };
-}
-
-void DXResource::Unmap(MappedAddress&& ptr)
-{
-    D3D12_RANGE* range = ptr.read_range ? &ptr.read_range.value() : nullptr;
-    resource->Unmap(ptr.subresource, range);
+    D3D12_RANGE* write = write_range ? &write_range.value() : nullptr;
+    resource->Unmap(ptr.subresource, write);
     ptr.Release();
 }
 
@@ -34,10 +28,7 @@ DXResource::MappedAddress::~MappedAddress()
 DXResource::MappedAddress::MappedAddress(MappedAddress&& other)
 {
     ptr = other.ptr;
-    other.ptr = 0;
-
-    read_range = other.read_range;
-    other.read_range = {};
+    other.ptr = nullptr;
 
     subresource = other.subresource;
     other.subresource = 0;
@@ -54,9 +45,6 @@ DXResource::MappedAddress& DXResource::MappedAddress::operator=(MappedAddress&& 
 
     ptr = other.ptr;
     other.ptr = 0;
-
-    read_range = other.read_range;
-    other.read_range = {};
 
     subresource = other.subresource;
     other.subresource = 0;

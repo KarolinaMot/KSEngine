@@ -2,29 +2,8 @@
 
 #include <InfoStructs.hpp>
 #include <gpu_resources/DXResourceBuilder.hpp>
+#include <rendering/Utility.hpp>
 #include <tracy/Tracy.hpp>
-
-namespace detail
-{
-template <typename T>
-void WriteResource(DXResource& resource, const T& source)
-{
-    auto mapped_ptr = resource.Map(0);
-    std::memcpy(mapped_ptr.Get(), &source, sizeof(T));
-    resource.Unmap(std::move(mapped_ptr));
-}
-
-template <size_t S>
-std::array<CD3DX12_RESOURCE_BARRIER, S> MakeTransitionBarriers(const std::array<ID3D12Resource*, S>& resources, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
-{
-    std::array<CD3DX12_RESOURCE_BARRIER, S> out {};
-    for (size_t i = 0; i < S; i++)
-    {
-        out.at(i) = CD3DX12_RESOURCE_BARRIER::Transition(resources.at(i), before, after);
-    }
-    return out;
-}
-}
 
 ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_compiler, glm::uvec2 screen_size)
 {
@@ -129,8 +108,8 @@ ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_comp
         triangle_verts = builder.MakeBuffer(device.Get(), sizeof(vertices)).value();
         triangle_indices = builder.MakeBuffer(device.Get(), sizeof(indices)).value();
 
-        detail::WriteResource(triangle_verts, vertices);
-        detail::WriteResource(triangle_indices, indices);
+        RendererUtility::WriteResource(triangle_verts, vertices);
+        RendererUtility::WriteResource(triangle_indices, indices);
     }
 }
 
@@ -188,7 +167,7 @@ void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwap
             data.m_cameraPos = -data.m_view[3];
             data.m_camera = data.m_proj * data.m_view;
 
-            detail::WriteResource(camera_data, data);
+            RendererUtility::WriteResource(camera_data, data);
             command_list.BindRootCBV(camera_data, shader_inputs.GetInputIndex("camera_matrix").value());
         }
 
@@ -202,7 +181,7 @@ void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwap
                     data.mModel = glm::identity<glm::mat4>();
                     data.mTransposed = glm::identity<glm::mat4>();
 
-                    detail::WriteResource(model_matrix_data, data);
+                    RendererUtility::WriteResource(model_matrix_data, data);
                     command_list.BindRootCBV(model_matrix_data, shader_inputs.GetInputIndex("model_matrix").value());
                 }
 

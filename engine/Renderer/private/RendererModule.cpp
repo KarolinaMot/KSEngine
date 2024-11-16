@@ -75,7 +75,6 @@ void RendererModule::Initialize(Engine& e)
     main_swapchain = std::make_unique<DXSwapchain>(swapchain, dx_device.Get());
 
     auto& compiler = backend.GetShaderCompiler();
-    deferred_renderer = std::make_unique<DeferredRenderer>(dx_device, compiler, main_swapchain->GetResolution());
     forward_renderer = std::make_unique<ForwardRenderer>(dx_device, compiler, main_swapchain->GetResolution());
 
     e.AddExecutionDelegate(this, &RendererModule::RenderFrame, ExecutionOrder::RENDER);
@@ -90,7 +89,7 @@ void RendererModule::Initialize(Engine& e)
         // auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
         // JSONLoader model_loader { model_file };
 
-        Model model = ModelUtility::LoadFromFile("assets/models/DamagedHelmet/DamagedHelmet.json").value();
+        Model model = ModelUtility::ImportFromFile("assets/models/DamagedHelmet.glb").value();
         // model_loader(model);
 
         auto mesh_file = FileIO::OpenReadStream(model.meshes.front()).value();

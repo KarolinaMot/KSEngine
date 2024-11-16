@@ -3,7 +3,7 @@
 #include <Common.hpp>
 #include <gpu_resources/DXResource.hpp>
 
-struct Mesh
+struct GPUMesh
 {
     DXResource position {};
     DXResource normals {};

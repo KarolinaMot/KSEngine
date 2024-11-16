@@ -1,4 +1,5 @@
-#include <DeferredRenderer.hpp>
+#pragma once
+
 #include <Engine.hpp>
 #include <ForwardRenderer.hpp>
 #include <display/DXSwapchain.hpp>
@@ -19,7 +20,7 @@ private:
 
     std::unique_ptr<DXSwapchain> main_swapchain {};
 
-    std::unique_ptr<DeferredRenderer> deferred_renderer {};
+    // std::unique_ptr<DeferredRenderer> deferred_renderer {};
     std::unique_ptr<ForwardRenderer> forward_renderer {};
 
     glm::vec3 camera_pos = { 0.0f, 0.0f, -3.0f };

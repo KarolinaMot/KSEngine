@@ -14,3 +14,19 @@ public:
 private:
     std::chrono::high_resolution_clock::time_point _start;
 };
+
+// RAII Stopwatch
+class SectionStopwatch
+{
+public:
+    SectionStopwatch() = default;
+    SectionStopwatch(const char* name);
+    ~SectionStopwatch();
+
+    NON_COPYABLE(SectionStopwatch);
+    NON_MOVABLE(SectionStopwatch);
+
+private:
+    const char* name = nullptr;
+    Stopwatch track {};
+};
