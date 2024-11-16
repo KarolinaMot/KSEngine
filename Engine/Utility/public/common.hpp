@@ -22,3 +22,8 @@
 
 #define MAYBE_UNUSED [[maybe_unused]]
 #define NO_DISCARD [[nodiscard]]
+
+#include <cstddef>
+
+void* operator new(std::size_t count);
+void operator delete(void* ptr) noexcept;

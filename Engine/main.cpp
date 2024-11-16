@@ -26,20 +26,9 @@ void print_frame_time(Engine& e)
     }
 }
 
-void check_k(Engine& e)
-{
-    auto& input = e.GetModule<ApplicationModule>().GetMainWindow().GetInputHandler();
-    auto& window = e.GetModule<ApplicationModule>().GetMainWindow();
-
-    if (window.IsMinimized())
-    {
-        Log("Window is minimized");
-    }
-}
-
 int main(int argc, const char* argv[])
 {
-    Log("Starting up Engine");
+    Log("Starting up KSEngine");
 
     for (int i = 0; i < argc; i++)
     {
@@ -56,6 +45,5 @@ int main(int argc, const char* argv[])
 
     return engine
         .AddExecutionDelegate(print_frame_time, ExecutionOrder::LAST)
-        .AddExecutionDelegate(check_k, ExecutionOrder::UPDATE)
         .Run();
 }

@@ -33,15 +33,15 @@ ModuleInterface* Engine::GetModuleUntyped(std::type_index type) const
         return nullptr;
     }
 }
-Engine& Engine::AddExecutionDelegate(Delegate<void(Engine&)>&& delegate, ExecutionOrder order)
+Engine& Engine::AddExecutionDelegate(EngineDelegate&& delegate, ExecutionOrder order)
 {
     // sorted emplace, based on tick priority
     auto compare = [](const auto& new_elem, const auto& old_elem)
     {
-        return new_elem.second < old_elem.second;
+        return new_elem.order < old_elem.order;
     };
 
-    auto pair = std::make_pair(std::move(delegate), order);
+    auto pair = EngineDelegateInfo { std::move(delegate), order };
 
     auto insert_it = std::upper_bound(
         m_execution.begin(), m_execution.end(), pair, compare);

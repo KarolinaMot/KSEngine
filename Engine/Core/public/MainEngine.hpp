@@ -23,7 +23,7 @@ public:
         return *this;
     }
 
-    MainEngine& AddExecutionDelegate(Delegate<void(Engine&)>&& delegate, ExecutionOrder order);
+    MainEngine& AddExecutionDelegate(EngineDelegate&& delegate, ExecutionOrder order);
 
     // Exposes Engine::Reset in this class (we only want this class to reset the engine)
     using Engine::Reset;

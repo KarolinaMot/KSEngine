@@ -1,22 +1,10 @@
 #pragma once
 #include <Common.hpp>
-#include <Delegate.hpp>
+#include <EngineDelegate.hpp>
 #include <ModuleInterface.hpp>
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-
-enum class ExecutionOrder : uint32_t
-{
-    FIRST = 0,
-    PRE_UPDATE = 5,
-    UPDATE = 10,
-    POST_UPDATE = 15,
-    PRE_RENDER = 20,
-    RENDER = 25,
-    POST_RENDER = 30,
-    LAST = 35
-};
 
 // Service locator for all modules
 // Instantiate a MainEngine to run the engine, which inherits from this class
@@ -38,10 +26,11 @@ public:
     Module* GetModuleSafe();
 
     // Adds a delegate (function) to be executed once per frame
-    Engine& AddExecutionDelegate(Delegate<void(Engine&)>&& delegate, ExecutionOrder order);
+    Engine& AddExecutionDelegate(EngineDelegate&& delegate, ExecutionOrder order);
 
-    template <typename Module>
-    Engine& AddExecutionDelegate(Module* module, void (Module::*member_func)(Engine&), ExecutionOrder order);
+    // Adds a delegate (function) to be executed once per frame
+    template <typename M>
+    Engine& AddExecutionDelegate(M* module, EngineDelegate::MemberFunction<M>, ExecutionOrder order);
 
     // Sets the exit code for the program and stops any further execution
     // Should not be called in Shutdown
@@ -50,7 +39,14 @@ public:
 protected:
     int m_exitCode = 0;
     bool m_exitRequested = false;
-    std::vector<std::pair<Delegate<void(Engine&)>, ExecutionOrder>> m_execution {};
+
+    struct EngineDelegateInfo
+    {
+        EngineDelegate delegate;
+        ExecutionOrder order;
+    };
+
+    std::vector<EngineDelegateInfo> m_execution {};
 
     // Cleans up all modules
     void Reset();
@@ -85,8 +81,8 @@ Module* Engine::GetModuleSafe()
     return static_cast<Module*>(GetModuleUntyped(std::type_index(typeid(Module))));
 }
 
-template <typename Module>
-inline Engine& Engine::AddExecutionDelegate(Module* module, void (Module::*member_func)(Engine&), ExecutionOrder order)
+template <typename M>
+inline Engine& Engine::AddExecutionDelegate(M* module, EngineDelegate::MemberFunction<M> member_fn, ExecutionOrder order)
 {
-    return AddExecutionDelegate({ module, member_func }, order);
+    return AddExecutionDelegate({ module, member_fn }, order);
 }

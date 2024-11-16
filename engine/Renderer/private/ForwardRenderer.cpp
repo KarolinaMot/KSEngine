@@ -2,6 +2,7 @@
 
 #include <InfoStructs.hpp>
 #include <gpu_resources/DXResourceBuilder.hpp>
+#include <tracy/Tracy.hpp>
 
 namespace detail
 {
@@ -135,95 +136,102 @@ ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_comp
 
 void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& swapchain_target)
 {
-    // Command List creation
+
     auto& command_queue = device.GetCommandQueue();
     auto command_list = command_queue.MakeCommandList(device.Get());
-
-    // Graphics Pass
-    command_list.Get()->SetGraphicsRootSignature(shader_inputs.GetSignature());
-    command_list.Get()->SetPipelineState(pipeline.state.Get());
-    command_list.Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    // Update Scissor and Rect
     {
-        glm::vec2 resolution = swapchain_target.GetResolution();
+        ZoneScopedN("Graphics Command recording");
 
-        CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, resolution.x, resolution.y);
-        command_list.Get()->RSSetViewports(1, &viewport);
+        // Graphics Pass
+        command_list.Get()->SetGraphicsRootSignature(shader_inputs.GetSignature());
+        command_list.Get()->SetPipelineState(pipeline.state.Get());
+        command_list.Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        CD3DX12_RECT scissors = CD3DX12_RECT(0, 0, resolution.x, resolution.y);
-        command_list.Get()->RSSetScissorRects(1, &scissors);
-    }
-
-    // Clear Swapchain Render Target
-    {
-        auto current_backbuffer = swapchain_target.GetBackbufferIndex();
-        auto* swapchain_buffer_resource = swapchain_target.GetBufferResource(current_backbuffer);
-
-        auto swapchain_rtv = swapchain_target.GetRTV(current_backbuffer).value();
-        auto dsv = depth_heap.GetCPUAddress(0).value();
-
-        auto to_render_target = CD3DX12_RESOURCE_BARRIER::Transition(
-            swapchain_buffer_resource,
-            D3D12_RESOURCE_STATE_PRESENT,
-            D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        command_list.SetResourceBarriers(1, &to_render_target);
-
-        command_list.ClearRenderTarget(swapchain_rtv, glm::vec4(0.3f, 0.3f, 0.3f, 0.0f));
-        command_list.ClearDepthStencil(dsv, 1.0f, 0);
-
-        command_list.Get()->OMSetRenderTargets(1, &swapchain_rtv, false, &dsv);
-    }
-
-    // Update Camera Data
-    {
-        CameraData data {};
-        data.m_view = camera.GetView();
-        data.m_proj = camera.GetProjection();
-
-        data.m_cameraPos = -data.m_view[3];
-        data.m_camera = data.m_proj * data.m_view;
-
-        detail::WriteResource(camera_data, data);
-        command_list.BindRootCBV(camera_data, shader_inputs.GetInputIndex("camera_matrix").value());
-    }
-
-    {
-        for (const auto& [mat, mesh] : models_to_render)
+        // Update Scissor and Rect
         {
+            glm::vec2 resolution = swapchain_target.GetResolution();
 
-            // Set model matrix
+            CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, resolution.x, resolution.y);
+            command_list.Get()->RSSetViewports(1, &viewport);
+
+            CD3DX12_RECT scissors = CD3DX12_RECT(0, 0, resolution.x, resolution.y);
+            command_list.Get()->RSSetScissorRects(1, &scissors);
+        }
+
+        // Clear Swapchain Render Target
+        {
+            auto current_backbuffer = swapchain_target.GetBackbufferIndex();
+            auto* swapchain_buffer_resource = swapchain_target.GetBufferResource(current_backbuffer);
+
+            auto swapchain_rtv = swapchain_target.GetRTV(current_backbuffer).value();
+            auto dsv = depth_heap.GetCPUAddress(0).value();
+
+            auto to_render_target = CD3DX12_RESOURCE_BARRIER::Transition(
+                swapchain_buffer_resource,
+                D3D12_RESOURCE_STATE_PRESENT,
+                D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+            command_list.SetResourceBarriers(1, &to_render_target);
+
+            command_list.ClearRenderTarget(swapchain_rtv, glm::vec4(0.3f, 0.3f, 0.3f, 0.0f));
+            command_list.ClearDepthStencil(dsv, 1.0f, 0);
+
+            command_list.Get()->OMSetRenderTargets(1, &swapchain_rtv, false, &dsv);
+        }
+
+        // Update Camera Data
+        {
+            CameraData data {};
+            data.m_view = camera.GetView();
+            data.m_proj = camera.GetProjection();
+
+            data.m_cameraPos = -data.m_view[3];
+            data.m_camera = data.m_proj * data.m_view;
+
+            detail::WriteResource(camera_data, data);
+            command_list.BindRootCBV(camera_data, shader_inputs.GetInputIndex("camera_matrix").value());
+        }
+
+        {
+            for (const auto& [mat, mesh] : models_to_render)
             {
-                ModelMatrixData data {};
-                data.mModel = glm::identity<glm::mat4>();
-                data.mTransposed = glm::identity<glm::mat4>();
 
-                detail::WriteResource(model_matrix_data, data);
-                command_list.BindRootCBV(model_matrix_data, shader_inputs.GetInputIndex("model_matrix").value());
+                // Set model matrix
+                {
+                    ModelMatrixData data {};
+                    data.mModel = glm::identity<glm::mat4>();
+                    data.mTransposed = glm::identity<glm::mat4>();
+
+                    detail::WriteResource(model_matrix_data, data);
+                    command_list.BindRootCBV(model_matrix_data, shader_inputs.GetInputIndex("model_matrix").value());
+                }
+
+                // Set Input Assembly
+                {
+                    D3D12_VERTEX_BUFFER_VIEW vertex_views[1] = {
+                        { mesh->position.GetAddress(), mesh->position.GetDimensions().x, sizeof(glm::vec3) }
+                    };
+
+                    command_list.Get()->IASetVertexBuffers(0, 1, vertex_views);
+
+                    D3D12_INDEX_BUFFER_VIEW index_view {};
+                    index_view.BufferLocation = mesh->indices.GetAddress();
+                    index_view.SizeInBytes = mesh->indices.GetDimensions().x;
+                    index_view.Format = DXGI_FORMAT_R32_UINT;
+
+                    command_list.Get()->IASetIndexBuffer(&index_view);
+                    command_list.Get()->DrawIndexedInstanced(mesh->index_count, 1, 0, 0, 0);
+                }
             }
 
-            // Set Input Assembly
-            {
-                D3D12_VERTEX_BUFFER_VIEW vertex_views[1] = {
-                    { mesh->position.GetAddress(), mesh->position.GetDimensions().x, sizeof(glm::vec3) }
-                };
-
-                command_list.Get()->IASetVertexBuffers(0, 1, vertex_views);
-
-                D3D12_INDEX_BUFFER_VIEW index_view {};
-                index_view.BufferLocation = mesh->indices.GetAddress();
-                index_view.SizeInBytes = mesh->indices.GetDimensions().x;
-                index_view.Format = DXGI_FORMAT_R32_UINT;
-
-                command_list.Get()->IASetIndexBuffer(&index_view);
-                command_list.Get()->DrawIndexedInstanced(mesh->index_count, 1, 0, 0, 0);
-            }
+            models_to_render.clear();
         }
     }
 
     // Submit and Sync
     {
+        ZoneScopedN("Command Submit and Present");
+
         // TODO: correctly implement frames in flight
 
         auto current_backbuffer = swapchain_target.GetBackbufferIndex();
