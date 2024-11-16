@@ -2,14 +2,15 @@
 #include <Common.hpp>
 #include <DXDevice.hpp>
 
+#include <GPUMesh.hpp>
 #include <Geometry.hpp>
-#include <Mesh.hpp>
 #include <display/DXSwapchain.hpp>
 #include <gpu_resources/DXResource.hpp>
 #include <shader/DXPipeline.hpp>
 #include <shader/DXShaderCompiler.hpp>
 #include <shader/DXShaderInputs.hpp>
 #include <sync/DXFuture.hpp>
+
 
 class DeferredRenderer
 {

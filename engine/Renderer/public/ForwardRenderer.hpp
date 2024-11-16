@@ -6,10 +6,11 @@
 #include <shader/DXShaderCompiler.hpp>
 #include <shader/DXShaderInputs.hpp>
 
+#include <GPUMesh.hpp>
 #include <Geometry.hpp>
-#include <Mesh.hpp>
 #include <display/DXSwapchain.hpp>
 #include <glm/vec2.hpp>
+
 
 class ForwardRenderer
 {

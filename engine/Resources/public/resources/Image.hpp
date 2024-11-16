@@ -2,12 +2,10 @@
 #include <Common.hpp>
 
 #include <cassert>
-#include <cereal/cereal.hpp>
 #include <optional>
 #include <resources/ByteBuffer.hpp>
 
 // Format: RGBA8
-// Can be expanded to handle more formats
 class Image
 {
 public:
@@ -18,8 +16,7 @@ public:
         , height(height)
         , data(std::move(data))
     {
-        assert(this->data.GetView<uint8_t>().count() == width * height * 4
-            && "RGBA is currently only supported and amount of data supplied mismatches the width and height provided");
+        assert(this->data.GetSize() == width * height * 4 && "Input data is not correctly formatted");
     }
 
     uint32_t GetWidth() const { return width; }
@@ -31,7 +28,11 @@ private:
     ByteBuffer data {};
 };
 
-std::optional<Image> LoadImageFileFromMemory(const void* filedata, size_t byte_length);
-std::optional<ByteBuffer> SaveImageToPNG(const Image& image);
+namespace ImageUtility
+{
+std::optional<Image> LoadImageFromFile(const std::string& path);
+std::optional<Image> LoadImageFromData(const void* data, size_t size);
 
-CEREAL_CLASS_VERSION(Image, 0);
+std::optional<ByteBuffer> SaveImageToPNGBuffer(const Image& image);
+bool SaveImageToPNGFile(const Image& image, const std::string& file);
+}

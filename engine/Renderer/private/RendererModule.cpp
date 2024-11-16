@@ -83,17 +83,17 @@ void RendererModule::Initialize(Engine& e)
 
     // Load test model
 
-    MeshData mesh_data {};
+    Mesh mesh_data {};
 
     {
 
         // auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
         // JSONLoader model_loader { model_file };
 
-        ResourceHandle<Model> model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+        Model model = ModelUtility::LoadFromFile("assets/models/DamagedHelmet/DamagedHelmet.json").value();
         // model_loader(model);
 
-        auto mesh_file = FileIO::OpenReadStream(model.Get().meshes.front()).value();
+        auto mesh_file = FileIO::OpenReadStream(model.meshes.front()).value();
         BinaryLoader mesh_loader { mesh_file };
 
         mesh_loader(mesh_data);

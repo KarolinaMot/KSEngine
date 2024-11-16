@@ -1,7 +1,7 @@
 #include <FileIO.hpp>
 #include <filesystem>
 
-std::optional<std::ifstream> FileIO::OpenReadStream(const Path& path,
+std::optional<std::ifstream> FileIO::OpenReadStream(const std::string& path,
     int flags)
 {
     if (Exists(path))
@@ -14,8 +14,7 @@ std::optional<std::ifstream> FileIO::OpenReadStream(const Path& path,
     }
 }
 
-std::optional<std::ofstream>
-FileIO::OpenWriteStream(const Path& path, int flags)
+std::optional<std::ofstream> FileIO::OpenWriteStream(const std::string& path, int flags)
 {
     std::ofstream stream(path, flags);
     if (stream.is_open())
@@ -28,12 +27,12 @@ FileIO::OpenWriteStream(const Path& path, int flags)
     }
 }
 
-bool FileIO::Exists(const Path& path)
+bool FileIO::Exists(const std::string& path)
 {
     return std::filesystem::exists(path);
 }
 
-bool FileIO::MakeDirectory(const Path& path)
+bool FileIO::MakeDirectory(const std::string& path)
 {
     std::error_code e {};
     std::filesystem::create_directory(path, e);
@@ -43,8 +42,7 @@ bool FileIO::MakeDirectory(const Path& path)
         return false;
 }
 
-std::optional<FileIO::FileTime>
-FileIO::GetLastModifiedTime(const Path& path)
+std::optional<FileIO::FileTime> FileIO::GetLastModifiedTime(const std::string& path)
 {
     if (Exists(path))
     {

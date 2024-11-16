@@ -1,24 +1,32 @@
 #include <resources/Model.hpp>
 
 #include <FileIO.hpp>
+#include <filesystem>
+
 #include <Log.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <resources/Image.hpp>
+#include <resources/Mesh.hpp>
+
+#include <cereal/types/utility.hpp>
+#include <cereal/types/vector.hpp>
+#include <serialization/MathTypes.hpp>
+
+
 #include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
-#include <filesystem>
-#include <glm/gtc/type_ptr.hpp>
-#include <resources/Image.hpp>
-#include <resources/Mesh.hpp>
 
 namespace detail
 {
 
-MeshData ProcessMesh(const aiMesh* mesh)
+Mesh ProcessMesh(const aiMesh* mesh)
 {
     using namespace MeshConstants;
 
     // Build Mesh
-    MeshData new_mesh {};
+    Mesh new_mesh {};
 
     // Indices
     if (mesh->HasFaces())
@@ -86,7 +94,7 @@ Image ProcessImage(const aiTexture* texture)
 {
     if (texture->mHeight == 0)
     {
-        if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth))
+        if (auto image_load = ImageUtility::LoadImageFromData(texture->pcData, texture->mWidth))
         {
             return image_load.value();
         }
@@ -219,7 +227,7 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 }
 }
 
-std::optional<ResourceHandle<Model>> ModelImporter::ImportFromFile(const FileIO::Path& source_model, uint32_t post_processing_flags)
+std::optional<Model> ModelUtility::ImportFromFile(const std::string& source_model, uint32_t post_processing_flags)
 {
     std::filesystem::path source_model_path = source_model;
 
@@ -323,7 +331,7 @@ std::optional<ResourceHandle<Model>> ModelImporter::ImportFromFile(const FileIO:
             auto output_path = (images_out / (image_name + ".png")).string();
 
             auto output_file = FileIO::OpenWriteStream(output_path);
-            auto compressed_data = SaveImageToPNG(image);
+            auto compressed_data = ImageUtility::SaveImageToPNGBuffer(image);
 
             if (output_file && compressed_data)
             {
@@ -376,11 +384,66 @@ std::optional<ResourceHandle<Model>> ModelImporter::ImportFromFile(const FileIO:
 
         json(imported);
         Log("Successfully imported model from {}", source_model_path.string());
-        return ResourceHandle<Model> { std::move(imported) };
+        return imported;
     }
     else
     {
         Log("Failed to create output model file {}", out_model_file.string());
         return std::nullopt;
     }
+}
+
+void Model::save(JSONSaver& ar, const uint32_t v) const
+{
+    switch (v)
+    {
+    case 0:
+        ar(cereal::make_nvp("Nodes", nodes));
+        ar(cereal::make_nvp("Meshes", meshes));
+        ar(cereal::make_nvp("Materials", materials));
+        break;
+
+    default:
+        break;
+    }
+}
+void Model::load(JSONLoader& ar, const uint32_t v)
+{
+    switch (v)
+    {
+    case 0:
+        ar(cereal::make_nvp("Nodes", nodes));
+        ar(cereal::make_nvp("Meshes", meshes));
+        ar(cereal::make_nvp("Materials", materials));
+        break;
+
+    default:
+        break;
+    }
+}
+
+void Model::Node::save(JSONSaver& ar) const
+{
+    ar(cereal::make_nvp("Transform", transform));
+    ar(cereal::make_nvp("MeshAndMaterial", mesh_material_indices));
+}
+
+void Model::Node::load(JSONLoader& ar)
+{
+    ar(cereal::make_nvp("Transform", transform));
+    ar(cereal::make_nvp("MeshAndMaterial", mesh_material_indices));
+}
+
+std::optional<Model> ModelUtility::LoadFromFile(const std::string& path)
+{
+    auto stream = FileIO::OpenReadStream(path);
+
+    if (!stream)
+        return std::nullopt;
+
+    JSONLoader loader { stream.value() };
+
+    Model out {};
+    loader(out);
+    return out;
 }

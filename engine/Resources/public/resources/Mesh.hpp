@@ -1,22 +1,21 @@
 #pragma once
 
 #include <Common.hpp>
+#include <SerializationCommon.hpp>
 
-#include <cereal/types/map.hpp>
-#include <cereal/types/string.hpp>
 #include <map>
-#include <memory>
+#include <optional>
 #include <resources/ByteBuffer.hpp>
 
 namespace MeshConstants
 {
 
-const std::string ATTRIBUTE_INDICES_NAME = "INDICES";
-const std::string ATTRIBUTE_POSITIONS_NAME = "POSITIONS";
-const std::string ATTRIBUTE_NORMALS_NAME = "NORMALS";
-const std::string ATTRIBUTE_TEXTURE_UVS_NAME = "UVS";
-const std::string ATTRIBUTE_TANGENTS_NAME = "TANGENTS";
-const std::string ATTRIBUTE_BITANGENTS_NAME = "BITANGENTS";
+constexpr auto ATTRIBUTE_INDICES_NAME = "INDICES";
+constexpr auto ATTRIBUTE_POSITIONS_NAME = "POSITIONS";
+constexpr auto ATTRIBUTE_NORMALS_NAME = "NORMALS";
+constexpr auto ATTRIBUTE_TEXTURE_UVS_NAME = "UVS";
+constexpr auto ATTRIBUTE_TANGENTS_NAME = "TANGENTS";
+constexpr auto ATTRIBUTE_BITANGENTS_NAME = "BITANGENTS";
 
 const std::unordered_map<std::string, size_t> ATTRIBUTE_STRIDES {
     { ATTRIBUTE_INDICES_NAME, sizeof(uint32_t) },
@@ -29,52 +28,25 @@ const std::unordered_map<std::string, size_t> ATTRIBUTE_STRIDES {
 
 }
 
-class MeshData
+class Mesh
 {
 public:
-    MeshData() = default;
+    Mesh() = default;
+
     void AddAttribute(const std::string& name, ByteBuffer&& data);
     const ByteBuffer* GetAttribute(const std::string& name) const;
 
-    auto begin() const { return attribute_data.begin(); }
-    auto end() const { return attribute_data.end(); }
-
 private:
-    friend class ::cereal::access;
-
-    template <typename A>
-    void save(A& ar, const uint32_t v) const;
-
-    template <typename A>
-    void load(A& ar, const uint32_t v);
-
     std::map<std::string, ByteBuffer> attribute_data;
+
+    friend class cereal::access;
+    void save(BinarySaver& ar, const uint32_t v) const;
+    void load(BinaryLoader& ar, const uint32_t v);
 };
-template <typename A>
-inline void MeshData::save(A& ar, const uint32_t v) const
+
+CEREAL_CLASS_VERSION(Mesh, 0);
+
+namespace MeshUtility
 {
-    switch (v)
-    {
-    case 0:
-        ar(cereal::make_nvp("Attributes", attribute_data));
-        break;
-
-    default:
-        break;
-    }
+std::optional<Mesh> LoadMeshFromFile(const std::string& path);
 }
-template <typename A>
-inline void MeshData::load(A& ar, const uint32_t v)
-{
-    switch (v)
-    {
-    case 0:
-        ar(cereal::make_nvp("Attributes", attribute_data));
-        break;
-
-    default:
-        break;
-    }
-}
-
-CEREAL_CLASS_VERSION(MeshData, 0);
