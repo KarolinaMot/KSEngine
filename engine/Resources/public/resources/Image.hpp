@@ -24,7 +24,7 @@ public:
 
     uint32_t GetWidth() const { return width; }
     uint32_t GetHeight() const { return height; }
-    const ByteBuffer& GetData() const { return data; }
+    const ByteBuffer& GetStorage() const { return data; }
 
 private:
     uint32_t width {}, height {};

@@ -1,4 +1,4 @@
-#include "Mesh.hpp"
+#include <resources/Mesh.hpp>
 
 void MeshData::AddAttribute(const std::string& name, ByteBuffer&& data)
 {

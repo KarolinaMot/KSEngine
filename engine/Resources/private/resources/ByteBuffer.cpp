@@ -1,4 +1,4 @@
-#include "ByteBuffer.hpp"
+#include <resources/ByteBuffer.hpp>
 
 ByteBuffer::ByteBuffer(const void* data, size_t byte_count)
 {

@@ -1,12 +1,8 @@
-#include "Image.hpp"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb/stb_image_write.h>
+#include <resources/Image.hpp>
 
 #include <Log.hpp>
+#include <stb/stb_image.h>
+#include <stb/stb_image_write.h>
 
 std::optional<Image> LoadImageFileFromMemory(const void* filedata, size_t byte_length)
 {
@@ -16,7 +12,7 @@ std::optional<Image> LoadImageFileFromMemory(const void* filedata, size_t byte_l
     if (stbi_result != nullptr)
     {
         ByteBuffer image_data { stbi_result, static_cast<uint32_t>(width * height * 4) };
-        STBI_FREE(stbi_result);
+        std::free(stbi_result);
         return Image { std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
     }
     else
@@ -28,16 +24,23 @@ std::optional<Image> LoadImageFileFromMemory(const void* filedata, size_t byte_l
 
 std::optional<ByteBuffer> SaveImageToPNG(const Image& image)
 {
-    const auto* image_data = image.GetData().GetView<unsigned char>().begin();
+    const auto* image_data = image.GetStorage().GetData();
 
-    int out_length {};
-    auto* stbi_result = stbi_write_png_to_mem(image_data, image.GetWidth() * 4, image.GetWidth(), image.GetHeight(), 4, &out_length);
-
-    if (stbi_result)
+    auto write_to_byte_buffer = [](void* context, void* data, int size)
     {
-        ByteBuffer compressed_data { stbi_result, static_cast<size_t>(out_length) };
-        STBI_FREE(stbi_result);
-        return compressed_data;
+        auto& out_byte_buffer = *static_cast<ByteBuffer*>(context);
+        out_byte_buffer = { data, static_cast<size_t>(size) };
+    };
+
+    ByteBuffer output {};
+    bool result = static_cast<bool>(stbi_write_png_to_func(
+        write_to_byte_buffer, &output,
+        image.GetWidth(), image.GetHeight(), 4,
+        image_data, image.GetWidth() * 4));
+
+    if (result)
+    {
+        return output;
     }
     else
     {

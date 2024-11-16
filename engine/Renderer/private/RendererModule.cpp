@@ -4,11 +4,11 @@
 #include <Log.hpp>
 #include <RawInputHandler.hpp>
 #include <RendererModule.hpp>
+#include <SerializationCommon.hpp>
 #include <TimeModule.hpp>
 #include <gpu_resources/DXResourceBuilder.hpp>
 #include <resources/Mesh.hpp>
 #include <resources/Model.hpp>
-#include <resources/Serialization.hpp>
 #include <shader/DXShaderInputs.hpp>
 
 void RendererModule::UpdateCamera(Engine& e)
@@ -86,13 +86,14 @@ void RendererModule::Initialize(Engine& e)
     MeshData mesh_data {};
 
     {
-        auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
-        JSONLoader model_loader { model_file };
 
-        Model model {};
-        model_loader(model);
+        // auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
+        // JSONLoader model_loader { model_file };
 
-        auto mesh_file = FileIO::OpenReadStream(model.meshes.front().path).value();
+        ResourceHandle<Model> model = ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+        // model_loader(model);
+
+        auto mesh_file = FileIO::OpenReadStream(model.Get().meshes.front()).value();
         BinaryLoader mesh_loader { mesh_file };
 
         mesh_loader(mesh_data);

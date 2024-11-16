@@ -1,10 +1,14 @@
 #pragma once
 
 #include <Common.hpp>
+#include <SerializationCommon.hpp>
 
+#include <cereal/types/map.hpp>
 #include <cereal/types/variant.hpp>
+
+#include <map>
 #include <optional>
-#include <resources/Serialization.hpp>
+#include <serialization/MathTypes.hpp>
 #include <variant>
 
 namespace MaterialConstants
@@ -38,7 +42,7 @@ class Texture;
 class Material
 {
 public:
-    using InputParameter = std::variant<bool, int, float, glm::vec4, ResourceHandle<Texture>>;
+    using InputParameter = std::variant<bool, int, float, glm::vec4, std::string>;
 
     Material() = default;
 

@@ -1,12 +1,15 @@
 #pragma once
 #include <Common.hpp>
 
-#include "Material.hpp"
+#include <resources/Material.hpp>
 
 #include <FileIO.hpp>
+#include <ResourceHandle.hpp>
+#include <SerializationCommon.hpp>
 #include <assimp/postprocess.h>
+#include <cereal/types/utility.hpp>
+#include <cereal/types/vector.hpp>
 #include <resources/Mesh.hpp>
-#include <resources/Serialization.hpp>
 
 // Imported models are flat, without a transform hierarchy
 class Model
@@ -22,7 +25,7 @@ public:
     };
 
     std::vector<Node> nodes;
-    std::vector<ResourceHandle<MeshData>> meshes;
+    std::vector<std::string> meshes;
     std::vector<Material> materials;
 
 private:
@@ -81,8 +84,7 @@ constexpr uint32_t DEFAULT_POST_PROCESSING_FLAGS = aiProcess_Triangulate | aiPro
 
 // Converts a model file into a .json file for the engine to use
 // Return value is the newly imported model file
-std::optional<ResourceHandle<Model>>
-ImportFromFile(const FileIO::Path& source_model, uint32_t post_process_flags = DEFAULT_POST_PROCESSING_FLAGS);
+std::optional<ResourceHandle<Model>> ImportFromFile(const FileIO::Path& source_model, uint32_t post_process_flags = DEFAULT_POST_PROCESSING_FLAGS);
 }
 
 CEREAL_CLASS_VERSION(Model, 0);

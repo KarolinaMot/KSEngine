@@ -2,7 +2,7 @@
 
 #include <Common.hpp>
 
-#include <resources/Serialization.hpp>
+#include <SerializationCommon.hpp>
 #include <vector>
 
 class ByteBuffer

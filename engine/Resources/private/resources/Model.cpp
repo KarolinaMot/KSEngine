@@ -1,7 +1,5 @@
-#include "Model.hpp"
+#include <resources/Model.hpp>
 
-#include "Image.hpp"
-#include "Mesh.hpp"
 #include <FileIO.hpp>
 #include <Log.hpp>
 #include <assimp/GltfMaterial.h>
@@ -9,6 +7,8 @@
 #include <assimp/scene.h>
 #include <filesystem>
 #include <glm/gtc/type_ptr.hpp>
+#include <resources/Image.hpp>
+#include <resources/Mesh.hpp>
 
 namespace detail
 {
@@ -192,27 +192,27 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 
     if (auto path = GetTexture(aiTextureType_BASE_COLOR))
     {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(BASE_TEXTURE_NAME, path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
     {
-        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(NORMAL_TEXTURE_NAME, path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_LIGHTMAP))
     {
-        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(OCCLUSION_TEXTURE_NAME, path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_METALNESS))
     {
-        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(METALLIC_TEXTURE_NAME, path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_EMISSIVE))
     {
-        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(EMISSIVE_TEXTURE_NAME, path.value());
     }
 
     return out;
@@ -259,7 +259,7 @@ std::optional<ResourceHandle<Model>> ModelImporter::ImportFromFile(const FileIO:
 
     FileIO::MakeDirectory(out_dir.string());
 
-    std::vector<ResourceHandle<MeshData>> mesh_paths;
+    std::vector<std::string> mesh_paths;
 
     // Process all meshes
     {
@@ -376,13 +376,11 @@ std::optional<ResourceHandle<Model>> ModelImporter::ImportFromFile(const FileIO:
 
         json(imported);
         Log("Successfully imported model from {}", source_model_path.string());
-        return ResourceHandle<Model> { out_model_file.string() };
+        return ResourceHandle<Model> { std::move(imported) };
     }
     else
     {
         Log("Failed to create output model file {}", out_model_file.string());
         return std::nullopt;
     }
-
-    return ResourceHandle<Model> { out_model_file.string() };
 }
