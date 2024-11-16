@@ -6,10 +6,12 @@
 #include <RendererModule.hpp>
 #include <SerializationCommon.hpp>
 #include <TimeModule.hpp>
+#include <constants/MeshContants.hpp>
 #include <gpu_resources/DXResourceBuilder.hpp>
 #include <resources/Mesh.hpp>
 #include <resources/Model.hpp>
 #include <shader/DXShaderInputs.hpp>
+
 
 void RendererModule::UpdateCamera(Engine& e)
 {
@@ -85,7 +87,6 @@ void RendererModule::Initialize(Engine& e)
     Mesh mesh_data {};
 
     {
-
         // auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
         // JSONLoader model_loader { model_file };
 

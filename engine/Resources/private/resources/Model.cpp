@@ -10,6 +10,9 @@
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
 
+#include <constants/MaterialConstants.hpp>
+#include <constants/MeshContants.hpp>
+
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <serialization/MathTypes.hpp>
