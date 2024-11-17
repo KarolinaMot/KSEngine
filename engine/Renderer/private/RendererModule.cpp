@@ -85,87 +85,40 @@ void RendererModule::Initialize(Engine& e)
     // Load test model
 
     Mesh mesh_data {};
+    Material material_data {};
 
     {
-        // auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
-        // JSONLoader model_loader { model_file };
+        auto model_file = FileIO::OpenReadStream("assets/models/DamagedHelmet/DamagedHelmet.json").value();
+        JSONLoader model_loader { model_file };
 
-        Model model = ModelUtility::ImportFromFile("assets/models/DamagedHelmet.glb").value();
-        // model_loader(model);
+        // Model model = ModelUtility::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+        Model model {};
+        model_loader(model);
 
         auto mesh_file = FileIO::OpenReadStream(model.meshes.front()).value();
         BinaryLoader mesh_loader { mesh_file };
 
         mesh_loader(mesh_data);
 
-        Log("Successfully loaded mesh data");
+        material_data = model.materials.front();
+
+        Log("Successfully loaded model data");
     }
 
     // Upload GPU resources
     {
         auto upload_commands = dx_device.GetCommandQueue().MakeCommandList(dx_device.Get());
-        auto result = GPUMeshUtility::CreateGPUMesh(upload_commands, dx_device.Get(), mesh_data);
-        dx_device.GetCommandQueue().SubmitCommandList(std::move(upload_commands)).Wait();
 
-        helmet = std::move(result.mesh);
+        auto mesh_result = GPUMeshUtility::CreateGPUMesh(upload_commands, dx_device.Get(), mesh_data);
+        auto material_result = GPUMaterialUtility::CreateGPUMaterial(upload_commands, dx_device.Get(), material_data);
+
+        dx_device.GetCommandQueue()
+            .SubmitCommandList(std::move(upload_commands))
+            .Wait();
+
+        helmet_mesh = std::move(mesh_result.mesh);
+        helmet_material = std::move(material_result.material);
     }
-
-    // {
-    //     using namespace MeshConstants;
-    //     auto* positions = mesh_data.GetAttribute(AttributeNames[POSITIONS]);
-    //     auto* normals = mesh_data.GetAttribute(AttributeNames[NORMALS]);
-    //     auto* texture_uvs = mesh_data.GetAttribute(AttributeNames[TEXTURE_UVS]);
-    //     auto* tangents = mesh_data.GetAttribute(AttributeNames[TANGENTS]);
-    //     auto* indices = mesh_data.GetAttribute(AttributeNames[INDICES]);
-
-    //     auto upload_data = [](ID3D12Device* device, const ByteBuffer* data)
-    //     {
-    //         DXResourceBuilder builder {};
-    //         builder
-    //             .WithHeapType(D3D12_HEAP_TYPE_UPLOAD)
-    //             .WithInitialState(D3D12_RESOURCE_STATE_COPY_SOURCE);
-
-    //         auto upload_buffer = builder.MakeBuffer(device, data->GetSize()).value();
-    //         auto mapped_ptr = upload_buffer.Map(0);
-    //         std::memcpy(mapped_ptr.Get(), data->GetData(), data->GetSize());
-    //         upload_buffer.Unmap(std::move(mapped_ptr));
-
-    //         return upload_buffer;
-    //     };
-
-    //     auto positions_upload_data = upload_data(dx_device.Get(), positions);
-    //     auto normals_upload_data = upload_data(dx_device.Get(), normals);
-    //     auto texture_uvs_upload_data = upload_data(dx_device.Get(), texture_uvs);
-    //     auto tangents_upload_data = upload_data(dx_device.Get(), tangents);
-    //     auto indices_upload_data = upload_data(dx_device.Get(), indices);
-
-    //     auto command_list = dx_device.GetCommandQueue().MakeCommandList(dx_device.Get());
-
-    //     auto stage_data = [](ID3D12Device* device, DXCommandList& command_list, DXResource& upload_resource, size_t size)
-    //     {
-    //         DXResourceBuilder builder {};
-    //         auto resource = builder.MakeBuffer(device, size).value();
-    //         command_list.CopyBuffer(upload_resource, 0, resource, 0, size);
-
-    //         CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-    //             resource.Get(),
-    //             D3D12_RESOURCE_STATE_COPY_DEST,
-    //             D3D12_RESOURCE_STATE_GENERIC_READ);
-
-    //         command_list.SetResourceBarriers(1, &barrier);
-
-    //         return resource;
-    //     };
-
-    //     test_mesh.position = stage_data(dx_device.Get(), command_list, positions_upload_data, positions->GetSize());
-    //     test_mesh.normals = stage_data(dx_device.Get(), command_list, normals_upload_data, normals->GetSize());
-    //     test_mesh.uvs = stage_data(dx_device.Get(), command_list, texture_uvs_upload_data, texture_uvs->GetSize());
-    //     test_mesh.tangents = stage_data(dx_device.Get(), command_list, tangents_upload_data, tangents->GetSize());
-    //     test_mesh.indices = stage_data(dx_device.Get(), command_list, indices_upload_data, indices->GetSize());
-    //     test_mesh.index_count = indices->GetView<uint32_t>().count();
-
-    //     dx_device.GetCommandQueue().SubmitCommandList(std::move(command_list)).Wait();
-    // }
 }
 
 void RendererModule::Shutdown(Engine& e)
@@ -188,6 +141,14 @@ void RendererModule::RenderFrame(Engine& e)
     auto& backend = e.GetModule<DXBackendModule>();
 
     glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
-    forward_renderer->QueueModel(transform, &helmet);
+    transform = glm::rotate(transform, glm::pi<float>(), World::UP);
+    transform = glm::rotate(transform, glm::pi<float>() * 0.5f, World::RIGHT);
+
+    static float rotation_add = 0.0f;
+    rotation_add += e.GetModule<TimeModule>().GetDeltaTime().count();
+
+    // transform = glm::rotate(transform, rotation_add, World::UP);
+
+    forward_renderer->QueueModel({ transform, &helmet_mesh, &helmet_material });
     forward_renderer->RenderFrame(camera, backend.GetDevice(), *main_swapchain);
 }

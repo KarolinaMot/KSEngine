@@ -37,12 +37,12 @@ std::optional<DXResource> DXResourceBuilder::MakeBuffer(ID3D12Device* device, si
     }
 
     resource->SetName(name);
-    return DXResource { resource, glm::uvec3 { buffer_size, 0, 0 } };
+    return DXResource { resource, desc };
 }
 
 std::optional<DXResource> DXResourceBuilder::MakeTexture2D(ID3D12Device* device, glm::uvec2 size, DXGI_FORMAT format, const wchar_t* name) const
 {
-    CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(format, size.x, size.y);
+    CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(format, size.x, size.y, 1, 1);
     auto resource = AllocateResource(device, desc);
 
     if (resource == nullptr)
@@ -52,7 +52,7 @@ std::optional<DXResource> DXResourceBuilder::MakeTexture2D(ID3D12Device* device,
     }
 
     resource->SetName(name);
-    return DXResource { resource, glm::uvec3 { size.x, size.y, 0 } };
+    return DXResource { resource, desc };
 }
 
 DXResourceBuilder& DXResourceBuilder::WithHeapType(D3D12_HEAP_TYPE type)

@@ -9,6 +9,8 @@
 #include <Geometry.hpp>
 #include <display/DXSwapchain.hpp>
 #include <glm/vec2.hpp>
+
+#include <rendering/GPUMaterial.hpp>
 #include <rendering/GPUMesh.hpp>
 
 class ForwardRenderer
@@ -21,10 +23,21 @@ public:
     NON_MOVABLE(ForwardRenderer);
 
     void RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& swapchain_target);
-    void QueueModel(const glm::mat4& transform, const GPUMesh* mesh) { models_to_render.emplace_back(transform, mesh); }
+
+    struct ModelDrawEntry
+    {
+        glm::mat4 transform {};
+        GPUMesh* mesh {};
+        GPUMaterial* material {};
+    };
+
+    void QueueModel(const ModelDrawEntry& entry)
+    {
+        models_to_render.emplace_back(entry);
+    }
 
 private:
-    std::vector<std::pair<glm::mat4, const GPUMesh*>> models_to_render;
+    std::vector<ModelDrawEntry> models_to_render;
 
     // Pipelines
     DXShaderInputs shader_inputs {};

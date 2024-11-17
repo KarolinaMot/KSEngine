@@ -5,17 +5,21 @@
 #include <rendering/Utility.hpp>
 #include <tracy/Tracy.hpp>
 
-
 ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_compiler, glm::uvec2 screen_size)
 {
     // Root Signature Setup
     {
         auto builder = DXShaderInputsBuilder();
 
+        DXShaderInputsBuilder::StaticSamplerParameters sampler {};
+        sampler.address_mode = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+
         builder
             // Uniforms
             .AddRootDescriptor("camera_matrix", 0, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_ALL)
-            .AddRootDescriptor("model_matrix", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_VERTEX);
+            .AddRootDescriptor("model_matrix", 1, D3D12_ROOT_PARAMETER_TYPE_CBV, D3D12_SHADER_VISIBILITY_VERTEX)
+            .AddDescriptorTable("material", 0, MaterialConstants::TEXTURE_COUNT, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddStaticSampler("sampler", 0, sampler, D3D12_SHADER_VISIBILITY_PIXEL);
 
         shader_inputs = builder.Build(device.Get(), L"Forward Pipeline Inputs").value();
     }
@@ -39,6 +43,10 @@ ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_comp
 
             // Inputs
             .AddInput(0, "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
+            .AddInput(1, "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
+            .AddInput(2, "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, false)
+            .AddInput(3, "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
+            .AddInput(4, "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, false)
 
             // Shaders
             .WithRootSignature(shader_inputs.GetSignature())
@@ -148,14 +156,22 @@ void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwap
         }
 
         {
-            for (const auto& [mat, mesh] : models_to_render)
+            for (const auto& [mat, mesh, material] : models_to_render)
             {
+                // Set Material
+                {
+                    auto descriptor_heap = material->texture_heap.Get();
+                    command_list.Get()->SetDescriptorHeaps(1, &descriptor_heap);
+                    command_list.Get()->SetGraphicsRootDescriptorTable(
+                        shader_inputs.GetInputIndex("material").value(),
+                        material->texture_heap.GetGPUAddress(0).value());
+                }
 
                 // Set model matrix
                 {
                     ModelMatrixData data {};
-                    data.mModel = glm::identity<glm::mat4>();
-                    data.mTransposed = glm::identity<glm::mat4>();
+                    data.mModel = mat;
+                    data.mTransposed = glm::transpose(glm::inverse(mat));
 
                     RendererUtility::WriteResource(model_matrix_data, data);
                     command_list.BindRootCBV(model_matrix_data, shader_inputs.GetInputIndex("model_matrix").value());

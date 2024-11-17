@@ -13,9 +13,9 @@ public:
 
     DXResource() = default;
 
-    DXResource(ComPtr<ID3D12Resource> resource, glm::uvec3 dimensions)
+    DXResource(ComPtr<ID3D12Resource> resource, CD3DX12_RESOURCE_DESC info)
         : resource(resource)
-        , dimensions(dimensions)
+        , resource_desc(info)
     {
     }
 
@@ -28,14 +28,14 @@ public:
 
     ID3D12Resource* Get() { return resource.Get(); }
     D3D12_GPU_VIRTUAL_ADDRESS GetAddress() const { return resource->GetGPUVirtualAddress(); }
-    glm::uvec3 GetDimensions() const { return dimensions; }
+    CD3DX12_RESOURCE_DESC GetInfo() const { return resource_desc; }
 
     MappedAddress Map(uint32_t subresource = 0, std::optional<D3D12_RANGE> read_range = std::nullopt);
     void Unmap(MappedAddress&& ptr, std::optional<D3D12_RANGE> write_range = std::nullopt);
 
 private:
     ComPtr<ID3D12Resource> resource {};
-    glm::uvec3 dimensions {};
+    CD3DX12_RESOURCE_DESC resource_desc {};
 
     // Helper class for memory mapping
 public:

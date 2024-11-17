@@ -22,7 +22,7 @@ public:
     ByteView<T> GetView() const { return ByteView<T>(storage.data(), storage.size()); }
 
     size_t GetSize() const { return storage.size(); }
-    const void* GetData() const { return storage.data(); }
+    const std::byte* GetData() const { return storage.data(); }
 
 private:
     std::vector<std::byte> storage {};

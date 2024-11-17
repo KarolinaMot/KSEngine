@@ -26,5 +26,6 @@ private:
     glm::vec3 camera_pos = { 0.0f, 0.0f, -3.0f };
     glm::vec3 camera_rot {};
 
-    GPUMesh helmet {};
+    GPUMesh helmet_mesh {};
+    GPUMaterial helmet_material {};
 };

@@ -1,7 +1,7 @@
 #ifndef PBR
 #define PBR
 
-#include "Structs.hlsl"
+#include "Structs.hlsli"
 
 float3 FSchlick(float3 F0, float3 F90, float vDotH)
 {

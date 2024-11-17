@@ -8,13 +8,12 @@
 #include <constants/MaterialConstants.hpp>
 #include <gpu_resources/DXDescriptorHeap.hpp>
 #include <gpu_resources/DXResource.hpp>
-#include <rendering/InfoStructs.hpp>
 #include <resources/Material.hpp>
 
 // PBR Material for Graphics Rendering
 struct GPUMaterial
 {
-    DXResource base_texture {};
+    std::array<DXResource, MaterialConstants::TEXTURE_COUNT> textures {};
     DXDescriptorHeap<SRV> texture_heap {};
 };
 

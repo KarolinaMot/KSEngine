@@ -20,5 +20,3 @@ private:
     std::unique_ptr<DXDevice> device {};
     std::unique_ptr<DXShaderCompiler> shader_compiler {};
 };
-
-void Test();
