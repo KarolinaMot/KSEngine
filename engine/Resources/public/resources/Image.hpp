@@ -2,6 +2,7 @@
 #include <Common.hpp>
 
 #include <cassert>
+#include <glm/vec2.hpp>
 #include <optional>
 #include <resources/ByteBuffer.hpp>
 
@@ -11,20 +12,18 @@ class Image
 public:
     Image() = default;
 
-    Image(ByteBuffer&& data, uint32_t width, uint32_t height)
-        : width(width)
-        , height(height)
+    Image(ByteBuffer&& data, glm::uvec2 dimensions)
+        : dimensions(dimensions)
         , data(std::move(data))
     {
-        assert(this->data.GetSize() == width * height * 4 && "Input data is not correctly formatted");
+        assert(this->data.GetSize() == dimensions.x * dimensions.y * 4 && "Input data is not correctly formatted");
     }
 
-    uint32_t GetWidth() const { return width; }
-    uint32_t GetHeight() const { return height; }
+    glm::uvec2 GetDimensions() const { return dimensions; }
     const ByteBuffer& GetStorage() const { return data; }
 
 private:
-    uint32_t width {}, height {};
+    glm::uvec2 dimensions {};
     ByteBuffer data {};
 };
 

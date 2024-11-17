@@ -101,61 +101,71 @@ void RendererModule::Initialize(Engine& e)
         Log("Successfully loaded mesh data");
     }
 
+    // Upload GPU resources
     {
-        auto* positions = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_POSITIONS_NAME);
-        auto* normals = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME);
-        auto* texture_uvs = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME);
-        auto* tangents = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_TANGENTS_NAME);
-        auto* indices = mesh_data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME);
+        auto upload_commands = dx_device.GetCommandQueue().MakeCommandList(dx_device.Get());
+        auto result = GPUMeshUtility::CreateGPUMesh(upload_commands, dx_device.Get(), mesh_data);
+        dx_device.GetCommandQueue().SubmitCommandList(std::move(upload_commands)).Wait();
 
-        auto upload_data = [](ID3D12Device* device, const ByteBuffer* data)
-        {
-            DXResourceBuilder builder {};
-            builder
-                .WithHeapType(D3D12_HEAP_TYPE_UPLOAD)
-                .WithInitialState(D3D12_RESOURCE_STATE_COPY_SOURCE);
-
-            auto upload_buffer = builder.MakeBuffer(device, data->GetSize()).value();
-            auto mapped_ptr = upload_buffer.Map(0);
-            std::memcpy(mapped_ptr.Get(), data->GetData(), data->GetSize());
-            upload_buffer.Unmap(std::move(mapped_ptr));
-
-            return upload_buffer;
-        };
-
-        auto positions_upload_data = upload_data(dx_device.Get(), positions);
-        auto normals_upload_data = upload_data(dx_device.Get(), normals);
-        auto texture_uvs_upload_data = upload_data(dx_device.Get(), texture_uvs);
-        auto tangents_upload_data = upload_data(dx_device.Get(), tangents);
-        auto indices_upload_data = upload_data(dx_device.Get(), indices);
-
-        auto command_list = dx_device.GetCommandQueue().MakeCommandList(dx_device.Get());
-
-        auto stage_data = [](ID3D12Device* device, DXCommandList& command_list, DXResource& upload_resource, size_t size)
-        {
-            DXResourceBuilder builder {};
-            auto resource = builder.MakeBuffer(device, size).value();
-            command_list.CopyBuffer(upload_resource, 0, resource, 0, size);
-
-            CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                resource.Get(),
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATE_GENERIC_READ);
-
-            command_list.SetResourceBarriers(1, &barrier);
-
-            return resource;
-        };
-
-        test_mesh.position = stage_data(dx_device.Get(), command_list, positions_upload_data, positions->GetSize());
-        test_mesh.normals = stage_data(dx_device.Get(), command_list, normals_upload_data, normals->GetSize());
-        test_mesh.uvs = stage_data(dx_device.Get(), command_list, texture_uvs_upload_data, texture_uvs->GetSize());
-        test_mesh.tangents = stage_data(dx_device.Get(), command_list, tangents_upload_data, tangents->GetSize());
-        test_mesh.indices = stage_data(dx_device.Get(), command_list, indices_upload_data, indices->GetSize());
-        test_mesh.index_count = indices->GetView<uint32_t>().count();
-
-        dx_device.GetCommandQueue().SubmitCommandList(std::move(command_list)).Wait();
+        helmet = std::move(result.mesh);
     }
+
+    // {
+    //     using namespace MeshConstants;
+    //     auto* positions = mesh_data.GetAttribute(AttributeNames[POSITIONS]);
+    //     auto* normals = mesh_data.GetAttribute(AttributeNames[NORMALS]);
+    //     auto* texture_uvs = mesh_data.GetAttribute(AttributeNames[TEXTURE_UVS]);
+    //     auto* tangents = mesh_data.GetAttribute(AttributeNames[TANGENTS]);
+    //     auto* indices = mesh_data.GetAttribute(AttributeNames[INDICES]);
+
+    //     auto upload_data = [](ID3D12Device* device, const ByteBuffer* data)
+    //     {
+    //         DXResourceBuilder builder {};
+    //         builder
+    //             .WithHeapType(D3D12_HEAP_TYPE_UPLOAD)
+    //             .WithInitialState(D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+    //         auto upload_buffer = builder.MakeBuffer(device, data->GetSize()).value();
+    //         auto mapped_ptr = upload_buffer.Map(0);
+    //         std::memcpy(mapped_ptr.Get(), data->GetData(), data->GetSize());
+    //         upload_buffer.Unmap(std::move(mapped_ptr));
+
+    //         return upload_buffer;
+    //     };
+
+    //     auto positions_upload_data = upload_data(dx_device.Get(), positions);
+    //     auto normals_upload_data = upload_data(dx_device.Get(), normals);
+    //     auto texture_uvs_upload_data = upload_data(dx_device.Get(), texture_uvs);
+    //     auto tangents_upload_data = upload_data(dx_device.Get(), tangents);
+    //     auto indices_upload_data = upload_data(dx_device.Get(), indices);
+
+    //     auto command_list = dx_device.GetCommandQueue().MakeCommandList(dx_device.Get());
+
+    //     auto stage_data = [](ID3D12Device* device, DXCommandList& command_list, DXResource& upload_resource, size_t size)
+    //     {
+    //         DXResourceBuilder builder {};
+    //         auto resource = builder.MakeBuffer(device, size).value();
+    //         command_list.CopyBuffer(upload_resource, 0, resource, 0, size);
+
+    //         CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+    //             resource.Get(),
+    //             D3D12_RESOURCE_STATE_COPY_DEST,
+    //             D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    //         command_list.SetResourceBarriers(1, &barrier);
+
+    //         return resource;
+    //     };
+
+    //     test_mesh.position = stage_data(dx_device.Get(), command_list, positions_upload_data, positions->GetSize());
+    //     test_mesh.normals = stage_data(dx_device.Get(), command_list, normals_upload_data, normals->GetSize());
+    //     test_mesh.uvs = stage_data(dx_device.Get(), command_list, texture_uvs_upload_data, texture_uvs->GetSize());
+    //     test_mesh.tangents = stage_data(dx_device.Get(), command_list, tangents_upload_data, tangents->GetSize());
+    //     test_mesh.indices = stage_data(dx_device.Get(), command_list, indices_upload_data, indices->GetSize());
+    //     test_mesh.index_count = indices->GetView<uint32_t>().count();
+
+    //     dx_device.GetCommandQueue().SubmitCommandList(std::move(command_list)).Wait();
+    // }
 }
 
 void RendererModule::Shutdown(Engine& e)
@@ -178,6 +188,6 @@ void RendererModule::RenderFrame(Engine& e)
     auto& backend = e.GetModule<DXBackendModule>();
 
     glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
-    forward_renderer->QueueModel(transform, &test_mesh);
+    forward_renderer->QueueModel(transform, &helmet);
     forward_renderer->RenderFrame(camera, backend.GetDevice(), *main_swapchain);
 }

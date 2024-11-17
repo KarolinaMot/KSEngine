@@ -26,11 +26,5 @@ private:
     glm::vec3 camera_pos = { 0.0f, 0.0f, -3.0f };
     glm::vec3 camera_rot {};
 
-    GPUMesh test_mesh {};
-    // std::shared_ptr<Device> device {};
-    //  std::shared_ptr<ShaderInputs> mainInputs {};
-    //  std::shared_ptr<Renderer> renderer {};
-    // ResourceHandle<Model> model {};
-
-    // TODO: move Swapchain sync stuff somewhere else
+    GPUMesh helmet {};
 };

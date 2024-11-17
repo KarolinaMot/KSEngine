@@ -48,31 +48,31 @@ Mesh ProcessMesh(const aiMesh* mesh)
         }
 
         auto buffer = ByteBuffer(indices.data(), indices.size());
-        new_mesh.AddAttribute(ATTRIBUTE_INDICES_NAME, std::move(buffer));
+        new_mesh.AddAttribute(AttributeNames[INDICES], std::move(buffer));
     }
 
     // Positions
     if (mesh->HasPositions())
     {
         auto buffer = ByteBuffer(mesh->mVertices, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_POSITIONS_NAME, std::move(buffer));
+        new_mesh.AddAttribute(AttributeNames[POSITIONS], std::move(buffer));
     }
 
     // Normals
     if (mesh->HasNormals())
     {
         auto buffer = ByteBuffer(mesh->mNormals, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_NORMALS_NAME, std::move(buffer));
+        new_mesh.AddAttribute(AttributeNames[NORMALS], std::move(buffer));
     }
 
     // Tangents and Bitangents
     if (mesh->HasTangentsAndBitangents())
     {
         auto buffer = ByteBuffer(mesh->mTangents, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_TANGENTS_NAME, std::move(buffer));
+        new_mesh.AddAttribute(AttributeNames[TANGENTS], std::move(buffer));
 
         auto buffer2 = ByteBuffer(mesh->mBitangents, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_BITANGENTS_NAME, std::move(buffer2));
+        new_mesh.AddAttribute(AttributeNames[BITANGENTS], std::move(buffer2));
     }
 
     // Texture UVS (only using the first)
@@ -87,7 +87,7 @@ Mesh ProcessMesh(const aiMesh* mesh)
         }
 
         auto buffer = ByteBuffer(texture_uvs.data(), texture_uvs.size());
-        new_mesh.AddAttribute(ATTRIBUTE_TEXTURE_UVS_NAME, std::move(buffer));
+        new_mesh.AddAttribute(AttributeNames[TEXTURE_UVS], std::move(buffer));
     }
 
     return new_mesh;
@@ -118,7 +118,7 @@ Image ProcessImage(const aiTexture* texture)
             reordered_data.at(i) = { texel.r, texel.g, texel.b, texel.a };
         }
 
-        return Image { ByteBuffer(reordered_data.data(), reordered_data.size()), texture->mWidth, texture->mHeight };
+        return Image { ByteBuffer(reordered_data.data(), reordered_data.size()), { texture->mWidth, texture->mHeight } };
     }
 }
 
@@ -203,27 +203,27 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 
     if (auto path = GetTexture(aiTextureType_BASE_COLOR))
     {
-        out.AddParameter(BASE_TEXTURE_NAME, path.value());
+        out.AddParameter(TextureNames[BASE_TEXTURE], path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
     {
-        out.AddParameter(NORMAL_TEXTURE_NAME, path.value());
+        out.AddParameter(TextureNames[NORMAL_TEXTURE], path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_LIGHTMAP))
     {
-        out.AddParameter(OCCLUSION_TEXTURE_NAME, path.value());
+        out.AddParameter(TextureNames[OCCLUSION_TEXTURE], path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_METALNESS))
     {
-        out.AddParameter(METALLIC_TEXTURE_NAME, path.value());
+        out.AddParameter(TextureNames[METALLIC_TEXTURE], path.value());
     }
 
     if (auto path = GetTexture(aiTextureType_EMISSIVE))
     {
-        out.AddParameter(EMISSIVE_TEXTURE_NAME, path.value());
+        out.AddParameter(TextureNames[EMISSIVE_TEXTURE], path.value());
     }
 
     return out;

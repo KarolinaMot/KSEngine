@@ -30,7 +30,7 @@ std::optional<Image> ImageUtility::LoadImageFromData(const void* filedata, size_
     {
         ByteBuffer image_data { stbi_result, static_cast<uint32_t>(width * height * 4) };
         std::free(stbi_result);
-        return Image { std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+        return Image { std::move(image_data), { static_cast<uint32_t>(width), static_cast<uint32_t>(height) } };
     }
     else
     {
@@ -62,10 +62,12 @@ std::optional<ByteBuffer> ImageUtility::SaveImageToPNGBuffer(const Image& image)
     };
 
     ByteBuffer output {};
+    auto image_dimensions = image.GetDimensions();
+
     bool result = static_cast<bool>(stbi_write_png_to_func(
         write_to_byte_buffer, &output,
-        image.GetWidth(), image.GetHeight(), 4,
-        image_data, image.GetWidth() * 4));
+        image_dimensions.x, image_dimensions.y, 4,
+        image_data, image_dimensions.x * 4));
 
     if (result)
     {

@@ -1,26 +1,37 @@
 #pragma once
 
 #include <Common.hpp>
-
-#include <string>
-#include <unordered_map>
+#include <cstdint>
 
 namespace MeshConstants
 {
+enum AttributesIndices : size_t
+{
+    INDICES,
+    POSITIONS,
+    NORMALS,
+    TEXTURE_UVS,
+    TANGENTS,
+    BITANGENTS,
 
-constexpr auto ATTRIBUTE_INDICES_NAME = "INDICES";
-constexpr auto ATTRIBUTE_POSITIONS_NAME = "POSITIONS";
-constexpr auto ATTRIBUTE_NORMALS_NAME = "NORMALS";
-constexpr auto ATTRIBUTE_TEXTURE_UVS_NAME = "UVS";
-constexpr auto ATTRIBUTE_TANGENTS_NAME = "TANGENTS";
-constexpr auto ATTRIBUTE_BITANGENTS_NAME = "BITANGENTS";
+    ATTRIBUTE_COUNT
+};
 
-const std::unordered_map<std::string, size_t> ATTRIBUTE_STRIDES {
-    { ATTRIBUTE_INDICES_NAME, sizeof(uint32_t) },
-    { ATTRIBUTE_POSITIONS_NAME, sizeof(float) * 3 },
-    { ATTRIBUTE_NORMALS_NAME, sizeof(float) * 3 },
-    { ATTRIBUTE_TEXTURE_UVS_NAME, sizeof(float) * 2 },
-    { ATTRIBUTE_TANGENTS_NAME, sizeof(float) * 3 },
-    { ATTRIBUTE_BITANGENTS_NAME, sizeof(float) * 3 }
+constexpr const char* AttributeNames[] {
+    "INDICES",
+    "POSITIONS",
+    "NORMALS",
+    "UVS",
+    "TANGENTS",
+    "BITANGENTS"
+};
+
+constexpr size_t AttributeStrides[] {
+    sizeof(uint32_t),
+    sizeof(float) * 3,
+    sizeof(float) * 3,
+    sizeof(float) * 2,
+    sizeof(float) * 3,
+    sizeof(float) * 3
 };
 }

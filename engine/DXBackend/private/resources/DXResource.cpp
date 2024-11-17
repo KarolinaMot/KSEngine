@@ -4,10 +4,11 @@
 DXResource::MappedAddress DXResource::Map(uint32_t subresource, std::optional<D3D12_RANGE> read_range)
 {
     void* ptr = nullptr;
+
     D3D12_RANGE* read = read_range ? &read_range.value() : nullptr;
 
     resource->Map(subresource, read, &ptr);
-    return { ptr, subresource };
+    return { static_cast<std::byte*>(ptr), subresource };
 }
 
 void DXResource::Unmap(MappedAddress&& ptr, std::optional<D3D12_RANGE> write_range)

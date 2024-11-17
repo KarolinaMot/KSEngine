@@ -1,9 +1,10 @@
 #include <ForwardRenderer.hpp>
 
-#include <InfoStructs.hpp>
 #include <gpu_resources/DXResourceBuilder.hpp>
+#include <rendering/InfoStructs.hpp>
 #include <rendering/Utility.hpp>
 #include <tracy/Tracy.hpp>
+
 
 ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_compiler, glm::uvec2 screen_size)
 {
@@ -86,31 +87,6 @@ ForwardRenderer::ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_comp
 
         depth_heap.Allocate(device.Get(), DSV { desc, depth_stencil.Get() }, 0);
     }
-
-    // Triangle buffers
-    {
-        float vertices[] = {
-            -0.5f, -0.5f, 0.5f,
-            0.5f, -0.5f, 0.5f,
-            0.0f, 0.5f, 0.5f
-        };
-
-        uint32_t indices[] = {
-            0, 1, 2
-        };
-
-        DXResourceBuilder builder = DXResourceBuilder();
-
-        builder
-            .WithHeapType(D3D12_HEAP_TYPE_UPLOAD)
-            .WithInitialState(D3D12_RESOURCE_STATE_COMMON);
-
-        triangle_verts = builder.MakeBuffer(device.Get(), sizeof(vertices)).value();
-        triangle_indices = builder.MakeBuffer(device.Get(), sizeof(indices)).value();
-
-        RendererUtility::WriteResource(triangle_verts, vertices);
-        RendererUtility::WriteResource(triangle_indices, indices);
-    }
 }
 
 void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& swapchain_target)
@@ -185,20 +161,10 @@ void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwap
                     command_list.BindRootCBV(model_matrix_data, shader_inputs.GetInputIndex("model_matrix").value());
                 }
 
-                // Set Input Assembly
+                // Set Input Assembly and Draw
                 {
-                    D3D12_VERTEX_BUFFER_VIEW vertex_views[1] = {
-                        { mesh->position.GetAddress(), mesh->position.GetDimensions().x, sizeof(glm::vec3) }
-                    };
-
-                    command_list.Get()->IASetVertexBuffers(0, 1, vertex_views);
-
-                    D3D12_INDEX_BUFFER_VIEW index_view {};
-                    index_view.BufferLocation = mesh->indices.GetAddress();
-                    index_view.SizeInBytes = mesh->indices.GetDimensions().x;
-                    index_view.Format = DXGI_FORMAT_R32_UINT;
-
-                    command_list.Get()->IASetIndexBuffer(&index_view);
+                    command_list.Get()->IASetIndexBuffer(&mesh->index_view);
+                    command_list.Get()->IASetVertexBuffers(0, GPUMesh::VertexBufferCount, mesh->vertex_views.data());
                     command_list.Get()->DrawIndexedInstanced(mesh->index_count, 1, 0, 0, 0);
                 }
             }

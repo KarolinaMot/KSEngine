@@ -26,9 +26,6 @@ public:
 private:
     std::vector<std::pair<glm::mat4, const GPUMesh*>> models_to_render;
 
-    DXResource triangle_verts {};
-    DXResource triangle_indices {};
-
     // Pipelines
     DXShaderInputs shader_inputs {};
     DXPipeline pipeline {};

@@ -43,7 +43,7 @@ public:
     {
     public:
         MappedAddress() = default;
-        MappedAddress(void* ptr, uint32_t subresource)
+        MappedAddress(std::byte* ptr, uint32_t subresource)
             : ptr(ptr)
             , subresource(subresource)
         {
@@ -56,13 +56,13 @@ public:
 
         NON_COPYABLE(MappedAddress);
 
-        void* Get() { return ptr; }
+        std::byte* Get() { return ptr; }
 
     private:
         friend class DXResource;
         void Release() { ptr = 0; }
 
-        void* ptr {};
+        std::byte* ptr {};
         uint32_t subresource {};
     };
 };
