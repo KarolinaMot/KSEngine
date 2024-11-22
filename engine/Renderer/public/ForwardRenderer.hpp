@@ -1,0 +1,53 @@
+#include <Common.hpp>
+#include <DXDevice.hpp>
+
+#include <DXDevice.hpp>
+#include <shader/DXPipeline.hpp>
+#include <shader/DXShaderCompiler.hpp>
+#include <shader/DXShaderInputs.hpp>
+
+#include <Geometry.hpp>
+#include <display/DXSwapchain.hpp>
+#include <glm/vec2.hpp>
+
+#include <rendering/GPUMaterial.hpp>
+#include <rendering/GPUMesh.hpp>
+
+class ForwardRenderer
+{
+public:
+    ForwardRenderer(DXDevice& device, DXShaderCompiler& shader_compiler, glm::uvec2 screen_size);
+    ~ForwardRenderer() = default;
+
+    NON_COPYABLE(ForwardRenderer);
+    NON_MOVABLE(ForwardRenderer);
+
+    void RenderFrame(const Camera& camera, DXDevice& device, DXSwapchain& swapchain_target);
+
+    struct ModelDrawEntry
+    {
+        glm::mat4 transform {};
+        GPUMesh* mesh {};
+        GPUMaterial* material {};
+    };
+
+    void QueueModel(const ModelDrawEntry& entry)
+    {
+        models_to_render.emplace_back(entry);
+    }
+
+private:
+    std::vector<ModelDrawEntry> models_to_render;
+
+    // Pipelines
+    DXShaderInputs shader_inputs {};
+    DXPipeline pipeline {};
+
+    // Uniforms
+    DXResource camera_data {};
+    DXResource model_matrix_data {};
+
+    // RenderTargets
+    DXDescriptorHeap<DSV> depth_heap {};
+    DXResource depth_stencil {};
+};

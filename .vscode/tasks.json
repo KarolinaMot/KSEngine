@@ -1,11 +1,20 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Build",
-      "type": "shell",
-      "command": "scripts/build_debug.bat",
-      "group": "build"
-    },
-  ]
+	"version": "2.0.0",
+	"tasks": [
+        {
+            "type": "shell",
+            "label": "Build Debug",
+            "command": "cmake --preset Debug; cmake --build build/Debug",
+        },
+        {
+            "type": "shell",
+            "label": "Build Release",
+            "command": "cmake --preset Release; cmake --build build/Release",
+        },
+        {
+            "type": "shell",
+            "label": "Clean CMake Cache",
+            "command": "cmake --build build/Debug --target clean; cmake --build build/Release --target clean",
+        },
+    ]
 }

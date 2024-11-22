@@ -89,6 +89,6 @@
     "any": "cpp",
     "condition_variable": "cpp",
     "random": "cpp",
-    "*.hlsl": "cpp"
-  }
+    "*.hlsl": "hlsl"
+}
 }

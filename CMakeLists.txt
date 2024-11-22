@@ -2,37 +2,41 @@
 
 cmake_minimum_required(VERSION 3.15)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 project(KSEngine)
 
-# CONFIGURATION
-add_library(CompilerSettings INTERFACE)
+# OPTIONS
 
-set(CLANG "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
-set(MSVC "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
+option(ENABLE_TESTS "Compile test executable" ON)
+option(ENABLE_PCH "Compile with Precompiled Headers" OFF)
+option(ENABLE_UNITY "Compile with Unity Builds" OFF)
 
-target_compile_options(CompilerSettings INTERFACE
-  "$<${CLANG}:-Wall;>"
-)
-target_compile_features(CompilerSettings INTERFACE cxx_std_20)
+# INCLUDES
 
-# set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
+include(FetchContent)
+include(scripts/cmake/code-modules.cmake)
 
-# MAIN FILES
+# COMPILE SETTINGS
 
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "source/*.cpp")
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "source/*.hpp")
+add_library(CompileFlags INTERFACE)
+target_compile_options(CompileFlags INTERFACE -Wall INTERFACE -Wextra)
 
-# EXTERNAL DIRECTORIES
-add_subdirectory(external/GLFW)
-add_subdirectory(external/dx12)
-add_subdirectory(external/entt)
-add_subdirectory(external/glm)
-add_subdirectory(external/assimp)
-add_subdirectory(external/cereal)
+# PCH
 
-# MAIN PROJECT
+if (ENABLE_PCH)
+    add_subdirectory(Engine/PCH)
+endif ()
 
-add_executable(KSEngine ${sources} ${headers})
-target_link_libraries(KSEngine PRIVATE CompilerSettings PUBLIC glm PUBLIC glfw PUBLIC dx12 PUBLIC entt PUBLIC assimp PUBLIC cereal)
-target_include_directories(KSEngine PUBLIC source PUBLIC external)
+# TEST EXECUTABLE
+
+if (ENABLE_TESTS)
+    add_subdirectory(external/googletest)
+    add_subdirectory(tests)
+endif ()
+
+# MAIN EXECUTABLE
+
+add_subdirectory(engine)
+add_subdirectory(external)
+
+add_executable(KSEngine "engine/main.cpp")
+target_link_libraries(KSEngine PRIVATE Engine)

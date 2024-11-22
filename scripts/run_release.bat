@@ -1,1 +1,0 @@
-start build/Win64/Release/KSEngine.exe
