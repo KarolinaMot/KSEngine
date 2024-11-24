@@ -102,6 +102,7 @@ void ForwardRenderer::RenderFrame(const Camera& camera, DXDevice& device, DXSwap
 
     auto& command_queue = device.GetCommandQueue();
     auto command_list = command_queue.MakeCommandList(device.Get());
+
     {
         ZoneScopedN("Graphics Command recording");
 
