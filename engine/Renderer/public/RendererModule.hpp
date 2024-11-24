@@ -11,21 +11,17 @@ class RendererModule : public ModuleInterface
 public:
     virtual ~RendererModule() = default;
 
+    void SetCamera(const Camera& camera) { set_camera = camera; };
+    ForwardRenderer& GetRenderer() { return *forward_renderer; }
+
 private:
     void Initialize(Engine& e) override;
     void Shutdown(MAYBE_UNUSED Engine& e) override;
-
     void RenderFrame(Engine& e);
-    void UpdateCamera(Engine& e);
 
     std::unique_ptr<DXSwapchain> main_swapchain {};
-
-    // std::unique_ptr<DeferredRenderer> deferred_renderer {};
     std::unique_ptr<ForwardRenderer> forward_renderer {};
 
-    glm::vec3 camera_pos = { 0.0f, 0.0f, -3.0f };
-    glm::vec3 camera_rot {};
-
-    GPUMesh helmet_mesh {};
-    GPUMaterial helmet_material {};
+    Camera set_camera = Camera::Perspective(
+        {}, -World::UP, 16.0f / 9.0f, glm::radians(90.0f), 0.01f, 1000.0f);
 };
