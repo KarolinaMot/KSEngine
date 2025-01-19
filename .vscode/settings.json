@@ -89,6 +89,8 @@
     "any": "cpp",
     "condition_variable": "cpp",
     "random": "cpp",
-    "*.hlsl": "cpp"
+    "*.hlsl": "cpp",
+    "csignal": "cpp",
+    "shared_mutex": "cpp"
   }
 }

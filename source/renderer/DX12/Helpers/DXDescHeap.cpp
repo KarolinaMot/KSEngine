@@ -67,6 +67,39 @@ DXHeapHandle DXDescHeap::AllocateResource(DXResource* resource, D3D12_SHADER_RES
     return DXHeapHandle(slot, shared_from_this());
 }
 
+DXHeapHandle DXDescHeap::AllocateResource(DXResource* resource, D3D12_SHADER_RESOURCE_VIEW_DESC* desc, unsigned int index)
+{
+    int slot = -1;
+
+    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+    {
+        // LOG(LogCore, Warning, "Trying to allocate an SRV in the wrong heap");
+        assert(false && "Trying to allocate an SRV in the wrong heap");
+        return DXHeapHandle();
+    }
+
+    if (index > mMaxResources)
+    {
+        // LOG(LogCore, Fatal, "Descriptor heap maximum reached");
+        assert(false && "Index goes outside heap bounds");
+        return DXHeapHandle();
+    }
+
+    slot = index;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
+    if (desc->ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
+    {
+        m_device->CreateShaderResourceView(nullptr, desc, handle);
+    }
+    else
+    {
+        m_device->CreateShaderResourceView(resource->Get(), desc, handle);
+    }
+
+    return DXHeapHandle(slot, shared_from_this());
+}
+
 DXHeapHandle DXDescHeap::AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, DXResource* counterResource)
 {
     int slot = -1;
@@ -92,6 +125,35 @@ DXHeapHandle DXDescHeap::AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCES
         assert(false && "Descriptor heap maximum reached");
         return DXHeapHandle();
     }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
+
+    if (!counterResource)
+        m_device->CreateUnorderedAccessView(resource->Get(), nullptr, desc, handle);
+    else
+        m_device->CreateUnorderedAccessView(resource->Get(), counterResource->Get(), desc, handle);
+
+    return DXHeapHandle(slot, shared_from_this());
+}
+
+DXHeapHandle DXDescHeap::AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, unsigned int index, DXResource* counterResource)
+{
+    int slot = -1;
+
+    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+    {
+        assert(false && "Trying to allocate an SRV in the wrong heap");
+        return DXHeapHandle();
+    }
+
+    if (index > mMaxResources)
+    {
+        // LOG(LogCore, Fatal, "Descriptor heap maximum reached");
+        assert(false && "Index goes outside heap bounds");
+        return DXHeapHandle();
+    }
+
+    slot = index;
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
 
@@ -130,6 +192,32 @@ DXHeapHandle DXDescHeap::AllocateRenderTarget(DXResource* resource, D3D12_RENDER
         assert(false && "Descriptor heap maximum reached");
         return DXHeapHandle();
     }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
+    m_device->CreateRenderTargetView(resource->Get(), desc, handle);
+
+    return DXHeapHandle(slot, shared_from_this());
+}
+
+DXHeapHandle DXDescHeap::AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc, unsigned int index)
+{
+    int slot = -1;
+
+    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+    {
+        // LOG(LogCore, Warning, "Trying to allocate an RTV in the wrong heap");
+        assert(false && "Trying to allocate an RTV in the wrong heap");
+        return DXHeapHandle();
+    }
+
+    if (index > mMaxResources)
+    {
+        // LOG(LogCore, Fatal, "Descriptor heap maximum reached");
+        assert(false && "Index goes outside heap bounds");
+        return DXHeapHandle();
+    }
+
+    slot = index;
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
     m_device->CreateRenderTargetView(resource->Get(), desc, handle);

@@ -24,6 +24,7 @@ enum class InputType
     BUFFER,
     RW_DATA,
     RO_DATA,
+    RANGE
 };
 
 struct ShaderInput

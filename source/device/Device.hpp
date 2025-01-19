@@ -48,7 +48,7 @@ public:
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
     int GetWidth() const { return m_width; }
     int GetHeight() const { return m_height; }
-    void TrackResource(std::shared_ptr<void> buffer);
+    void TrackResource(::std::shared_ptr<void> buffer);
     std::shared_ptr<RenderTarget> GetRenderTarget() { return m_swapchainRT; };
     std::shared_ptr<Texture> GetRenderTargetTexture(int index) { return m_swapchainTex[index]; };
     std::shared_ptr<DepthStencil> GetDepthStencil() { return m_swapchainDS; };

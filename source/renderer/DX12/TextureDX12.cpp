@@ -141,7 +141,8 @@ void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) 
         //     return;
         // }
 
-        if (!m_impl->mUAVHeapSlot.IsValid())
+        if (
+            !m_impl->mUAVHeapSlot.IsValid())
         {
             m_impl->AllocateAsUAV(resourceHeap);
         }
@@ -246,6 +247,55 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
     texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
 }
 
+void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2)
+{
+    if (m_textureCount >= 8)
+    {
+        LOG(Log::Severity::WARN, "Tried to attach more than 8 textures to a render target. This will be ignored.");
+        return;
+    }
+
+    if (!(texture1->GetType() & Texture::RENDER_TARGET) || !(texture2->GetType() & Texture::RENDER_TARGET))
+    {
+        LOG(Log::Severity::WARN, "Tried to attach a texture that was not created with the render target type. Command will be ignored.");
+        return;
+    }
+
+    m_textures[0][m_textureCount] = texture1;
+    m_textures[1][m_textureCount] = texture2;
+
+    auto renderTargetHeap = reinterpret_cast<DXDescHeap*>(device.GetRenderTargetHeap());
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = Conversion::KSFormatsToDXGI(texture1->GetFormat());
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+    m_impl->m_RT[0][m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture1->m_impl->mTextureBuffer.get(), &rtvDesc, slot1);
+
+    rtvDesc.Format = Conversion::KSFormatsToDXGI(texture2->GetFormat());
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+    m_impl->m_RT[1][m_textureCount] = renderTargetHeap->AllocateRenderTarget(texture2->m_impl->mTextureBuffer.get(), &rtvDesc, slot2);
+
+    m_textureCount++;
+
+    m_impl->m_viewport.Width = texture1->m_width;
+    m_impl->m_viewport.Height = texture1->m_height;
+    m_impl->m_viewport.TopLeftX = 0;
+    m_impl->m_viewport.TopLeftY = 0;
+    m_impl->m_viewport.MinDepth = 0.0f;
+    m_impl->m_viewport.MaxDepth = 1.0f;
+
+    m_impl->m_scissor_rect.left = 0;
+    m_impl->m_scissor_rect.top = 0;
+    m_impl->m_scissor_rect.right = static_cast<LONG>(m_impl->m_viewport.Width);
+    m_impl->m_scissor_rect.bottom = static_cast<LONG>(m_impl->m_viewport.Height);
+
+    wchar_t wString[4096];
+    MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
+    texture1->m_impl->mTextureBuffer->Get()->SetName(wString);
+    texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
+}
 void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
 {
     if (m_textureCount <= 0)

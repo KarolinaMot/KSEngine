@@ -1,6 +1,7 @@
 #pragma once
 #include "DXIncludes.hpp"
 #include "DXResource.hpp"
+#include "DX12Common.hpp"
 
 class DXHeapHandle;
 class DXDescHeap : public std::enable_shared_from_this<DXDescHeap>
@@ -23,8 +24,11 @@ public:
     DXDescHeap(ComPtr<ID3D12Device5> device, int numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, LPCWSTR name, D3D12_DESCRIPTOR_HEAP_FLAGS flags);
 
     DXHeapHandle AllocateResource(DXResource* resource, D3D12_SHADER_RESOURCE_VIEW_DESC* desc);
+    DXHeapHandle AllocateResource(DXResource* resource, D3D12_SHADER_RESOURCE_VIEW_DESC* desc, unsigned int index);
     DXHeapHandle AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, DXResource* counterResource = nullptr);
+    DXHeapHandle AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, unsigned int index, DXResource* counterResource = nullptr);
     DXHeapHandle AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc);
+    DXHeapHandle AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc, unsigned int index);
     DXHeapHandle AllocateRenderTarget(DXResource* resource, ID3D12Device5* device, D3D12_RENDER_TARGET_VIEW_DESC* desc);
     DXHeapHandle AllocateDepthStencil(DXResource* resource, D3D12_DEPTH_STENCIL_VIEW_DESC* desc);
     DXHeapHandle AllocateDepthStencil(DXResource* resource, ID3D12Device5* device, D3D12_DEPTH_STENCIL_VIEW_DESC* desc);
@@ -40,6 +44,6 @@ private:
     D3D12_DESCRIPTOR_HEAP_TYPE mType;
     ComPtr<ID3D12Device5> m_device;
     int mMaxResources;
-    int mResourceCount = 0;
+    int mResourceCount = OTHER_RESOURCES_START;
     std::vector<int> mClearList;
 };

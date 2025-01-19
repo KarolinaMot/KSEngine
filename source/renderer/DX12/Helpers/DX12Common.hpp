@@ -1,0 +1,3 @@
+#define RAYTRACE_RT_SLOT 0
+#define BVH_SLOT 2
+#define OTHER_RESOURCES_START 3

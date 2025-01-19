@@ -7,7 +7,9 @@
 #include "Helpers/DX12Conversion.hpp"
 #include "Helpers/DXHeapHandle.hpp"
 #include "Helpers/DXDescHeap.hpp"
+#include "Helpers/DX12Common.hpp"
 
+#include <DXR/DXRHelper.h>
 #include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
 #include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
 #include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
@@ -35,6 +37,11 @@ public:
         std::shared_ptr<DXResource> pResult = nullptr;
         std::shared_ptr<DXResource> pInstanceDesc = nullptr;
     };
+    struct HitInfo
+    {
+        glm::vec4 colorAndDistance;
+    };
+
     nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
     ASBuffers m_BLBuffers[200];
     std::pair<std::shared_ptr<DXResource>, DirectX::XMMATRIX> m_instances[200];
@@ -42,6 +49,11 @@ public:
     int m_BLCount = 0;
     DXHeapHandle m_BHVHandle;
     bool m_updateBVH = false;
+
+    ComPtr<ID3D12RootSignature> m_raytracingSignature;
+    ComPtr<ID3D12StateObject> m_rtPipeline;
+    ComPtr<ID3D12StateObjectProperties> m_rtStateObjectProps;
+    ComPtr<ID3D12Resource> m_sbtStorage;
 };
 
 KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
@@ -51,6 +63,66 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
     m_modelMatsBuffer = std::make_unique<StorageBuffer>(device, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), 200, false);
     m_materialInfoBuffer = std::make_unique<StorageBuffer>(device, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), 200, false);
     m_modelIndexBuffer = std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, 200);
+    auto engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+
+    nv_helpers_dx12::RootSignatureGenerator rsc;
+    rsc.AddHeapRangesParameter(
+        { { 0 /*u0*/, 1 /*1 descriptor */, 0 /*use the implicit register space 0*/,
+              D3D12_DESCRIPTOR_RANGE_TYPE_UAV /* UAV representing the output buffer*/,
+              RAYTRACE_RT_SLOT /*heap slot where the UAV is defined*/ },
+            { 0 /*t0*/, 1, 0,
+                D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/,
+                BVH_SLOT } });
+    m_impl->m_raytracingSignature = rsc.Generate(engineDevice, true);
+    m_impl->m_raytracingSignature->SetName(L"Raytracing signature");
+
+    ComPtr<IDxcBlob> hitLibrary = nv_helpers_dx12::CompileShaderLibrary(L"assets/shaders/Hit.hlsl");
+    ComPtr<IDxcBlob> missLibrary = nv_helpers_dx12::CompileShaderLibrary(L"assets/shaders/Miss.hlsl");
+    ComPtr<IDxcBlob> rayGenLibrary = nv_helpers_dx12::CompileShaderLibrary(L"assets/shaders/RayGen.hlsl");
+
+    nv_helpers_dx12::RayTracingPipelineGenerator pipeline(engineDevice);
+    pipeline.AddLibrary(rayGenLibrary.Get(), { L"RayGen" });
+    pipeline.AddLibrary(missLibrary.Get(), { L"Miss" });
+    pipeline.AddLibrary(hitLibrary.Get(), { L"ClosestHit" });
+
+    pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
+    pipeline.AddRootSignatureAssociation(m_impl->m_raytracingSignature.Get(), { L"RayGen" });
+    pipeline.AddRootSignatureAssociation(m_impl->m_raytracingSignature.Get(), { L"Miss" });
+    pipeline.AddRootSignatureAssociation(m_impl->m_raytracingSignature.Get(), { L"HitGroup" });
+
+    pipeline.SetMaxPayloadSize(4 * sizeof(float)); // RGB + distance
+    pipeline.SetMaxAttributeSize(2 * sizeof(float)); // barycentric coordinates
+    pipeline.SetMaxRecursionDepth(1);
+
+    m_impl->m_rtPipeline = pipeline.Generate();
+    m_impl->m_rtPipeline->QueryInterface(IID_PPV_ARGS(&m_impl->m_rtStateObjectProps));
+
+    nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
+    D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle = static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
+    auto heapPointer = reinterpret_cast<uint64_t>(srvUavHeapHandle.ptr);
+
+    // The ray generation only uses heap data
+    std::vector<void*> heapPointers(1);
+    heapPointers[0] = reinterpret_cast<void*>(heapPointer);
+    m_sbtHelper.AddRayGenerationProgram(L"RayGen", heapPointers);
+
+    // The miss and hit shaders do not access any external resources: instead they
+    // communicate their results through the ray payload
+    m_sbtHelper.AddMissProgram(L"Miss", {});
+
+    // Adding the triangle hit shader
+    m_sbtHelper.AddHitGroup(L"HitGroup", {});
+    uint32_t sbtSize = m_sbtHelper.ComputeSBTSize();
+
+    m_impl->m_sbtStorage = nv_helpers_dx12::CreateBuffer(
+        engineDevice, sbtSize, D3D12_RESOURCE_FLAG_NONE,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+    if (!m_impl->m_sbtStorage)
+    {
+        throw std::logic_error("Could not allocate the shader binding table");
+    }
+
+    m_sbtHelper.Generate(m_impl->m_sbtStorage.Get(), m_impl->m_rtStateObjectProps.Get());
 }
 
 KS::ModelRenderer::~ModelRenderer()
@@ -439,7 +511,7 @@ void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         srvDesc.RaytracingAccelerationStructure.Location = m_impl->m_topLevelASBuffers.pResult->Get()->GetGPUVirtualAddress();
 
-        m_impl->m_BHVHandle = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())->AllocateResource(m_impl->m_topLevelASBuffers.pResult.get(), &srvDesc);
+        m_impl->m_BHVHandle = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())->AllocateResource(m_impl->m_topLevelASBuffers.pResult.get(), &srvDesc, BVH_SLOT);
     }
 
     commandList->TrackResource(m_impl->m_topLevelASBuffers.pScratch->GetResource());
