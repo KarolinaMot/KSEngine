@@ -67,12 +67,14 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
 
     nv_helpers_dx12::RootSignatureGenerator rsc;
     rsc.AddHeapRangesParameter(
-        { { 0 /*u0*/, 1 /*1 descriptor */, 0 /*use the implicit register space 0*/,
+        { { 0 /*u0*/, 2 /*1 descriptor */, 0 /*use the implicit register space 0*/,
               D3D12_DESCRIPTOR_RANGE_TYPE_UAV /* UAV representing the output buffer*/,
               RAYTRACE_RT_SLOT /*heap slot where the UAV is defined*/ },
             { 0 /*t0*/, 1, 0,
                 D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/,
                 BVH_SLOT } });
+    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
+
     m_impl->m_raytracingSignature = rsc.Generate(engineDevice, true);
     m_impl->m_raytracingSignature->SetName(L"Raytracing signature");
 
@@ -296,6 +298,14 @@ void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_
         i++;
     }
     CreateTopLevelAS(device, m_impl->m_updateBVH);
+
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
+
+    commandList->BindPipeline(pipeline);
+    renderTarget->Bind(device, depthStencil.get());
+    renderTarget->Clear(device);
+    depthStencil->Clear(device);
 }
 
 void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
