@@ -1,15 +1,10 @@
 #include "Common.hlsl"
 
 // Raytracing output texture, accessed as a UAV
-RWTexture2D<float4> gOutput[] : register(u0);
+RWTexture2D<float4> gOutput : register(u0);
 
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
-
-cbuffer CameraBuffer : register(b1)
-{
-    uint FrameIndex;
-};
 
 [shader("raygeneration")] void RayGen()
 {
@@ -77,5 +72,5 @@ cbuffer CameraBuffer : register(b1)
         // shaders and the raygen
         payload);
 
-    gOutput[FrameIndex][launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+    gOutput[launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
 }
