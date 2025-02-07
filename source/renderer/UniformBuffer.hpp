@@ -48,6 +48,8 @@ public:
     size_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
     size_t GetElementCount() const { return m_num_elements; }
+    size_t GetGPUAddress(int elementIndex, int frameIndex) const;
+
     void Bind(const Device& device, int rootIndex, int elementIndex);
 
 private:

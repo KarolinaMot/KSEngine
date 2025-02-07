@@ -38,6 +38,8 @@ void KS::UniformBuffer::Resize(const Device& device, int newNumOfElements)
     m_impl->m_buffer->Resize(engineDevice, newNumOfElements);
 }
 
+size_t KS::UniformBuffer::GetGPUAddress(int elementIndex, int frameIndex) const { return m_impl->m_buffer->GetGPUPointer(elementIndex, frameIndex); }
+
 void KS::UniformBuffer::Bind(const Device& device, int rootIndex, int elementIndex)
 {
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
