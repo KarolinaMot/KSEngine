@@ -99,7 +99,7 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
 
     nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
     D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle = static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
-    auto heapPointer = reinterpret_cast<uint64_t>(srvUavHeapHandle.ptr);
+    auto heapPointer =srvUavHeapHandle.ptr;
 
     // The ray generation only uses heap data
     std::vector<void*> heapPointers(1);

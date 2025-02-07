@@ -1,0 +1,16 @@
+Checks: >
+  -*,
+  bugprone-*,
+  readability-*,
+  performance-*,
+  misc-*,
+  cppcoreguidelines-*,
+  -readability-uppercase-literal-suffix
+
+ExtraArgs: 
+  - -std=c++17
+  - -Wall
+  - -DPLATFORM_WINDOWS
+  - -Iinclude/
+  - -Iexternal/
+  - -Iexternal/xsr/backends/opengl/external/

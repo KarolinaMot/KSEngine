@@ -26,7 +26,7 @@ ComPtr<ID3D12RootSignature> DXSignatureBuilder::Build(ComPtr<ID3D12Device5> devi
     hr = device->CreateRootSignature(0, serializedSignature->GetBufferPointer(), serializedSignature->GetBufferSize(), IID_PPV_ARGS(&signature));
     if (FAILED(hr))
     {
-        MessageBox(NULL, "Failed to initialize root signature", "FATAL ERROR!", MB_ICONERROR | MB_OK);
+        MessageBox(NULL, L"Failed to initialize root signature", L"FATAL ERROR!", MB_ICONERROR | MB_OK);
         ASSERT(false && "Failed to initialize root signature");
     }
     signature->SetName(name);

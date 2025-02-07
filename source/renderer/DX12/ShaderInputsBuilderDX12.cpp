@@ -241,7 +241,7 @@ std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& d
 
     if (FAILED(hr))
     {
-        MessageBox(NULL, "Failed to initialize root signature", "FATAL ERROR!", MB_ICONERROR | MB_OK);
+        MessageBox(NULL, L"Failed to initialize root signature", L"FATAL ERROR!", MB_ICONERROR | MB_OK);
         ASSERT(false && "Failed to initialize root signature");
     }
     signature->SetName(wString);
@@ -268,41 +268,4 @@ D3D12_SHADER_VISIBILITY KS::ShaderInputsBuilder::Impl::GetVisibility(ShaderInput
     }
 
     return descVisibility;
-}
-
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddHeapRanges(std::vector<std::tuple<unsigned int, /* BaseShaderRegister, */ unsigned int, /* NumDescriptors */ unsigned int,
-                                                                    /* RegisterSpace */ InputType,
-                                                                    /* RangeType */ unsigned int /* OffsetInDescriptorsFromTableStart */>>
-                                                                    ranges,
-    std::string descriptorName)
-{
-    // for (const auto& input : ranges)
-    // {
-    //     D3D12_DESCRIPTOR_RANGE range;
-    //     range.RangeType = std::get<3>(input) == InputType::BUFFER || std::get<3>(input) == InputType::RO_DATA ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-    //     range.NumDescriptors = std::get<1>(input);
-    //     range.BaseShaderRegister = std::get<0>(input);
-    //     range.RegisterSpace = 0;
-    //     range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    //     if (range.RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
-    //         m_ro_array_counter++;
-    //     else
-    //         m_rw_array_counter++;
-
-    //     m_impl->mRanges[m_impl->mRangeCounter] = range;
-    //     m_impl->mRangeCounter++;
-    // }
-
-    // KS::ShaderInput input;
-    // input.rootIndex = m_input_counter;
-    // input.type = InputType::RANGE;
-    // m_descriptors[descriptorName] = input;
-    // m_input_counter += ranges.size();
-
-    // D3D12_ROOT_PARAMETER param = {};
-    // param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    // param.DescriptorTable.NumDescriptorRanges = static_cast<UINT>(ranges.size());
-    // param.DescriptorTable.pDescriptorRanges = nullptr;
-    // m_impl->mParameters.push_back(param);
 }

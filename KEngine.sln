@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KEngine", "KEngine.vcxproj", "{91E63AC1-985A-4AF1-A4A4-94626A08B736}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Debug|x64.ActiveCfg = Debug|x64
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Debug|x64.Build.0 = Debug|x64
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Debug|x86.ActiveCfg = Debug|Win32
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Debug|x86.Build.0 = Debug|Win32
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Release|x64.ActiveCfg = Release|x64
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Release|x64.Build.0 = Release|x64
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Release|x86.ActiveCfg = Release|Win32
+		{91E63AC1-985A-4AF1-A4A4-94626A08B736}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C333EDDA-08BD-40BF-A152-1EA56FEE3924}
+	EndGlobalSection
+EndGlobal

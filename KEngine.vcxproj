@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.cpp" />
+    <ClCompile Include="source\components\ComponentCamera.cpp" />
+    <ClCompile Include="source\components\ComponentTransform.cpp" />
+    <ClCompile Include="source\containers\ByteBuffer.cpp" />
+    <ClCompile Include="source\containers\SlotMap.cpp" />
+    <ClCompile Include="source\device\Device.cpp" />
+    <ClCompile Include="source\device\DX12\DXFactory.cpp" />
+    <ClCompile Include="source\fileio\FileIO.cpp" />
+    <ClCompile Include="source\input\RawInput.cpp" />
+    <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\math\Geometry.cpp" />
+    <ClCompile Include="source\renderer\DX12\ComputeRendererDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXCommandList.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXCommandQueue.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXConstBuffer.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXDescHeap.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXGPUSync.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXPipeline.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXResource.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXSignature.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXStructuredBuffer.cpp" />
+    <ClCompile Include="source\renderer\DX12\ModelRendererDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\RendererDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\ShaderDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\ShaderInputsBuilderDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\ShaderInputsDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\StorageBufferDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\TextureDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\UniformBufferDX12.cpp" />
+    <ClCompile Include="source\resources\Image.cpp" />
+    <ClCompile Include="source\resources\Material.cpp" />
+    <ClCompile Include="source\resources\Mesh.cpp" />
+    <ClCompile Include="source\resources\Model.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="external\DXR\DXRHelper.h" />
+    <ClInclude Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.h" />
+    <ClInclude Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.h" />
+    <ClInclude Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.h" />
+    <ClInclude Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.h" />
+    <ClInclude Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.h" />
+    <ClInclude Include="source\components\ComponentCamera.hpp" />
+    <ClInclude Include="source\components\ComponentTransform.hpp" />
+    <ClInclude Include="source\containers\ByteBuffer.hpp" />
+    <ClInclude Include="source\containers\SlotMap.hpp" />
+    <ClInclude Include="source\device\Device.hpp" />
+    <ClInclude Include="source\device\DX12\DXFactory.hpp" />
+    <ClInclude Include="source\ecs\EntityComponentSystem.hpp" />
+    <ClInclude Include="source\fileio\FileIO.hpp" />
+    <ClInclude Include="source\fileio\ResourceHandle.hpp" />
+    <ClInclude Include="source\fileio\Serialization.hpp" />
+    <ClInclude Include="source\input\InputCodes.hpp" />
+    <ClInclude Include="source\input\RawInput.hpp" />
+    <ClInclude Include="source\math\Algebra.hpp" />
+    <ClInclude Include="source\math\Geometry.hpp" />
+    <ClInclude Include="source\renderer\ComputeRenderer.hpp" />
+    <ClInclude Include="source\renderer\DepthStencil.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DX12Common.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DX12Conversion.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXCommandList.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXCommandQueue.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXConstBuffer.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXDescHeap.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXGPUSync.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXHeapHandle.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXIncludes.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXPipeline.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXResource.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXSignature.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXStructuredBuffer.hpp" />
+    <ClInclude Include="source\renderer\InfoStructs.hpp" />
+    <ClInclude Include="source\renderer\ModelRenderer.hpp" />
+    <ClInclude Include="source\renderer\Renderer.hpp" />
+    <ClInclude Include="source\renderer\RenderTarget.hpp" />
+    <ClInclude Include="source\renderer\Sampler.hpp" />
+    <ClInclude Include="source\renderer\Shader.hpp" />
+    <ClInclude Include="source\renderer\ShaderInputs.hpp" />
+    <ClInclude Include="source\renderer\ShaderInputsBuilder.hpp" />
+    <ClInclude Include="source\renderer\StorageBuffer.hpp" />
+    <ClInclude Include="source\renderer\SubRenderer.hpp" />
+    <ClInclude Include="source\renderer\UniformBuffer.hpp" />
+    <ClInclude Include="source\resources\Image.hpp" />
+    <ClInclude Include="source\resources\Material.hpp" />
+    <ClInclude Include="source\resources\Mesh.hpp" />
+    <ClInclude Include="source\resources\Model.hpp" />
+    <ClInclude Include="source\resources\Texture.hpp" />
+    <ClInclude Include="source\tools\Log.hpp" />
+    <ClInclude Include="source\tools\Profiler.hpp" />
+    <ClInclude Include="source\tools\Timer.hpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{91e63ac1-985a-4af1-a4a4-94626a08b736}</ProjectGuid>
+    <RootNamespace>KEngine</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;d3d12.lib;D3DCompiler.lib;assimp-vc143-mtd.lib;dxcapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>external/assimp/lib/Debug;external/cereal;external/dx12;external/DXR;external/entt;external/GLFW</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;d3d12.lib;D3DCompiler.lib;assimp-vc143-mtd.lib;dxcapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>external/assimp/Lib/Release;external/cereal;external/dx12;external/DXR;external/entt;external/GLFW</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;d3d12.lib;D3DCompiler.lib;assimp-vc143-mtd.lib;dxgi.lib;dxguid.lib;dxcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>external/assimp/lib/Debug;external/cereal;external/dx12;external/DXR;external/entt;external/GLFW</AdditionalLibraryDirectories>
+    </Link>
+    <PreBuildEvent>
+      <Command>xcopy /Y /D "$(SolutionDir)external\dx12\Debug\dxcompiler.dll" "$(TargetDir)"
+
+xcopy /Y /D "$(SolutionDir)external\dx12\Debug\dxil.dll" "$(TargetDir)"
+xcopy /Y /D "$(SolutionDir)external\assimp\Lib\Debug\assimp-vc143-mtd.dll" "$(TargetDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;dxcompiler.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>external/assimp/Lib/Release;external/cereal;external/dx12;external/DXR;external/entt;external/GLFW</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

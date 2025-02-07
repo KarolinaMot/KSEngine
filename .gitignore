@@ -1,2 +1,4 @@
 # Output Directory
 build
+x64
+.vs
