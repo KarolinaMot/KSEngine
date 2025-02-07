@@ -6,6 +6,11 @@ RWTexture2D<float4> gOutput[] : register(u0);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 
+cbuffer FrameIndexBuffer : register(b0)
+{
+    int frameIndex;
+};
+
 [shader("raygeneration")]
 void RayGen()
 {
@@ -17,5 +22,5 @@ void RayGen()
   // (often maps to pixels, so this could represent a pixel coordinate).
     uint2 launchIndex = DispatchRaysIndex();
 
-    gOutput[0][launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+    gOutput[frameIndex][launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
 }
