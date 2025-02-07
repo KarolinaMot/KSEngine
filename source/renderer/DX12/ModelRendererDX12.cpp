@@ -43,6 +43,8 @@ public:
     };
 
     nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
+    nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
+
     ASBuffers m_BLBuffers[200];
     std::pair<std::shared_ptr<DXResource>, DirectX::XMMATRIX> m_instances[200];
     ASBuffers m_topLevelASBuffers;
@@ -97,22 +99,21 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
     m_impl->m_rtPipeline = pipeline.Generate();
     m_impl->m_rtPipeline->QueryInterface(IID_PPV_ARGS(&m_impl->m_rtStateObjectProps));
 
-    nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
     D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle = static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
     auto heapPointer =srvUavHeapHandle.ptr;
 
     // The ray generation only uses heap data
     std::vector<void*> heapPointers(1);
     heapPointers[0] = reinterpret_cast<void*>(heapPointer);
-    m_sbtHelper.AddRayGenerationProgram(L"RayGen", heapPointers);
+    m_impl->m_sbtHelper.AddRayGenerationProgram(L"RayGen", heapPointers);
 
     // The miss and hit shaders do not access any external resources: instead they
     // communicate their results through the ray payload
-    m_sbtHelper.AddMissProgram(L"Miss", {});
+    m_impl->m_sbtHelper.AddMissProgram(L"Miss", heapPointers);
 
     // Adding the triangle hit shader
-    m_sbtHelper.AddHitGroup(L"HitGroup", {});
-    uint32_t sbtSize = m_sbtHelper.ComputeSBTSize();
+    m_impl->m_sbtHelper.AddHitGroup(L"HitGroup", {});
+    uint32_t sbtSize = m_impl->m_sbtHelper.ComputeSBTSize();
 
     m_impl->m_sbtStorage = nv_helpers_dx12::CreateBuffer(
         engineDevice, sbtSize, D3D12_RESOURCE_FLAG_NONE,
@@ -122,7 +123,7 @@ KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> s
         throw std::logic_error("Could not allocate the shader binding table");
     }
 
-    m_sbtHelper.Generate(m_impl->m_sbtStorage.Get(), m_impl->m_rtStateObjectProps.Get());
+    m_impl->m_sbtHelper.Generate(m_impl->m_sbtStorage.Get(), m_impl->m_rtStateObjectProps.Get());
 }
 
 KS::ModelRenderer::~ModelRenderer()
@@ -296,6 +297,51 @@ void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_
         i++;
     }
     CreateTopLevelAS(device, m_impl->m_updateBVH);
+
+    // m_impl->m_frameIndexBuffer->Update(&cpuFrameIndex, sizeof(uint32_t), 0, cpuFrameIndex);
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    renderTarget->GetTexture(device, cpuFrameIndex)->TransitionToRW(device);
+
+    // Setup the raytracing task
+     D3D12_DISPATCH_RAYS_DESC desc = {};
+    // The layout of the SBT is as follows: ray generation shader, miss
+    // shaders, hit groups. As described in the CreateShaderBindingTable method,
+    // all SBT entries of a given type have the same size to allow a fixed stride.
+
+    // The ray generation shaders are always at the beginning of the SBT.
+     uint32_t rayGenerationSectionSizeInBytes = m_impl->m_sbtHelper.GetRayGenSectionSize();
+     desc.RayGenerationShaderRecord.StartAddress = m_impl->m_sbtStorage->GetGPUVirtualAddress();
+     desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
+
+    // The miss shaders are in the second SBT section, right after the ray
+    // generation shader. We have one miss shader for the camera rays and one
+    // for the shadow rays, so this section has a size of 2*m_sbtEntrySize. We
+    // also indicate the stride between the two miss shaders, which is the size
+    // of a SBT entry
+     uint32_t missSectionSizeInBytes = m_impl->m_sbtHelper.GetMissSectionSize();
+     desc.MissShaderTable.StartAddress = m_impl->m_sbtStorage->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
+     desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
+     desc.MissShaderTable.StrideInBytes = m_impl->m_sbtHelper.GetMissEntrySize();
+
+    // The hit groups section start after the miss shaders. In this sample we
+    // have one 1 hit group for the triangle
+     uint32_t hitGroupsSectionSize = m_impl->m_sbtHelper.GetHitGroupSectionSize();
+     desc.HitGroupTable.StartAddress =
+         m_impl->m_sbtStorage->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes;
+     desc.HitGroupTable.SizeInBytes = hitGroupsSectionSize;
+     desc.HitGroupTable.StrideInBytes = m_impl->m_sbtHelper.GetHitGroupEntrySize();
+
+    // Dimensions of the image to render, identical to a kernel launch dimension
+     desc.Width = device.GetWidth();
+     desc.Height = device.GetHeight();
+     desc.Depth = 1;
+
+    // Bind the raytracing pipeline
+     commandList->GetCommandList()->SetPipelineState1(m_impl->m_rtPipeline.Get());
+    // Dispatch the rays and write to the raytracing output
+     commandList->GetCommandList()->DispatchRays(&desc);
+
+    // renderTarget->CopyTo(device, m_impl->m_raytraceRenderTargets[cpuFrameIndex], cpuFrameIndex);
 }
 
 void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)

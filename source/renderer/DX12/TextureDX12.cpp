@@ -17,7 +17,9 @@ public:
     DXHeapHandle mUAVHeapSlot {};
 
     void AllocateAsUAV(DXDescHeap* descriptorHeap);
+    void AllocateAsUAV(DXDescHeap* descriptorHeap, int slot);
     void AllocateAsSRV(DXDescHeap* descriptorHeap);
+    void AllocateAsSRV(DXDescHeap* descriptorHeap, int slot);
 };
 
 KS::Texture::Texture(const Device& device, const Image& image, int type)
@@ -113,6 +115,15 @@ KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, int t
     m_flag = type;
 }
 
+KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
+                     int srvAllocationSlot, int uavAllocationSlot)
+    : Texture(device, width, height, flags, clearColor, format)
+{
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    m_impl->AllocateAsSRV(resourceHeap, srvAllocationSlot);
+    m_impl->AllocateAsUAV(resourceHeap, uavAllocationSlot);
+}
+
 KS::Texture::~Texture()
 {
     delete m_impl;
@@ -125,33 +136,46 @@ void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) 
 
     if (readOnly)
     {
-        if (!m_impl->mSRVHeapSlot.IsValid())
-        {
-            m_impl->AllocateAsSRV(resourceHeap);
-        }
-        commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_COMMON);
+        TransitionToRO(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
         commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
     }
     else
     {
-        // if (m_flag == RENDER_TARGET || m_flag == DEPTH_TEXTURE)
-        // {
-        //     LOG(Log::Severity::WARN, "Cannot bind textures created with the RENDER_TARGET or DEPTH_TEXTURE types as read-write textures. Command ignored.");
-        //     return;
-        // }
-
-        if (
-            !m_impl->mUAVHeapSlot.IsValid())
-        {
-            m_impl->AllocateAsUAV(resourceHeap);
-        }
-
-        commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        TransitionToRW(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
     }
 }
+
+void KS::Texture::TransitionToRO(const Device& device) const
+{
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    if (!m_impl->mSRVHeapSlot.IsValid())
+    {
+        m_impl->AllocateAsSRV(resourceHeap);
+    }
+
+    commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
+                                 D3D12_RESOURCE_STATE_COMMON);
+}
+
+void KS::Texture::TransitionToRW(const Device& device) const
+{
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    if (!m_impl->mUAVHeapSlot.IsValid())
+    {
+        m_impl->AllocateAsUAV(resourceHeap);
+    }
+
+    commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
+                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+}
+
 
 void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap)
 {
@@ -163,6 +187,21 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap)
     mUAVHeapSlot = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc);
 }
 
+void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot)
+{
+    if (slot < 0)
+    {
+        return;
+    }
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    uavDesc.Format = mTextureBuffer->GetDesc().Format;
+    uavDesc.Texture2D.MipSlice = 0;
+    uavDesc.Texture2D.PlaneSlice = 0;
+    mUAVHeapSlot = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc, slot);
+}
+
 void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -172,6 +211,22 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     mSRVHeapSlot = descriptorHeap->AllocateResource(mTextureBuffer.get(), &srvDesc);
+}
+
+void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap, int slot)
+{
+    if (slot < 0)
+    {
+        return;
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = mTextureBuffer->GetDesc().Format;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    mSRVHeapSlot = descriptorHeap->AllocateResource(mTextureBuffer.get(), &srvDesc, slot);
 }
 
 class KS::RenderTarget::Impl

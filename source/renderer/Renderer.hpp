@@ -42,15 +42,16 @@ public:
 
 private:
     void UpdateLights(const Device& device);
-    void Rasterize(Device& device, const RendererRenderParams& params);
-    void Raytrace(Device& device, const RendererRenderParams& params);
 
     std::shared_ptr<UniformBuffer> m_camera_buffer;
 
     std::shared_ptr<Texture> m_deferredRendererTex[2][4];
     std::shared_ptr<Texture> m_deferredRendererDepthTex;
     std::shared_ptr<Texture> m_pbrResTex[2];
+    std::shared_ptr<Texture> m_raytracingResTex[2];
+
     std::shared_ptr<RenderTarget> m_deferredRendererRT;
+    std::shared_ptr<RenderTarget> m_raytracedRendererRT;
     std::shared_ptr<RenderTarget> m_pbrResRT;
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
 

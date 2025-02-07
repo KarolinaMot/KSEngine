@@ -1,6 +1,6 @@
-#include <renderer/ShaderInputsBuilder.hpp>
-#include <renderer/DX12/Helpers/DXSignature.hpp>
 #include <device/Device.hpp>
+#include <renderer/DX12/Helpers/DXSignature.hpp>
+#include <renderer/ShaderInputsBuilder.hpp>
 
 class KS::ShaderInputsBuilder::Impl
 {
@@ -12,8 +12,12 @@ public:
 
     D3D12_SHADER_VISIBILITY GetVisibility(ShaderInputVisibility visibility);
     void AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader);
-    void AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType, int numDescriptors, int shaderRegister);
-    void AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader, D3D12_TEXTURE_ADDRESS_MODE mode, D3D12_FILTER filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D12_STATIC_BORDER_COLOR color = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK, D3D12_COMPARISON_FUNC comparison = D3D12_COMPARISON_FUNC_NEVER);
+    void AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType, int numDescriptors,
+                  int shaderRegister);
+    void AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader, D3D12_TEXTURE_ADDRESS_MODE mode,
+                    D3D12_FILTER filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,
+                    D3D12_STATIC_BORDER_COLOR color = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+                    D3D12_COMPARISON_FUNC comparison = D3D12_COMPARISON_FUNC_NEVER);
 };
 
 KS::ShaderInputsBuilder::ShaderInputsBuilder()
@@ -22,9 +26,7 @@ KS::ShaderInputsBuilder::ShaderInputsBuilder()
     m_impl->mRanges.resize(20);
 }
 
-KS::ShaderInputsBuilder::~ShaderInputsBuilder()
-{
-}
+KS::ShaderInputsBuilder::~ShaderInputsBuilder() {}
 
 void KS::ShaderInputsBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
 {
@@ -40,7 +42,8 @@ void KS::ShaderInputsBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3
     mParameters.push_back(par);
 }
 
-void KS::ShaderInputsBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType, int numDescriptors, int shaderRegister)
+void KS::ShaderInputsBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+                                             int numDescriptors, int shaderRegister)
 {
     D3D12_DESCRIPTOR_RANGE range;
     range.RangeType = rangeType;
@@ -56,14 +59,16 @@ void KS::ShaderInputsBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D
     descriptorTable.pDescriptorRanges = &mRanges[mRangeCounter];
     mRangeCounter++;
 
-    D3D12_ROOT_PARAMETER par {};
+    D3D12_ROOT_PARAMETER par{};
     par.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     par.DescriptorTable = descriptorTable;
     par.ShaderVisibility = shader;
     mParameters.push_back(par);
 }
 
-void KS::ShaderInputsBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader, D3D12_TEXTURE_ADDRESS_MODE mode, D3D12_FILTER filter, D3D12_STATIC_BORDER_COLOR color, D3D12_COMPARISON_FUNC comparison)
+void KS::ShaderInputsBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
+                                               D3D12_TEXTURE_ADDRESS_MODE mode, D3D12_FILTER filter,
+                                               D3D12_STATIC_BORDER_COLOR color, D3D12_COMPARISON_FUNC comparison)
 {
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter = filter;
@@ -100,7 +105,8 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddUniform(ShaderInputVisibili
     return *this;
 }
 
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements, std::string name, ShaderInputMod modifiable)
+KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
+                                                                   std::string name, ShaderInputMod modifiable)
 {
     KS::ShaderInput input;
     input.modifications = modifiable;
@@ -126,7 +132,8 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStorageBuffer(ShaderInputVi
     return *this;
 }
 
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibility visibility, std::string name, ShaderInputMod modifiable)
+KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
+                                                             ShaderInputMod modifiable)
 {
     KS::ShaderInput input;
     input.modifications = modifiable;
@@ -153,56 +160,56 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibili
 
 KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
 {
-    std::pair<ShaderInputVisibility, SamplerDesc> sampler = { visibility, samplerDesc };
+    std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
     D3D12_TEXTURE_ADDRESS_MODE addressMode;
 
     switch (sampler.second.addressMode)
     {
-    case SamplerAddressMode::SAM_CLAMP:
-        addressMode = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        break;
-    case SamplerAddressMode::SAM_MIRROR:
-        addressMode = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-        break;
-    case SamplerAddressMode::SAM_BORDER:
-        addressMode = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        break;
-    case SamplerAddressMode::SAM_MIRROR_ONCE:
-        addressMode = D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
-        break;
-    case SamplerAddressMode::SAM_WRAP:
-        addressMode = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        break;
+        case SamplerAddressMode::SAM_CLAMP:
+            addressMode = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            break;
+        case SamplerAddressMode::SAM_MIRROR:
+            addressMode = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+            break;
+        case SamplerAddressMode::SAM_BORDER:
+            addressMode = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+            break;
+        case SamplerAddressMode::SAM_MIRROR_ONCE:
+            addressMode = D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
+            break;
+        case SamplerAddressMode::SAM_WRAP:
+            addressMode = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+            break;
     }
 
     D3D12_FILTER filterMode;
     switch (sampler.second.filter)
     {
-    case SamplerFilter::SF_NEAREST:
-        filterMode = D3D12_FILTER_MIN_MAG_MIP_POINT;
-        break;
+        case SamplerFilter::SF_NEAREST:
+            filterMode = D3D12_FILTER_MIN_MAG_MIP_POINT;
+            break;
 
-    case SamplerFilter::SF_LINEAR:
-        filterMode = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-        break;
+        case SamplerFilter::SF_LINEAR:
+            filterMode = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+            break;
 
-    case SamplerFilter::SF_ANISOTROPIC:
-        filterMode = D3D12_FILTER_ANISOTROPIC;
-        break;
+        case SamplerFilter::SF_ANISOTROPIC:
+            filterMode = D3D12_FILTER_ANISOTROPIC;
+            break;
     }
 
     D3D12_STATIC_BORDER_COLOR borderColor;
     switch (sampler.second.borderColor)
     {
-    case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
-        borderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-        break;
-    case SamplerBorderColor::SBC_OPAQUE_BLACK:
-        borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-        break;
-    case SamplerBorderColor::SBC_OPAQUE_WHITE:
-        borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-        break;
+        case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
+            borderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+            break;
+        case SamplerBorderColor::SBC_OPAQUE_BLACK:
+            borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+            break;
+        case SamplerBorderColor::SBC_OPAQUE_WHITE:
+            borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+            break;
     }
 
     m_impl->AddSampler(m_sampler_inputs.size(), m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor);
@@ -217,11 +224,12 @@ std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& d
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(static_cast<UINT>(m_impl->mParameters.size()),
-        m_impl->mParameters.data(),
-        static_cast<UINT>(m_impl->mSamplers.size()),
-        m_impl->mSamplers.data(),
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
+    rootSignatureDesc.Init(static_cast<UINT>(m_impl->mParameters.size()), m_impl->mParameters.data(),
+                           static_cast<UINT>(m_impl->mSamplers.size()), m_impl->mSamplers.data(),
+                           D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                               D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                               D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                               D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
 
     ComPtr<ID3DBlob> serializedSignature;
     ComPtr<ID3DBlob> errBlob;
@@ -230,14 +238,14 @@ std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& d
 
     if (FAILED(hr))
     {
-        LOG(Log::Severity::WARN, "{}",
-            (const char*)errBlob->GetBufferPointer());
+        LOG(Log::Severity::WARN, "{}", (const char*)errBlob->GetBufferPointer());
         ASSERT(false && "Failed to serialize root signature");
     }
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
     ComPtr<ID3D12RootSignature> signature;
-    hr = engineDevice->CreateRootSignature(0, serializedSignature->GetBufferPointer(), serializedSignature->GetBufferSize(), IID_PPV_ARGS(&signature));
+    hr = engineDevice->CreateRootSignature(0, serializedSignature->GetBufferPointer(), serializedSignature->GetBufferSize(),
+                                           IID_PPV_ARGS(&signature));
 
     if (FAILED(hr))
     {
@@ -246,9 +254,7 @@ std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& d
     }
     signature->SetName(wString);
 
-    return std::make_shared<ShaderInputs>(device, std::move(m_descriptors),
-        signature.Get(),
-        name);
+    return std::make_shared<ShaderInputs>(device, std::move(m_descriptors), signature.Get(), name);
 }
 
 D3D12_SHADER_VISIBILITY KS::ShaderInputsBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
@@ -256,15 +262,15 @@ D3D12_SHADER_VISIBILITY KS::ShaderInputsBuilder::Impl::GetVisibility(ShaderInput
     D3D12_SHADER_VISIBILITY descVisibility;
     switch (visibility)
     {
-    case ShaderInputVisibility::PIXEL:
-        descVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        break;
-    case ShaderInputVisibility::VERTEX:
-        descVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-        break;
-    case ShaderInputVisibility::COMPUTE:
-        descVisibility = D3D12_SHADER_VISIBILITY_ALL;
-        break;
+        case ShaderInputVisibility::PIXEL:
+            descVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+            break;
+        case ShaderInputVisibility::VERTEX:
+            descVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            break;
+        case ShaderInputVisibility::COMPUTE:
+            descVisibility = D3D12_SHADER_VISIBILITY_ALL;
+            break;
     }
 
     return descVisibility;

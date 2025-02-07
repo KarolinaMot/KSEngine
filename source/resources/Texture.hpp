@@ -26,10 +26,15 @@ public:
     Texture(const Device& device, const Image& image, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format);
     Texture(const Device& device, void* resource, glm::vec2 size, int flags = 0);
+    Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
+        int srvAllocationSlot, int uavAllocationSlot);
     ~Texture();
     void Bind(const Device& device, uint32_t rootIndex, bool readOnly = true) const;
+    void TransitionToRO(const Device& device) const;
+    void TransitionToRW(const Device& device) const;
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format;}
+
 private:
     class Impl;
     Impl* m_impl;

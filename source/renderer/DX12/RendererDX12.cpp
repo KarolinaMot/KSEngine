@@ -1,19 +1,21 @@
-#include "../UniformBuffer.hpp"
-#include "../ModelRenderer.hpp"
-#include "../ComputeRenderer.hpp"
-#include "../Renderer.hpp"
-#include "../SubRenderer.hpp"
 #include <device/Device.hpp>
 #include <glm/glm.hpp>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXConstBuffer.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
-#include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <renderer/Shader.hpp>
-#include <renderer/ShaderInputs.hpp>
+#include <renderer/DepthStencil.hpp>
 #include <renderer/InfoStructs.hpp>
 #include <renderer/RenderTarget.hpp>
-#include <renderer/DepthStencil.hpp>
+#include <renderer/Shader.hpp>
+#include <renderer/ShaderInputs.hpp>
 #include <resources/Texture.hpp>
+
+#include "../ComputeRenderer.hpp"
+#include "../ModelRenderer.hpp"
+#include "../Renderer.hpp"
+#include "../SubRenderer.hpp"
+#include "../UniformBuffer.hpp"
+#include "Helpers/DX12Common.hpp"
 
 KS::Renderer::Renderer(Device& device, const RendererInitParams& params)
 {
@@ -29,40 +31,64 @@ KS::Renderer::Renderer(Device& device, const RendererInitParams& params)
         }
     }
 
-    CameraMats cam {};
+    CameraMats cam{};
     m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
     for (int i = 0; i < 2; i++)
     {
-        m_deferredRendererTex[i][0] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R32G32B32A32_FLOAT);
-        m_deferredRendererTex[i][1] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_deferredRendererTex[i][2] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_deferredRendererTex[i][3] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_pbrResTex[i] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_deferredRendererTex[i][0] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R32G32B32A32_FLOAT);
+        m_deferredRendererTex[i][1] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_deferredRendererTex[i][2] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_deferredRendererTex[i][3] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_pbrResTex[i] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                                   Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                                   glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+        m_raytracingResTex[i] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
     }
 
     m_deferredRendererRT = std::make_shared<RenderTarget>();
     for (int i = 0; i < 4; i++)
     {
-        m_deferredRendererRT->AddTexture(device, m_deferredRendererTex[0][i], m_deferredRendererTex[1][i], "DEFERRED RENDERER" + std::to_string(i));
+        m_deferredRendererRT->AddTexture(device, m_deferredRendererTex[0][i], m_deferredRendererTex[1][i],
+                                         "DEFERRED RENDERER" + std::to_string(i));
     }
     m_pbrResRT = std::make_shared<RenderTarget>();
     m_pbrResRT->AddTexture(device, m_pbrResTex[0], m_pbrResTex[1], "PBR RENDER RES");
 
-    m_deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f), KS::Formats::D32_FLOAT);
+    m_raytracedRendererRT = std::make_shared<RenderTarget>();
+    m_raytracedRendererRT->AddTexture(device, m_raytracingResTex[0], m_raytracingResTex[1], "RAYTRACED RENDER RES");
+
+    m_deferredRendererDepthTex =
+        std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE,
+                                  glm::vec4(1.f), KS::Formats::D32_FLOAT);
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, m_deferredRendererDepthTex);
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
+        std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
+        std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
 }
 
-KS::Renderer::~Renderer()
-{
-}
+KS::Renderer::~Renderer() {}
 
 void KS::Renderer::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
 {
@@ -91,7 +117,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    CameraMats cam {};
+    CameraMats cam{};
     cam.m_proj = params.projectionMatrix;
     cam.m_view = params.viewMatrix;
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
@@ -103,47 +129,33 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    if (!raytraced)
-        Rasterize(device, params);
-    else
-        Raytrace(device, params);
-}
-
-void KS::Renderer::Rasterize(Device& device, const RendererRenderParams& params)
-{
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
     mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex, 0);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex, 0);
     mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex, 0);
 
-    m_camera_buffer->Bind(device,
-        m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex,
-        0);
+    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
     device.TrackResource(m_camera_buffer);
     m_subrenderers[0]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil);
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+
     mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex, 0);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex, 0);
     mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex, 0);
     m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
 
-    Texture* textures[4] = { m_deferredRendererTex[device.GetCPUFrameIndex()][0].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][1].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][2].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][3].get() };
-    m_subrenderers[1]->Render(device, params.cpuFrame, m_pbrResRT, m_deferredRendererDepthStencil, &textures[0], 4);
+    Texture* textures[4] = {
+        m_deferredRendererTex[device.GetCPUFrameIndex()][0].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][1].get(),
+        m_deferredRendererTex[device.GetCPUFrameIndex()][2].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][3].get()};
 
-    device.GetRenderTarget()->CopyTo(device, m_pbrResRT, 0, 0);
-}
+    auto &boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
 
-void KS::Renderer::Raytrace(Device& device, const RendererRenderParams& params)
-{
-    device.GetRenderTarget()->Bind(device, device.GetDepthStencil().get());
-    device.GetRenderTarget()->Clear(device);
-    device.GetDepthStencil()->Clear(device);
+    if (!raytraced)
+        m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, &textures[0], 4);
 
-    m_subrenderers[0]->Render(device, params.cpuFrame, device.GetRenderTarget(), device.GetDepthStencil());
+    device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

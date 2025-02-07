@@ -14,10 +14,11 @@ public:
     ShaderInputsBuilder();
     ~ShaderInputsBuilder();
     ShaderInputsBuilder& AddUniform(ShaderInputVisibility visibility, std::string name);
-    ShaderInputsBuilder& AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements, std::string name, ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
-    ShaderInputsBuilder& AddTexture(ShaderInputVisibility visibility, std::string name, ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
+    ShaderInputsBuilder& AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements, std::string name,
+                                          ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
+    ShaderInputsBuilder& AddTexture(ShaderInputVisibility visibility, std::string name,
+                                    ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
     ShaderInputsBuilder& AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc);
-
     std::shared_ptr<ShaderInputs> Build(const Device& device, std::string name);
 
 private:
@@ -32,4 +33,4 @@ private:
     int m_input_counter = 0;
 };
 
-}
+}  // namespace KS

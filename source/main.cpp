@@ -140,9 +140,6 @@ int main()
         mainInputs,
         "assets/shaders/Main.hlsl");
 
-    // std::shared_ptr<KS::ShaderInputs> raytraceInputs = KS::ShaderInputsBuilder()
-    //                                                        .AddHeap
-
     KS::RendererInitParams initParams {};
     initParams.shaders.push_back(mainShader);
     initParams.shaders.push_back(computePBRShader);
