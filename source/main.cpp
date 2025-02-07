@@ -188,7 +188,7 @@ int main()
         renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
         renderer.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
         renderer.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
-        model_renderer->QueueModel(*device, model, transform);
+        model_renderer->QueueModel(*device, model, glm::mat4x4(1.f));
         // model_renderer->QueueModel(*device, model, transform2);
         //  model_renderer->QueueModel(*device, model, transform3);
         model_renderer->SetRaytraced(raytraced);
