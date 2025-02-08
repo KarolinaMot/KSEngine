@@ -91,8 +91,10 @@ struct MaterialInfo
 
 struct CameraMats
 {
-    glm::mat4x4 m_view = glm::mat4x4(1.f);
     glm::mat4x4 m_proj = glm::mat4x4(1.f);
+    glm::mat4x4 m_invProj = glm::mat4x4(1.f);
+    glm::mat4x4 m_view = glm::mat4x4(1.f);
+    glm::mat4x4 m_invView = glm::mat4x4(1.f);
     glm::mat4x4 m_camera = glm::mat4x4(1.f);
     glm::vec4 m_cameraPos = glm::vec4(1.f);
 };

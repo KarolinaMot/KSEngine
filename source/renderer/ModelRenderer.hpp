@@ -26,7 +26,7 @@ struct DrawEntry;
 class ModelRenderer : public SubRenderer
 {
 public:
-    ModelRenderer(const Device& device, std::shared_ptr<Shader> shader);
+    ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, const UniformBuffer* cameraBuffer);
     ~ModelRenderer();
 
     void QueueModel(const Device& device, ResourceHandle<Model> model, const glm::mat4& transform);

@@ -19,20 +19,20 @@
 
 KS::Renderer::Renderer(Device& device, const RendererInitParams& params)
 {
+    CameraMats cam{};
+    m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
+
     for (int i = 0; i < params.shaders.size(); i++)
     {
         if (params.shaders[i]->GetShaderType() == ShaderType::ST_MESH_RENDER)
         {
-            m_subrenderers.push_back(std::make_unique<ModelRenderer>(device, params.shaders[i]));
+            m_subrenderers.push_back(std::make_unique<ModelRenderer>(device, params.shaders[i], m_camera_buffer.get()));
         }
         else
         {
             m_subrenderers.push_back(std::make_unique<ComputeRenderer>(device, params.shaders[i]));
         }
     }
-
-    CameraMats cam{};
-    m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
     for (int i = 0; i < 2; i++)
     {
@@ -119,7 +119,9 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
     CameraMats cam{};
     cam.m_proj = params.projectionMatrix;
+    cam.m_invProj = glm::inverse(params.projectionMatrix);
     cam.m_view = params.viewMatrix;
+    cam.m_invView = glm::inverse(params.viewMatrix);
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
     m_camera_buffer->Update(device, cam, 0);

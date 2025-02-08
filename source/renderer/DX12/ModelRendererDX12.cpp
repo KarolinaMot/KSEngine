@@ -42,7 +42,7 @@ public:
         glm::vec4 colorAndDistance;
     };
 
-    void InitializeRaytracer(const Device& device);
+    void InitializeRaytracer(const Device& device, const UniformBuffer* cameraBuffer);
 
     nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
     nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper[2];
@@ -63,14 +63,14 @@ public:
     
 };
 
-KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader)
+KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, const UniformBuffer* cameraBuffer)
     : SubRenderer(device, shader)
 {
     m_impl = std::make_unique<Impl>();
     m_modelMatsBuffer = std::make_unique<StorageBuffer>(device, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), 200, false);
     m_materialInfoBuffer = std::make_unique<StorageBuffer>(device, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), 200, false);
     m_modelIndexBuffer = std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, 200);
-    m_impl->InitializeRaytracer(device);
+    m_impl->InitializeRaytracer(device, cameraBuffer);
 }
 
 KS::ModelRenderer::~ModelRenderer()
@@ -514,7 +514,7 @@ void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
     commandList->TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc->GetResource());
 }
 
-void KS::ModelRenderer::Impl::InitializeRaytracer(const Device& device) {
+void KS::ModelRenderer::Impl::InitializeRaytracer(const Device& device, const UniformBuffer* cameraBuffer) {
     auto engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
 
     int32_t frameIndex = 0;
@@ -526,7 +526,8 @@ void KS::ModelRenderer::Impl::InitializeRaytracer(const Device& device) {
           D3D12_DESCRIPTOR_RANGE_TYPE_UAV /* UAV representing the output buffer*/,
           RAYTRACE_RT_SLOT /*heap slot where the UAV is defined*/},
          {0 /*t0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/, BVH_SLOT}});
-    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV);
+    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
+    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);
     m_raytracingSignature = rsc.Generate(engineDevice, true);
     m_raytracingSignature->SetName(L"Raytracing signature");
 
@@ -555,12 +556,13 @@ void KS::ModelRenderer::Impl::InitializeRaytracer(const Device& device) {
         static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
     auto heapPointer = srvUavHeapHandle.ptr;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 1; i > -1; i--)
     {
         // The ray generation only uses heap data
-        std::vector<void*> heapPointers(2);
+        std::vector<void*> heapPointers(3);
         heapPointers[0] = reinterpret_cast<void*>(heapPointer);
         heapPointers[1] = reinterpret_cast<void*>(m_frameIndex->GetGPUAddress(0, i));
+        heapPointers[2] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, i));
         m_sbtHelper[i].AddRayGenerationProgram(L"RayGen", heapPointers);
 
         // The miss and hit shaders do not access any external resources: instead they
