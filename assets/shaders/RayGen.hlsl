@@ -5,7 +5,7 @@
 RWTexture2D<float4> gOutput[] : register(u0);
 
 // Raytracing acceleration structure, accessed as a SRV
-RaytracingAccelerationStructure SceneBVH : register(t0);
+RaytracingAccelerationStructure SceneBVH[] : register(t0);
 
 cbuffer FrameIndexBuffer : register(b0)
 {
@@ -42,7 +42,7 @@ void RayGen()
     TraceRay(
       // Parameter name: AccelerationStructure
       // Acceleration structure
-      SceneBVH,
+      SceneBVH[frameIndex],
 
       // Parameter name: RayFlags
       // Flags can be used to specify the behavior upon hitting a surface

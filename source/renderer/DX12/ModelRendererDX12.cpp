@@ -33,9 +33,9 @@ class KS::ModelRenderer::Impl
 public:
     struct ASBuffers
     {
-        std::shared_ptr<DXResource> pScratch = nullptr;
-        std::shared_ptr<DXResource> pResult = nullptr;
-        std::shared_ptr<DXResource> pInstanceDesc = nullptr;
+        std::shared_ptr<DXResource> pScratch[2] = {nullptr, nullptr};
+        std::shared_ptr<DXResource> pResult[2] = {nullptr, nullptr};
+        std::shared_ptr<DXResource> pInstanceDesc[2] = {nullptr, nullptr};
     };
     struct HitInfo
     {
@@ -51,7 +51,7 @@ public:
     std::pair<std::shared_ptr<DXResource>, DirectX::XMMATRIX> m_instances[200];
     ASBuffers m_topLevelASBuffers;
     int m_BLCount = 0;
-    DXHeapHandle m_BHVHandle;
+    DXHeapHandle m_BHVHandle[2];
     bool m_updateBVH = false;
 
     ComPtr<ID3D12RootSignature> m_raytracingSignature;
@@ -232,18 +232,23 @@ void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_
 
     int i = 0;
 
-    for (const auto& draw_entry : draw_queue)
+    if (m_frameCount < 2)
     {
-        const Mesh* mesh = GetMesh(device, draw_entry.mesh);
-        auto baseTex = GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+        for (const auto& draw_entry : draw_queue)
+        {
+            const Mesh* mesh = GetMesh(device, draw_entry.mesh);
+            auto baseTex = GetTexture(
+                device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
 
-        if (mesh == nullptr || baseTex == nullptr)
-            continue;
+            if (mesh == nullptr || baseTex == nullptr) continue;
 
-        CreateBVHBotomLevelInstance(device, draw_entry, m_impl->m_updateBVH, i);
-        i++;
+            CreateBVHBotomLevelInstance(device, draw_entry, m_impl->m_updateBVH, i, cpuFrameIndex);
+            i++;
+        }
+        CreateTopLevelAS(device, m_impl->m_updateBVH, cpuFrameIndex);
+
     }
-    CreateTopLevelAS(device, m_impl->m_updateBVH);
+
     m_impl->m_frameIndex->Update(device, cpuFrameIndex);
 
     // m_impl->m_frameIndexBuffer->Update(&cpuFrameIndex, sizeof(uint32_t), 0, cpuFrameIndex);
@@ -289,7 +294,7 @@ void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_
      commandList->GetCommandList()->SetPipelineState1(m_impl->m_rtPipeline.Get());
     // Dispatch the rays and write to the raytracing output
      commandList->GetCommandList()->DispatchRays(&desc);
-
+     m_frameCount++;
     // renderTarget->CopyTo(device, m_impl->m_raytraceRenderTargets[cpuFrameIndex], cpuFrameIndex);
 }
 
@@ -352,7 +357,7 @@ void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared
     }
 }
 
-void KS::ModelRenderer::CreateBottomLevelAS(const Device& device, const Mesh* mesh)
+void KS::ModelRenderer::CreateBottomLevelAS(const Device& device, const Mesh* mesh, int cpuFrame)
 {
     nv_helpers_dx12::BottomLevelASGenerator bottomLevelASGen;
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
@@ -405,19 +410,21 @@ void KS::ModelRenderer::CreateBottomLevelAS(const Device& device, const Mesh* me
     heapProps.CreationNodeMask = 0;
     heapProps.VisibleNodeMask = 0;
 
-    m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "SCRATCH  BUFFER");
+    m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame] =
+        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "SCRATCH  BUFFER");
 
     bufDesc.Width = resultSizeInBytes;
-    m_impl->m_BLBuffers[m_impl->m_BLCount].pResult = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "RESULT  BUFFER", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+    m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame] = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "RESULT  BUFFER", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
-    bottomLevelASGen.Generate(commandList->GetCommandList().Get(), m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch->Get(),
-        m_impl->m_BLBuffers[m_impl->m_BLCount].pResult->Get(), false, nullptr);
+    bottomLevelASGen.Generate(commandList->GetCommandList().Get(),
+                              m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame]->Get(),
+        m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->Get(), false, nullptr);
 
-    commandList->TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch->GetResource());
-    commandList->TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pResult->GetResource());
+    commandList->TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame]->GetResource());
+    commandList->TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->GetResource());
 }
 
-void KS::ModelRenderer::CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex)
+void KS::ModelRenderer::CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex, int cpuFrame)
 {
     if (!updateOnly)
     {
@@ -425,9 +432,9 @@ void KS::ModelRenderer::CreateBVHBotomLevelInstance(const Device& device, const 
         if (!mesh)
             return;
 
-        CreateBottomLevelAS(device, mesh);
+        CreateBottomLevelAS(device, mesh, cpuFrame);
 
-        m_impl->m_instances[m_impl->m_BLCount].first = m_impl->m_BLBuffers[m_impl->m_BLCount].pResult;
+        m_impl->m_instances[m_impl->m_BLCount].first = m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame];
         m_impl->m_instances[m_impl->m_BLCount].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
 
         m_impl->m_topLevelASGenerator.AddInstance(m_impl->m_instances[m_impl->m_BLCount].first->Get(),
@@ -442,7 +449,7 @@ void KS::ModelRenderer::CreateBVHBotomLevelInstance(const Device& device, const 
     }
 }
 
-void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
+void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly, int cpuFrame)
 {
     ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
@@ -469,9 +476,12 @@ void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
         heapProps.CreationNodeMask = 0;
         heapProps.VisibleNodeMask = 0;
 
-        m_impl->m_topLevelASBuffers.pScratch = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
+        m_impl->m_topLevelASBuffers.pScratch[cpuFrame] =
+            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
         bufDesc.Width = resultSize;
-        m_impl->m_topLevelASBuffers.pResult = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+        m_impl->m_topLevelASBuffers.pResult[cpuFrame] =
+            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT",
+                                         D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
         // The buffer describing the instances: ID, shader binding information,
         // matrices ... Those will be copied into the buffer by the helper through
@@ -482,10 +492,13 @@ void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
         heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         heapProps.CreationNodeMask = 0;
         heapProps.VisibleNodeMask = 0;
-        m_impl->m_topLevelASBuffers.pInstanceDesc = std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
+        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame] =
+            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
 
-        commandList->ResourceBarrier(*m_impl->m_topLevelASBuffers.pInstanceDesc->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc->GetState(), D3D12_RESOURCE_STATE_GENERIC_READ);
-        m_impl->m_topLevelASBuffers.pInstanceDesc->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
+        commandList->ResourceBarrier(*m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
+                                     m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetState(),
+                                     D3D12_RESOURCE_STATE_GENERIC_READ);
+        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
     }
 
     // After all the buffers are allocated, or if only an update is required, we
@@ -493,10 +506,9 @@ void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
     // we also pass the existing AS as the 'previous' AS, so that it can be
     // refitted in place.
     m_impl->m_topLevelASGenerator.Generate(commandList->GetCommandList().Get(),
-        m_impl->m_topLevelASBuffers.pScratch->Get(),
-        m_impl->m_topLevelASBuffers.pResult->Get(),
-        m_impl->m_topLevelASBuffers.pInstanceDesc->Get(),
-        updateOnly, m_impl->m_topLevelASBuffers.pResult->Get());
+        m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->Get(),
+        m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
+        updateOnly, m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get());
 
     if (!updateOnly)
     {
@@ -504,14 +516,17 @@ void KS::ModelRenderer::CreateTopLevelAS(const Device& device, bool updateOnly)
         srvDesc.Format = DXGI_FORMAT_UNKNOWN;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.RaytracingAccelerationStructure.Location = m_impl->m_topLevelASBuffers.pResult->Get()->GetGPUVirtualAddress();
+        srvDesc.RaytracingAccelerationStructure.Location =
+            m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get()->GetGPUVirtualAddress();
 
-        m_impl->m_BHVHandle = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())->AllocateResource(m_impl->m_topLevelASBuffers.pResult.get(), &srvDesc, BVH_SLOT);
+        m_impl->m_BHVHandle[cpuFrame] =
+            reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())
+                                  ->AllocateResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame].get(), &srvDesc, BVH_SLOT+cpuFrame);
     }
 
-    commandList->TrackResource(m_impl->m_topLevelASBuffers.pScratch->GetResource());
-    commandList->TrackResource(m_impl->m_topLevelASBuffers.pResult->GetResource());
-    commandList->TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc->GetResource());
+    commandList->TrackResource(m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->GetResource());
+    commandList->TrackResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame]->GetResource());
+    commandList->TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetResource());
 }
 
 void KS::ModelRenderer::Impl::InitializeRaytracer(const Device& device, const UniformBuffer* cameraBuffer) {
@@ -525,7 +540,9 @@ void KS::ModelRenderer::Impl::InitializeRaytracer(const Device& device, const Un
         {{0 /*u0*/, 1 /*1 descriptor */, 0 /*use the implicit register space 0*/,
           D3D12_DESCRIPTOR_RANGE_TYPE_UAV /* UAV representing the output buffer*/,
           RAYTRACE_RT_SLOT /*heap slot where the UAV is defined*/},
-         {0 /*t0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/, BVH_SLOT}});
+         {0 /*t0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/, BVH_SLOT},
+        
+        });
     rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
     rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);
     m_raytracingSignature = rsc.Generate(engineDevice, true);

@@ -44,9 +44,10 @@ private:
     MaterialInfo GetMaterialInfo(const Material& material);
     void Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);
     void Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);
-    void CreateBottomLevelAS(const Device& device, const Mesh* mesh);
-    void CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex);
-    void CreateTopLevelAS(const Device& device, bool updateOnly);
+    void CreateBottomLevelAS(const Device& device, const Mesh* mesh, int cpuFrame);
+    void CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex,
+                                     int cpuFrame);
+    void CreateTopLevelAS(const Device& device, bool updateOnly, int cpuFrame);
 
     std::unordered_map<ResourceHandle<Model>, Model> model_cache {};
     std::unordered_map<ResourceHandle<Mesh>, Mesh> mesh_cache {};
@@ -61,5 +62,6 @@ private:
     ModelMat m_modelMatrices[200] {};
     MaterialInfo m_materialInstances[200] {};
     int32_t m_modelCount = 0;
+    int32_t m_frameCount = 0;
 };
 } // namespace KS
