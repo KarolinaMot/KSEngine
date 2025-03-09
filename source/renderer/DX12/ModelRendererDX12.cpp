@@ -365,9 +365,9 @@ void KS::ModelRenderer::CreateBottomLevelAS(const Device& device, const Mesh* me
 
     using namespace MeshConstants;
     auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-    auto positionsResource = reinterpret_cast<DXResource*>(positions->GetResource());
+    auto positionsResource = reinterpret_cast<DXResource*>(positions->GetRawResource());
     auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
-    auto indicesResource = reinterpret_cast<DXResource*>(indices->GetResource());
+    auto indicesResource = reinterpret_cast<DXResource*>(indices->GetRawResource());
 
     commandList->ResourceBarrier(*positionsResource->Get(), positionsResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     positionsResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

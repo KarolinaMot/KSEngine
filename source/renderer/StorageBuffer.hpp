@@ -16,11 +16,13 @@ public:
 
     template <typename T>
     StorageBuffer(const Device& device, const std::string& name, const std::vector<T>& data, bool readWriteEnabled)
-        : StorageBuffer(device, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(), readWriteEnabled)
+        : StorageBuffer(device, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(),
+                        readWriteEnabled)
     {
     }
 
-    StorageBuffer(const Device& device, const std::string& name, const void* data, size_t stride, size_t element_count, bool readWriteEnabled)
+    StorageBuffer(const Device& device, const std::string& name, const void* data, size_t stride, size_t element_count,
+                  bool readWriteEnabled)
     {
         m_read_write = readWriteEnabled;
         m_buffer_stride = stride;
@@ -37,12 +39,12 @@ public:
     {
         if (sizeof(T) != m_buffer_stride)
         {
-            LOG(Log::Severity::WARN, "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
+            LOG(Log::Severity::WARN,
+                "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
             return;
         }
 
-        if (data.size() > m_num_elements)
-            Resize(device, data.size());
+        if (data.size() > m_num_elements) Resize(device, data.size());
 
         UploadDataBuffer(device, data.data(), data.size());
     }
@@ -52,7 +54,8 @@ public:
     {
         if (sizeof(T) != m_buffer_stride)
         {
-            LOG(Log::Severity::WARN, "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
+            LOG(Log::Severity::WARN,
+                "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
             return;
         }
 
@@ -62,21 +65,25 @@ public:
             return;
         }
 
-        if (numElements > m_num_elements)
-            Resize(device, numElements);
+        if (numElements > m_num_elements) Resize(device, numElements);
 
         UploadDataBuffer(device, data, numElements);
     }
 
     void Resize(const Device& device, int newNumOfElements);
-    void Bind(const Device& device, int rootIndex, int elementIndex = 0, bool readOnly = true);
+    void Bind(Device& device, int rootIndex, bool readOnly = true);
     void BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset = 0);
     void BindAsIndexData(const Device& device, uint32_t elementOffset = 0);
+    void AllocateAsReadOnly(Device& device, int slot = -1);
+    void AllocateAsReadWrite(Device& device, int slot = -1);
 
     size_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
     size_t GetElementCount() const { return m_num_elements; }
-    void* GetResource();
+    bool IsReadWrite() const { return m_read_write; }
+    void* GetRawRealResource() const;
+    void* GetRawResource() const;
+    int GetAllocationIndex(bool readOnly);
 
 private:
     void CreateBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
@@ -92,4 +99,4 @@ private:
     Impl* m_impl;
 };
 
-} // namespace KS
+}  // namespace KS

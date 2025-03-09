@@ -50,7 +50,7 @@ public:
     size_t GetElementCount() const { return m_num_elements; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const;
 
-    void Bind(const Device& device, int rootIndex, int elementIndex);
+    void Bind(const Device& device, int rootIndex, int elementIndex = 0);
 
 private:
     void CreateUniformBuffer(const Device& device);

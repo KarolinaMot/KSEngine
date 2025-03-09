@@ -1,7 +1,6 @@
 #include <device/Device.hpp>
 #include <glm/glm.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <renderer/DX12/Helpers/DXConstBuffer.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DepthStencil.hpp>
 #include <renderer/InfoStructs.hpp>
@@ -133,9 +132,9 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex, 0);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex, 0);
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex, 0);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex);
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex);
 
     m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
     device.TrackResource(m_camera_buffer);
@@ -143,9 +142,9 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex, 0);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex, 0);
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex, 0);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex);
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex);
     m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
 
     Texture* textures[4] = {

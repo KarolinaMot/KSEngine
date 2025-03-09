@@ -37,7 +37,6 @@
     <ClCompile Include="source\renderer\DX12\ComputeRendererDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXCommandList.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXCommandQueue.cpp" />
-    <ClCompile Include="source\renderer\DX12\Helpers\DXConstBuffer.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXDescHeap.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXGPUSync.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXPipeline.cpp" />
@@ -84,7 +83,6 @@
     <ClInclude Include="source\renderer\DX12\Helpers\DX12Conversion.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandList.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandQueue.hpp" />
-    <ClInclude Include="source\renderer\DX12\Helpers\DXConstBuffer.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXDescHeap.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXGPUSync.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXHeapHandle.hpp" />
