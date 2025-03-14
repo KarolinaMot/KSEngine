@@ -17,6 +17,8 @@
 namespace KS
 {
 
+    class ShaderInputs;
+class Shader;
 struct DeviceInitParams
 {
     std::string name = "KS Engine";
@@ -53,6 +55,8 @@ public:
     std::shared_ptr<Texture> GetRenderTargetTexture(int index) { return m_swapchainTex[index]; };
     std::shared_ptr<DepthStencil> GetDepthStencil() { return m_swapchainDS; };
     std::shared_ptr<Texture> GetDepthStencilTex() { return m_swapchainDepthTex; };
+    ShaderInputs* GetMipGenShaderInputs() const { return m_mipMapShaderInputs.get(); }
+    Shader* GetMipGenShader() const { return m_mipMapShader.get(); }
     // Blocks until all rendering operations are finished
     void Flush();
 
@@ -72,6 +76,8 @@ private:
     std::shared_ptr<Texture> m_swapchainTex[2];
     std::shared_ptr<DepthStencil> m_swapchainDS;
     std::shared_ptr<Texture> m_swapchainDepthTex;
+    std::shared_ptr<ShaderInputs> m_mipMapShaderInputs;
+    std::shared_ptr<Shader> m_mipMapShader;
 };
 
 } // namespace KS

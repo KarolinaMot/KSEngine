@@ -23,6 +23,16 @@ public:
         DEPTH_TEXTURE = 1 << 3
     };
 
+    struct GenerateMipsInfo
+    {
+        uint32_t SrcMipLevel;   // Texture level of source mip
+        uint32_t NumMipLevels;  // Number of OutMips to write: [1-4]
+        uint32_t SrcDimension;  // Width and height of the source texture are even or odd.
+        uint32_t IsSRGB;        // Must apply gamma correction to sRGB textures.
+        glm::vec2 TexelSize;    // 1.0 / OutMip1.Dimensions
+    };
+
+
     Texture(const Device& device, const Image& image, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format);
     Texture(const Device& device, void* resource, glm::vec2 size, int flags = 0);
@@ -36,10 +46,14 @@ public:
     inline Formats GetFormat() const { return m_format;}
 
 private:
+    void GenerateMipmaps(const Device& device);
+
     class Impl;
     Impl* m_impl;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
+    uint32_t m_mipLevels = 1;
+
     glm::vec4 m_clearColor = glm::vec4(0.f);
     Formats m_format;
     int m_flag;

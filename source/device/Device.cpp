@@ -1,4 +1,7 @@
 #include <device/Device.hpp>
+#include <renderer/ShaderInputs.hpp>
+#include <renderer/ShaderInputsBuilder.hpp>
+#include <renderer/Shader.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
@@ -64,6 +67,7 @@ KS::Device::Device(const DeviceInitParams& params)
     m_clear_color = params.clear_color;
     m_impl->InitializeDevice(params);
     m_frame_index = 0;
+
 }
 
 KS::Device::~Device()
@@ -142,6 +146,25 @@ void KS::Device::InitializeSwapchain()
 
 void KS::Device::FinishInitialization()
 {
+    KS::SamplerDesc desc{};
+    desc.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
+    desc.borderColor = SamplerBorderColor::SBC_TRANSPARENT_BLACK;
+    desc.filter = SamplerFilter::SF_LINEAR;
+
+    m_mipMapShaderInputs =  KS::ShaderInputsBuilder()
+        .AddUniform(KS::ShaderInputVisibility::COMPUTE, "mipmap_info")
+        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
+        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
+        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_3", KS::ShaderInputMod::READ_WRITE)
+        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_0", KS::ShaderInputMod::READ_ONLY)
+        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
+        .Build(*this, "MIPMAP SIGNATURE");
+
+    m_mipMapShader = std::make_shared<KS::Shader>(*this,
+            KS::ShaderType::ST_COMPUTE,
+            m_mipMapShaderInputs,
+            "assets/shaders/MipGen.hlsl");
+
     m_impl->m_command_list->Close();
 
     const DXCommandList* commandLists[] = { m_impl->m_command_list.get() };

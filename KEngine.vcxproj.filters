@@ -87,9 +87,6 @@
     <ClCompile Include="source\renderer\DX12\Helpers\DXCommandQueue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\renderer\DX12\Helpers\DXConstBuffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="source\renderer\DX12\Helpers\DXDescHeap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -243,9 +240,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandQueue.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="source\renderer\DX12\Helpers\DXConstBuffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\DX12\Helpers\DXDescHeap.hpp">
