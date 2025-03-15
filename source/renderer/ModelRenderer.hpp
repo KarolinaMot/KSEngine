@@ -26,10 +26,13 @@ struct DrawEntry;
 class ModelRenderer : public SubRenderer
 {
 public:
-    ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, const UniformBuffer* cameraBuffer);
+    ModelRenderer(const Device& device,
+                  std::shared_ptr<Shader> shader,
+                  std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
+                  const UniformBuffer* cameraBuffer);
     ~ModelRenderer();
 
-    void QueueModel(const Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
+    void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
     void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0) override;
     void SetRaytraced(bool raytraced) { m_raytraced = raytraced; };
 
@@ -39,7 +42,7 @@ private:
 
     const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);
     const Model* GetModel(ResourceHandle<Model> model);
-    std::shared_ptr<Texture> GetTexture(const Device& device, ResourceHandle<Texture> imgPath);
+    std::shared_ptr<Texture> GetTexture(Device& device, ResourceHandle<Texture> imgPath);
     void UpdateLights(const Device& device);
     MaterialInfo GetMaterialInfo(const Material& material);
     void Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);

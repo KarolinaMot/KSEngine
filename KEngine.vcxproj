@@ -62,6 +62,7 @@
     <ClInclude Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.h" />
     <ClInclude Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.h" />
     <ClInclude Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.h" />
+    <ClInclude Include="source\renderer\ShaderInput.hpp" />
     <ClInclude Include="source\components\ComponentCamera.hpp" />
     <ClInclude Include="source\components\ComponentTransform.hpp" />
     <ClInclude Include="source\containers\ByteBuffer.hpp" />
@@ -95,8 +96,8 @@
     <ClInclude Include="source\renderer\RenderTarget.hpp" />
     <ClInclude Include="source\renderer\Sampler.hpp" />
     <ClInclude Include="source\renderer\Shader.hpp" />
-    <ClInclude Include="source\renderer\ShaderInputs.hpp" />
-    <ClInclude Include="source\renderer\ShaderInputsBuilder.hpp" />
+    <ClInclude Include="source\renderer\ShaderInputCollection.hpp" />
+    <ClInclude Include="source\renderer\ShaderInputCollectionBuilder.hpp" />
     <ClInclude Include="source\renderer\StorageBuffer.hpp" />
     <ClInclude Include="source\renderer\SubRenderer.hpp" />
     <ClInclude Include="source\renderer\UniformBuffer.hpp" />

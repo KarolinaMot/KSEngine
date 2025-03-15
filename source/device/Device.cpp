@@ -1,6 +1,6 @@
 #include <device/Device.hpp>
-#include <renderer/ShaderInputs.hpp>
-#include <renderer/ShaderInputsBuilder.hpp>
+#include <renderer/ShaderInputCollection.hpp>
+#include <renderer/ShaderInputCollectionBuilder.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
@@ -151,7 +151,7 @@ void KS::Device::FinishInitialization()
     desc.borderColor = SamplerBorderColor::SBC_TRANSPARENT_BLACK;
     desc.filter = SamplerFilter::SF_LINEAR;
 
-    m_mipMapShaderInputs =  KS::ShaderInputsBuilder()
+    m_mipMapShaderInputs =  KS::ShaderInputCollectionBuilder()
         .AddUniform(KS::ShaderInputVisibility::COMPUTE, "mipmap_info")
         .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
         .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)

@@ -27,7 +27,7 @@ enum class InputType
     RANGE
 };
 
-struct ShaderInput
+struct ShaderInputDesc
 {
     ShaderInputVisibility visibility;
     ShaderInputMod modifications;
@@ -38,18 +38,18 @@ struct ShaderInput
 };
 
 class Device;
-class ShaderInputs
+class ShaderInputCollection
 {
 public:
-    ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers,  int totalDataTypeCount, std::string name);
-    ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, void* signature, std::string name);
-    ~ShaderInputs();
+    ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers,  int totalDataTypeCount, std::string name);
+    ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name);
+    ~ShaderInputCollection();
     void* GetSignature() const;
-    ShaderInput GetInput(std::string key) const;
+    ShaderInputDesc GetInput(std::string key) const;
 
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
-    std::unordered_map<std::string, ShaderInput> m_descriptors;
+    std::unordered_map<std::string, ShaderInputDesc> m_descriptors;
 };
 }

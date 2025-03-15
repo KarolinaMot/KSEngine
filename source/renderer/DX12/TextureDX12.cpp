@@ -2,7 +2,7 @@
 #include <device/Device.hpp>
 #include <resources/Image.hpp>
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputs.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 #include <renderer/RenderTarget.hpp>
 #include <renderer/DepthStencil.hpp>
 #include <renderer/UniformBuffer.hpp>
@@ -27,7 +27,7 @@ public:
     void AllocateAsSRV(DXDescHeap* descriptorHeap, int slot);
 };
 
-KS::Texture::Texture(const Device& device, const Image& image, int type)
+KS::Texture::Texture(Device& device, const Image& image, int type)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -150,22 +150,22 @@ KS::Texture::~Texture()
     delete m_impl;
 }
 
-void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) const
+void KS::Texture::Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex)
 {
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    if (readOnly)
+    if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
         TransitionToRO(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
-        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
+        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
     }
     else
     {
         TransitionToRW(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
+        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, desc.rootIndex);
     }
 }
 
@@ -197,7 +197,7 @@ void KS::Texture::TransitionToRW(const Device& device) const
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void KS::Texture::GenerateMipmaps(const Device& device)
+void KS::Texture::GenerateMipmaps(Device& device)
 {
     // FROM: https://www.3dgep.com/learning-directx-12-4/#Generate_Mipmaps_Compute_Shader
     // TODO: Do the required steps if resource does not support UAVs
@@ -261,7 +261,7 @@ void KS::Texture::GenerateMipmaps(const Device& device)
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    m_impl->mMipmapUB->Bind(device, rootSignature->GetInput("mipmap_info").rootIndex);
+    m_impl->mMipmapUB->Bind(device, rootSignature->GetInput("mipmap_info"));
     commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[0], rootSignature->GetInput("mip_1").rootIndex);
     commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[1], rootSignature->GetInput("mip_2").rootIndex);
     commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[2], rootSignature->GetInput("mip_3").rootIndex);

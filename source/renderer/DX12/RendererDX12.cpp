@@ -7,7 +7,7 @@
 #include <renderer/InfoStructs.hpp>
 #include <renderer/RenderTarget.hpp>
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputs.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 #include <resources/Texture.hpp>
 
 #include "../ComputeRenderer.hpp"
@@ -17,20 +17,22 @@
 #include "../UniformBuffer.hpp"
 #include "Helpers/DX12Common.hpp"
 
-KS::Renderer::Renderer(Device& device, const RendererInitParams& params)
+KS::Renderer::Renderer(Device& device, RendererInitParams& params)
 {
     CameraMats cam{};
     m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
-    for (int i = 0; i < params.shaders.size(); i++)
+    for (int i = 0; i < params.subRenderers.size(); i++)
     {
-        if (params.shaders[i]->GetShaderType() == ShaderType::ST_MESH_RENDER)
+        if (params.subRenderers[i].shader->GetShaderType() == ShaderType::ST_MESH_RENDER)
         {
-            m_subrenderers.push_back(std::make_unique<ModelRenderer>(device, params.shaders[i], m_camera_buffer.get()));
+            m_subrenderers.push_back(std::make_unique<ModelRenderer>(device, params.subRenderers[i].shader,
+                                                                     params.subRenderers[i].inputs, m_camera_buffer.get()));
         }
         else
         {
-            m_subrenderers.push_back(std::make_unique<ComputeRenderer>(device, params.shaders[i]));
+            m_subrenderers.push_back(
+                std::make_unique<ComputeRenderer>(device, params.subRenderers[i].shader, params.subRenderers[i].inputs));
         }
     }
 
@@ -133,20 +135,20 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex);
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights"));
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights"));
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info"));
 
-    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
+    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix"));
     device.TrackResource(m_camera_buffer);
     m_subrenderers[0]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil);
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights").rootIndex);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights").rootIndex);
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info").rootIndex);
-    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix").rootIndex, 0);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights"));
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights"));
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info"));
+    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix"));
 
     Texture* textures[4] = {
         m_deferredRendererTex[device.GetCPUFrameIndex()][0].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][1].get(),

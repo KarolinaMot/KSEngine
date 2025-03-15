@@ -17,7 +17,9 @@
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/Renderer.hpp>
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputsBuilder.hpp>
+#include <renderer/ShaderInputCollection.hpp>
+#include <renderer/ShaderInputCollectionBuilder.hpp>
+#include <renderer/ShaderInput.hpp>
 #include <renderer/DX12/Helpers/DXSignature.hpp>
 #include <tools/Log.hpp>
 // #include <vector>
@@ -102,8 +104,7 @@ int main()
 
     device->NewFrame();
 
-    std::shared_ptr<KS::ShaderInputs> mainInputs = KS::ShaderInputsBuilder()
-
+    std::shared_ptr<KS::ShaderInputCollection> mainInputs = KS::ShaderInputCollectionBuilder()
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix")
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, "model_index")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "base_tex")
@@ -124,7 +125,7 @@ int main()
                                                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
                                                        .Build(*device, "MAIN SIGNATURE");
 
-    std::shared_ptr<KS::ShaderInputs> raytraceInputs = KS::ShaderInputsBuilder().AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix").Build(*device, "RAYTRACE SIGNATURE");
+    std::shared_ptr<KS::ShaderInputCollection> raytraceInputs = KS::ShaderInputCollectionBuilder().AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix").Build(*device, "RAYTRACE SIGNATURE");
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
@@ -141,8 +142,15 @@ int main()
         "assets/shaders/Main.hlsl");
 
     KS::RendererInitParams initParams {};
-    initParams.shaders.push_back(mainShader);
-    initParams.shaders.push_back(computePBRShader);
+
+    KS::SubRendererDesc subRenderer1;
+    subRenderer1.shader = mainShader;
+    initParams.subRenderers.push_back(subRenderer1);
+
+    KS::SubRendererDesc subRenderer2;
+    subRenderer2.shader = computePBRShader;
+    initParams.subRenderers.push_back(subRenderer2);
+
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 
     device->EndFrame();

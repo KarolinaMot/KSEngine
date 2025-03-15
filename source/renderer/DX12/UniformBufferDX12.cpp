@@ -2,6 +2,7 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/UniformBuffer.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 
 class KS::UniformBuffer::Impl
 {
@@ -48,10 +49,10 @@ size_t KS::UniformBuffer::GetGPUAddress(int elementIndex, int frameIndex) const
     return m_impl->mBuffers[frameIndex]->GetResource()->GetGPUVirtualAddress() + (m_buffer_stride * elementIndex);
 }
 
-void KS::UniformBuffer::Bind(const Device& device, int rootIndex, int elementIndex)
+void KS::UniformBuffer::Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex)
 {
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-    commandList->BindBuffer(m_impl->mBuffers[device.GetFrameIndex()], rootIndex, m_buffer_stride, elementIndex);
+    commandList->BindBuffer(m_impl->mBuffers[device.GetFrameIndex()], desc.rootIndex, m_buffer_stride, offsetIndex);
 }
 
 void KS::UniformBuffer::Upload(const Device& device, const void* data, uint32_t offset)

@@ -6,7 +6,7 @@
 namespace KS
 {
 class Device;
-class ShaderInputs;
+class ShaderInputCollection;
 
 enum class ShaderType
 {
@@ -19,17 +19,17 @@ enum class ShaderType
 class Shader
 {
 public:
-    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputs> shaderInput, std::string path, Formats* rtFormats = nullptr, int numFormats = 1);
+    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path, Formats* rtFormats = nullptr, int numFormats = 1);
     Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path);
     ~Shader();
-    std::shared_ptr<ShaderInputs> GetShaderInput() const { return m_shader_input; };
+    std::shared_ptr<ShaderInputCollection> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
     ShaderType GetShaderType() { return m_shader_type; }
 
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
-    std::shared_ptr<ShaderInputs> m_shader_input;
+    std::shared_ptr<ShaderInputCollection> m_shader_input;
     ShaderType m_shader_type;
 };
 }

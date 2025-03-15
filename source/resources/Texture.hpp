@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <renderer/InfoStructs.hpp>
+#include <renderer/ShaderInput.hpp>
+
 namespace KS
 {
 class Device;
@@ -8,7 +10,7 @@ class Image;
 class CommandList;
 class RenderTarget;
 class DepthStencil;
-class Texture
+class Texture : protected ShaderInput
 {
     friend CommandList;
     friend RenderTarget;
@@ -33,20 +35,20 @@ public:
     };
 
 
-    Texture(const Device& device, const Image& image, int flags = 0);
+    Texture(Device& device, const Image& image, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format);
     Texture(const Device& device, void* resource, glm::vec2 size, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
         int srvAllocationSlot, int uavAllocationSlot);
     ~Texture();
-    void Bind(const Device& device, uint32_t rootIndex, bool readOnly = true) const;
+    void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0);
     void TransitionToRO(const Device& device) const;
     void TransitionToRW(const Device& device) const;
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format;}
 
 private:
-    void GenerateMipmaps(const Device& device);
+    void GenerateMipmaps(Device& device);
 
     class Impl;
     Impl* m_impl;

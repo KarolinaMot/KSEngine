@@ -1,5 +1,5 @@
 #include "../Shader.hpp"
-#include "../ShaderInputs.hpp"
+#include "../ShaderInputCollection.hpp"
 #include <device/Device.hpp>
 #include "Helpers/DXIncludes.hpp"
 #include "Helpers/DXPipeline.hpp"
@@ -11,7 +11,7 @@ public:
     ComPtr<ID3D12PipelineState> m_pipeline;
 };
 
-KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputs> shaderInput, std::string path, Formats* rtFormats, int numFormats)
+KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path, Formats* rtFormats, int numFormats)
 {
     m_shader_input = shaderInput;
     m_shader_type = shaderType;

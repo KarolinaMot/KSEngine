@@ -3,11 +3,12 @@
 #include <string>
 #include <tools/Log.hpp>
 #include <vector>
+#include <renderer/ShaderInput.hpp>
 
 namespace KS
 {
 class Device;
-class UniformBuffer
+class UniformBuffer : protected ShaderInput
 {
 public:
     UniformBuffer();
@@ -50,7 +51,7 @@ public:
     size_t GetElementCount() const { return m_num_elements; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const;
 
-    void Bind(const Device& device, int rootIndex, int elementIndex = 0);
+    virtual void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0) override;
 
 private:
     void CreateUniformBuffer(const Device& device);

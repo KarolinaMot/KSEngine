@@ -102,9 +102,6 @@
     <ClCompile Include="source\renderer\DX12\Helpers\DXSignature.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\renderer\DX12\Helpers\DXStructuredBuffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -188,10 +185,10 @@
     <ClInclude Include="source\renderer\Shader.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\ShaderInputs.hpp">
+    <ClInclude Include="source\renderer\ShaderInputCollection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\ShaderInputsBuilder.hpp">
+    <ClInclude Include="source\renderer\ShaderInputCollectionBuilder.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\StorageBuffer.hpp">
@@ -260,9 +257,6 @@
     <ClInclude Include="source\renderer\DX12\Helpers\DXSignature.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\DX12\Helpers\DXStructuredBuffer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -282,6 +276,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\device\DX12\DXFactory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\ShaderInput.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,12 +3,13 @@
 #include <string>
 #include <tools/Log.hpp>
 #include <vector>
+#include <renderer/ShaderInput.hpp>
 
 namespace KS
 {
 class Device;
 class CommandList;
-class StorageBuffer
+class StorageBuffer : protected ShaderInput
 {
 public:
     StorageBuffer();
@@ -71,7 +72,7 @@ public:
     }
 
     void Resize(const Device& device, int newNumOfElements);
-    void Bind(Device& device, int rootIndex, bool readOnly = true);
+    virtual void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0) override;
     void BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset = 0);
     void BindAsIndexData(const Device& device, uint32_t elementOffset = 0);
     void AllocateAsReadOnly(Device& device, int slot = -1);

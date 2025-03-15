@@ -3,7 +3,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include <renderer/ShaderInput.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 namespace KS
 {
 class Device;
@@ -14,9 +15,15 @@ class Texture;
 class DepthStencil;
 class RenderTarget;
 
+struct SubRendererDesc
+{
+    std::shared_ptr<Shader> shader;
+    std::vector<std::pair<ShaderInput*, ShaderInputDesc>> inputs;
+};
+
 struct RendererInitParams
 {
-    std::vector<std::shared_ptr<Shader>> shaders;
+    std::vector<SubRendererDesc> subRenderers;
 };
 
 struct RendererRenderParams
@@ -30,7 +37,7 @@ struct RendererRenderParams
 class Renderer
 {
 public:
-    Renderer(Device& device, const RendererInitParams& params);
+    Renderer(Device& device, RendererInitParams& params);
     ~Renderer();
 
     void Render(Device& device, const RendererRenderParams& params, bool raytraced = false);
