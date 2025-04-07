@@ -8,6 +8,7 @@
 #include <renderer/RenderTarget.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputCollection.hpp>
+#include <renderer/ShaderInput.hpp>
 #include <resources/Texture.hpp>
 
 #include "../ComputeRenderer.hpp"
@@ -27,12 +28,12 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
         if (params.subRenderers[i].shader->GetShaderType() == ShaderType::ST_MESH_RENDER)
         {
             m_subrenderers.push_back(std::make_unique<ModelRenderer>(device, params.subRenderers[i].shader,
-                                                                     params.subRenderers[i].inputs, m_camera_buffer.get()));
+                                                                     m_camera_buffer.get()));
         }
         else
         {
             m_subrenderers.push_back(
-                std::make_unique<ComputeRenderer>(device, params.subRenderers[i].shader, params.subRenderers[i].inputs));
+                std::make_unique<ComputeRenderer>(device, params.subRenderers[i].shader));
         }
     }
 
@@ -61,6 +62,12 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
                                       glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
+
+        m_lightRenderingTex[i] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.0f, 0.0f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+
     }
 
     m_deferredRendererRT = std::make_shared<RenderTarget>();
@@ -75,6 +82,10 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_raytracedRendererRT = std::make_shared<RenderTarget>();
     m_raytracedRendererRT->AddTexture(device, m_raytracingResTex[0], m_raytracingResTex[1], "RAYTRACED RENDER RES");
 
+    m_lightRenderRT = std::make_shared<RenderTarget>();
+    m_lightRenderRT->AddTexture(device, m_lightRenderingTex[0], m_lightRenderingTex[1], "LIGHT RENDER RES");
+
+
     m_deferredRendererDepthTex =
         std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE,
                                   glm::vec4(1.f), KS::Formats::D32_FLOAT);
@@ -83,11 +94,50 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
 
+    m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
+    m_fogInfo.fogDensity = 1.f;
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
+    mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
         std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
         std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
+
+    auto rootSignature = m_subrenderers[1]->GetShader()->GetShaderInput();
+
+    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::DIR_LIGHT_BUFFER].get(),
+                                                                               rootSignature->GetInput("dir_lights")));
+    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::POINT_LIGHT_BUFFER].get(),
+                                                                               rootSignature->GetInput("point_lights")));
+    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::LIGHT_INFO_BUFFER].get(),
+                                                                               rootSignature->GetInput("light_info")));
+    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),
+                                                                               rootSignature->GetInput("camera_matrix")));
+    for (int i = 0; i < 4; i++)
+    {
+        m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_deferredRendererTex[device.GetCPUFrameIndex()][i].get(),
+                                                                                  rootSignature->GetInput("GBuffer" + std::to_string(i + 1))));
+    }
+
+    rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
+
+    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::DIR_LIGHT_BUFFER].get(),
+                                                                                 rootSignature->GetInput("dir_lights")));
+    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::POINT_LIGHT_BUFFER].get(),
+                                                                                 rootSignature->GetInput("point_lights")));
+    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::LIGHT_INFO_BUFFER].get(),
+                                                                                 rootSignature->GetInput("light_info")));
+    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
+
+
+
+    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::POINT_LIGHT_BUFFER].get(),
+                                                                              rootSignature->GetInput("point_lights")));
+    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::LIGHT_INFO_BUFFER].get(),
+                                                                              rootSignature->GetInput("light_info")));
+    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::FOG_INFO_BUFFER].get(),
+                                                                              rootSignature->GetInput("fog_info")));
+    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
 }
 
 KS::Renderer::~Renderer() {}
@@ -126,7 +176,9 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     cam.m_invView = glm::inverse(params.viewMatrix);
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
+    cam.m_cameraRight = glm::vec4(params.cameraRight, 1.f);
     m_camera_buffer->Update(device, cam, 0);
+    mUniformBuffers[KS::FOG_INFO_BUFFER]->Update(device, m_fogInfo);
 
     UpdateLights(device);
 
@@ -135,31 +187,22 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights"));
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights"));
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info"));
 
-    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix"));
     device.TrackResource(m_camera_buffer);
-    m_subrenderers[0]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil);
+    m_subrenderers[0]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil, m_deferredShaderInputs);
 
+    rootSignature = m_subrenderers[1]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
-
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("dir_lights"));
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER]->Bind(device, rootSignature->GetInput("point_lights"));
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER]->Bind(device, rootSignature->GetInput("light_info"));
-    m_camera_buffer->Bind(device, m_subrenderers[0]->GetShader()->GetShaderInput()->GetInput("camera_matrix"));
-
-    Texture* textures[4] = {
-        m_deferredRendererTex[device.GetCPUFrameIndex()][0].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][1].get(),
-        m_deferredRendererTex[device.GetCPUFrameIndex()][2].get(), m_deferredRendererTex[device.GetCPUFrameIndex()][3].get()};
 
     auto &boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
 
     if (!raytraced)
-        m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, &textures[0], 4);
+        m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
 
-    device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
+
+    m_subrenderers[2]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightRenderInputs);
+
+    device.GetRenderTarget()->CopyTo(device, m_lightRenderRT, 0, 0);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

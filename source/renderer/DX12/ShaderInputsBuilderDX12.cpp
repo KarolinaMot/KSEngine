@@ -88,7 +88,8 @@ void KS::ShaderInputCollectionBuilder::Impl::AddSampler(const uint32_t shaderReg
     mSamplers.push_back(sampler);
 }
 
-KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddUniform(ShaderInputVisibility visibility, std::string name)
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddUniform(
+    ShaderInputVisibility visibility,const std::initializer_list<std::string>& names)
 {
     KS::ShaderInputDesc input;
     input.rootIndex = m_input_counter;
@@ -101,7 +102,10 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddUniform(S
     m_input_counter++;
     m_buffer_counter++;
 
-    m_descriptors[name] = input;
+    for (const auto& name : names)
+    {
+        m_descriptors[name] = input;
+    }
     return *this;
 }
 

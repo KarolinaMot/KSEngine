@@ -10,7 +10,7 @@ class Image;
 class CommandList;
 class RenderTarget;
 class DepthStencil;
-class Texture : protected ShaderInput
+class Texture : public ShaderInput
 {
     friend CommandList;
     friend RenderTarget;

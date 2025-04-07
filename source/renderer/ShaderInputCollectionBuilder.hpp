@@ -13,7 +13,7 @@ class ShaderInputCollectionBuilder
 public:
     ShaderInputCollectionBuilder();
     ~ShaderInputCollectionBuilder();
-    ShaderInputCollectionBuilder& AddUniform(ShaderInputVisibility visibility, std::string name);
+    ShaderInputCollectionBuilder& AddUniform(ShaderInputVisibility visibility, const std::initializer_list<std::string>& names);
     ShaderInputCollectionBuilder& AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements, std::string name,
                                           ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
     ShaderInputCollectionBuilder& AddTexture(ShaderInputVisibility visibility, std::string name,

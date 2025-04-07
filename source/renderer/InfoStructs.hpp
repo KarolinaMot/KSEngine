@@ -18,6 +18,7 @@ enum UniformBuffers
     // MODEL_MAT_BUFFER,
     // MATERIAL_INFO_BUFFER,
     LIGHT_INFO_BUFFER,
+    FOG_INFO_BUFFER,
     NUM_UBUFFER
 };
 
@@ -89,6 +90,12 @@ struct MaterialInfo
     uint32_t useOcclusionTex = 0;
 };
 
+struct FogInfo
+{
+    glm::vec3 fogColor;
+    float fogDensity;
+};
+
 struct CameraMats
 {
     glm::mat4x4 m_proj = glm::mat4x4(1.f);
@@ -97,5 +104,6 @@ struct CameraMats
     glm::mat4x4 m_invView = glm::mat4x4(1.f);
     glm::mat4x4 m_camera = glm::mat4x4(1.f);
     glm::vec4 m_cameraPos = glm::vec4(1.f);
+    glm::vec4 m_cameraRight = glm::vec4(0.f);
 };
 };

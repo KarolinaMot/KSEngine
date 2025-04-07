@@ -64,8 +64,8 @@ public:
 };
 
 KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader,
-                                 std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, const UniformBuffer* cameraBuffer)
-    : SubRenderer(device, shader, inputs)
+                                 const UniformBuffer* cameraBuffer)
+    : SubRenderer(device, shader)
 {
     m_impl = std::make_unique<Impl>();
     m_modelMatsBuffer = std::make_unique<StorageBuffer>(device, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), 200, false);
@@ -130,12 +130,19 @@ void KS::ModelRenderer::QueueModel(Device& device, ResourceHandle<Model> model, 
     }
 }
 
-void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                               std::shared_ptr<DepthStencil> depthStencil,
+                               std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs)
 {
+    for (int i = 0; i < inputs.size(); i++)
+    {
+        inputs[i].first->Bind(device, inputs[i].second);
+    }
+
     if (m_raytraced)
-        Raytrace(device, cpuFrameIndex, renderTarget, depthStencil, previoiusPassResults, numTextures);
+        Raytrace(device, cpuFrameIndex, renderTarget, depthStencil, inputs);
     else
-        Rasterize(device, cpuFrameIndex, renderTarget, depthStencil, previoiusPassResults, numTextures);
+        Rasterize(device, cpuFrameIndex, renderTarget, depthStencil, inputs);
 
     m_modelCount = 0;
     draw_queue.clear();
@@ -223,7 +230,9 @@ KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const KS::Material& material
     return info;
 }
 
-void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                                 std::shared_ptr<DepthStencil> depthStencil,
+                                 std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs)
 {
     if (!m_impl->m_updateBVH)
     {
@@ -299,7 +308,9 @@ void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_
     // renderTarget->CopyTo(device, m_impl->m_raytraceRenderTargets[cpuFrameIndex], cpuFrameIndex);
 }
 
-void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                                  std::shared_ptr<DepthStencil> depthStencil,
+                                  std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());

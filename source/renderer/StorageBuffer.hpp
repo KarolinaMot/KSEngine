@@ -9,7 +9,7 @@ namespace KS
 {
 class Device;
 class CommandList;
-class StorageBuffer : protected ShaderInput
+class StorageBuffer : public ShaderInput
 {
 public:
     StorageBuffer();

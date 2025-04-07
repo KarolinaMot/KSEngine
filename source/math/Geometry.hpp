@@ -99,6 +99,9 @@ public:
     glm::mat3 GetRotation() const; // Returns a 3x3 matrix, which can be converted to quat
     glm::vec3 GetPosition() const;
 
+    glm::vec3 GetForward() const;
+    glm::vec3 GetRight() const;
+
     std::array<Plane, 6> GetFrustum() const;
 
 private:

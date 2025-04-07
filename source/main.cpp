@@ -105,8 +105,8 @@ int main()
     device->NewFrame();
 
     std::shared_ptr<KS::ShaderInputCollection> mainInputs = KS::ShaderInputCollectionBuilder()
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix")
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "model_index")
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "base_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "normal_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
@@ -121,11 +121,14 @@ int main()
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::VERTEX, 200, "model_matrix")
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 200, "material_info")
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "light_info")
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                                                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
                                                        .Build(*device, "MAIN SIGNATURE");
 
-    std::shared_ptr<KS::ShaderInputCollection> raytraceInputs = KS::ShaderInputCollectionBuilder().AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix").Build(*device, "RAYTRACE SIGNATURE");
+    std::shared_ptr<KS::ShaderInputCollection> raytraceInputs =
+        KS::ShaderInputCollectionBuilder()
+            .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+            .Build(*device, "RAYTRACE SIGNATURE");
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
@@ -141,6 +144,12 @@ int main()
         mainInputs,
         "assets/shaders/Main.hlsl");
 
+    std::shared_ptr<KS::Shader> lightRendererShader = std::make_shared<KS::Shader>(*device, 
+        KS::ShaderType::ST_COMPUTE, 
+        mainInputs, 
+        "assets/shaders/LightRenderer.hlsl");
+
+
     KS::RendererInitParams initParams {};
 
     KS::SubRendererDesc subRenderer1;
@@ -150,6 +159,10 @@ int main()
     KS::SubRendererDesc subRenderer2;
     subRenderer2.shader = computePBRShader;
     initParams.subRenderers.push_back(subRenderer2);
+
+    KS::SubRendererDesc subRenderer3;
+    subRenderer3.shader = lightRendererShader;
+    initParams.subRenderers.push_back(subRenderer3);
 
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 
@@ -185,6 +198,7 @@ int main()
         renderParams.projectionMatrix = camera.GetProjection();
         renderParams.viewMatrix = camera.GetView();
         renderParams.cameraPos = camera.GetPosition();
+        renderParams.cameraRight = camera.GetRight();
 
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
         glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));

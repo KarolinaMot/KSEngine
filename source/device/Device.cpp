@@ -152,7 +152,8 @@ void KS::Device::FinishInitialization()
     desc.filter = SamplerFilter::SF_LINEAR;
 
     m_mipMapShaderInputs =  KS::ShaderInputCollectionBuilder()
-        .AddUniform(KS::ShaderInputVisibility::COMPUTE, "mipmap_info")
+        .AddUniform(KS::ShaderInputVisibility::COMPUTE, 
+            {"mipmap_info"})
         .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
         .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
         .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_3", KS::ShaderInputMod::READ_WRITE)

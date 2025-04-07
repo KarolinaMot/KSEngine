@@ -8,7 +8,7 @@
 namespace KS
 {
 class Device;
-class UniformBuffer : protected ShaderInput
+class UniformBuffer : public ShaderInput
 {
 public:
     UniformBuffer();
