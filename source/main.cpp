@@ -130,24 +130,27 @@ int main()
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
             .Build(*device, "RAYTRACE SIGNATURE");
 
+    int fullInputFlags = KS::Shader::HAS_POSITIONS | KS::Shader::HAS_NORMALS | KS::Shader::HAS_UVS |  KS::Shader::HAS_TANGENTS;
+    int positionsInputFlags = KS::Shader::HAS_POSITIONS;
+
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
 
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,
         mainInputs,
-        shaderPath,
+        shaderPath, fullInputFlags,
         formats, 4);
 
     std::shared_ptr<KS::Shader> computePBRShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_COMPUTE,
         mainInputs,
-        "assets/shaders/Main.hlsl");
+        "assets/shaders/Main.hlsl", 0);
 
     std::shared_ptr<KS::Shader> lightRendererShader = std::make_shared<KS::Shader>(*device, 
         KS::ShaderType::ST_COMPUTE, 
         mainInputs, 
-        "assets/shaders/LightRenderer.hlsl");
+        "assets/shaders/LightRenderer.hlsl", 0);
 
 
     KS::RendererInitParams initParams {};

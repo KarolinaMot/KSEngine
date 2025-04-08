@@ -11,7 +11,8 @@ public:
     ComPtr<ID3D12PipelineState> m_pipeline;
 };
 
-KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path, Formats* rtFormats, int numFormats)
+KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput,
+                   std::string path, int flags, Formats* rtFormats, int numFormats)
 {
     m_shader_input = shaderInput;
     m_shader_type = shaderType;
@@ -22,12 +23,14 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         ComPtr<ID3DBlob> v = DXPipelineBuilder::ShaderToBlob(path.c_str(), "vs_5_0", "mainVS");
         ComPtr<ID3DBlob> p = DXPipelineBuilder::ShaderToBlob(path.c_str(), "ps_5_0", "mainPS");
 
-        auto builder = DXPipelineBuilder()
-                           .AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, VDS_POSITIONS)
-                           .AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, VDS_NORMALS)
-                           .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV)
-                           .AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS)
-                           .SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
+        auto builder = DXPipelineBuilder();
+
+        if (flags & MeshInputFlags::HAS_POSITIONS) builder.AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, VDS_POSITIONS);
+        if (flags & MeshInputFlags::HAS_NORMALS) builder.AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, VDS_NORMALS);
+        if (flags & MeshInputFlags::HAS_UVS) builder.AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV);
+        if (flags & MeshInputFlags::HAS_TANGENTS) builder.AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS);
+
+        builder.SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
 
         if (!rtFormats)
         {
@@ -56,7 +59,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
     }
 }
 
-KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path)
+KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags)
 {
     // m_shader_input = shaderInput;
     m_shader_type = shaderType;
@@ -64,16 +67,19 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInpu
 
     ComPtr<ID3DBlob> v = DXPipelineBuilder::ShaderToBlob(path.c_str(), "vs_5_0", "mainVS");
     ComPtr<ID3DBlob> p = DXPipelineBuilder::ShaderToBlob(path.c_str(), "ps_5_0", "mainPS");
+    
+    auto builder = DXPipelineBuilder();
 
-    m_impl->m_pipeline = DXPipelineBuilder()
-                             .AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0)
-                             .AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, 1)
-                             .AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, 2)
-                             .AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM)
-                             .SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize())
-                             .Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()),
-                                 reinterpret_cast<ID3D12RootSignature*>(shaderInput),
-                                 L"RENDER PIPELINE");
+       
+    if (flags & MeshInputFlags::HAS_POSITIONS) builder.AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, VDS_POSITIONS);
+    if (flags & MeshInputFlags::HAS_NORMALS) builder.AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, VDS_NORMALS);
+    if (flags & MeshInputFlags::HAS_UVS) builder.AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV);
+    if (flags & MeshInputFlags::HAS_TANGENTS) builder.AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS);
+    builder.AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM);
+    builder.SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
+    m_impl->m_pipeline = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()),
+                        reinterpret_cast<ID3D12RootSignature*>(shaderInput),
+                        L"RENDER PIPELINE");
 }
 
 KS::Shader::~Shader()

@@ -16,15 +16,26 @@ enum class ShaderType
 
     ST_COMPUTE
 };
+
+
 class Shader
 {
 public:
-    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path, Formats* rtFormats = nullptr, int numFormats = 1);
-    Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path);
+    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path,
+           int flags = 0, Formats* rtFormats = nullptr, int numFormats = 1);
+    Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags = 0);
     ~Shader();
     std::shared_ptr<ShaderInputCollection> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
     ShaderType GetShaderType() { return m_shader_type; }
+
+    enum MeshInputFlags
+    {
+        HAS_POSITIONS = 1 << 0,
+        HAS_NORMALS = 1 << 1,
+        HAS_UVS = 1 << 2,
+        HAS_TANGENTS = 1 << 3,
+    };
 
 private:
     class Impl;
