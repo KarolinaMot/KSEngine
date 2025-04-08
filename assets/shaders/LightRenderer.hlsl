@@ -22,7 +22,7 @@ RWTexture2D<float4> FinalRes : register(u0);
 float2 GetScreenPosition(float4 worldPosition, float2 screenSize)
 {
     // Transform to Clip Space
-    float4 clipPos = mul(worldPosition, cameraMats.mCamera);
+    float4 clipPos = mul(cameraMats.mCamera, worldPosition);
 
     // Perspective Divide (get Normalized Device Coordinates)
     float3 ndcPos = clipPos.xyz / clipPos.w; // ndcPos now ranges from -1 to +1
@@ -42,22 +42,34 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float2 screenSize;
     FinalRes.GetDimensions(screenSize.x, screenSize.y);
 
-    // Compute UV coordinates for the current pixel
-    float2 uv = (float2(DTid.x, DTid.y) + 0.5) / screenSize;
-    
+   
     for (int i = 0; i < lightInfo.numPointLight; i++)
     {
-        float2 lightScreenPos = GetScreenPosition(pointLights[i].mPosition, screenSize);
-        float3 lightRadiusPos = pointLights[i].mPosition + cameraMats.mCameraRight * pointLights[i].mRadius;
-        float screenSpaceRadius = length(lightScreenPos - GetScreenPosition(float4(lightRadiusPos*fogDensity, 1.f), screenSize));
-        float pixelToLight = length(lightScreenPos - uv);
-        if (pixelToLight<=screenSpaceRadius)
+        float2 lightScreenPos = GetScreenPosition(float4(pointLights[i].mPosition.xyz, 1.f), screenSize);
+        float3 lightRadiusPos = pointLights[i].mPosition + normalize(cameraMats.mCameraRight) * pointLights[i].mRadius;
+        float2 lightRadiusScreenPos = GetScreenPosition(float4(lightRadiusPos, 1.f), screenSize);
+        float screenSpaceRadius = length(lightRadiusScreenPos - lightScreenPos);
+        //float screenSpaceRadius = screenSize.x*0.25f;
+        float pixelToLightDistance = length(lightScreenPos - float2(DTid.x, DTid.y));
+        if (pixelToLightDistance <= screenSpaceRadius)
         {
-            float3 lightColor = pointLights[i].mColorAndIntensity.rgb * pointLights[i].mColorAndIntensity.a;
-            float3 pixelColor = lerp(float3(0.f, 0.f, 0.f), lightColor, screenSpaceRadius - pixelToLight);
+             // Smooth falloff for the light's edge.
+            float alpha = saturate(1.0 - (pixelToLightDistance / screenSpaceRadius)) * pointLights[i].mColorAndIntensity.a;
+
+            // Blend the edge based on global fog density.
+            // Here, we are reducing the light's intensity based on the fog.
+            float fogFactor = saturate(1.0 - fogDensity);
+            // If you had a per-pixel fog density, you could sample it like this:
+            // float fogFactor = saturate(1.0 - FogTexture.Load(int3(pixelCoord, 0)));
+            alpha *= fogFactor;
+            
+            float3 lightColor = pointLights[i].mColorAndIntensity.rgb;
+            float3 pixelColor = lightColor * alpha;
             finalColor += pixelColor;
         }
         
+        //finalColor = saturate(float3(lightScreenPos, 0.f));
+
     }
     
     FinalRes[DTid.xy] = float4(finalColor, 1.f);

@@ -95,7 +95,7 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
-    m_fogInfo.fogDensity = 1.f;
+    m_fogInfo.fogDensity = 0.9f;
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
     mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
@@ -194,13 +194,17 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     rootSignature = m_subrenderers[1]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
-    auto &boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
+    m_lightRenderRT->Bind(device, m_deferredRendererDepthStencil.get());
+    m_lightRenderRT->Clear(device);
+
+    m_subrenderers[2]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightRenderInputs);
+
+    auto& boundRT = raytraced ? m_raytracedRendererRT : m_lightRenderRT;
 
     if (!raytraced)
         m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
 
 
-    m_subrenderers[2]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightRenderInputs);
 
     device.GetRenderTarget()->CopyTo(device, m_lightRenderRT, 0, 0);
 }

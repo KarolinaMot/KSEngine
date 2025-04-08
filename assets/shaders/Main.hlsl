@@ -71,8 +71,8 @@ float Attenuation(float distance, float range);
         result = LinearToSRGB(result);
         FinalRes[DispatchThreadID.xy] = float4(result.rgb, 1.f);
     }
-    else
-        FinalRes[DispatchThreadID.xy] = float4(0.25f, 0.25f, 0.25f, 1.f);
+    //else
+    //    FinalRes[DispatchThreadID.xy] = float4(0.25f, 0.25f, 0.25f, 1.f);
 
 }
 

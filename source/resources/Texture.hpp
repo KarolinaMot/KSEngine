@@ -47,6 +47,9 @@ public:
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format;}
 
+    uint32_t GetWidth() const { return m_width; }
+    uint32_t GetHeight() const { return m_height; }
+
 private:
     void GenerateMipmaps(Device& device);
 

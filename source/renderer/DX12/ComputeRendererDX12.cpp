@@ -23,6 +23,8 @@ void KS::ComputeRenderer::Render(Device& device, int cpuFrameIndex, std::shared_
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
+    //renderTarget->Bind(device, depthStencil.get());
+    //renderTarget->Clear(device);
     renderTarget->GetTexture(device, 0)->Bind(device, m_shader->GetShaderInput()->GetInput("PBRRes"));
 
     for (int i = 0; i < inputs.size(); i++)
@@ -30,10 +32,7 @@ void KS::ComputeRenderer::Render(Device& device, int cpuFrameIndex, std::shared_
         inputs[i].first->Bind(device, inputs[i].second);
     }
 
-    //for (int i = 0; i < numTextures; i++)
-    //{
-    //    previoiusPassResults[i]->Bind(device, m_shader->GetShaderInput()->GetInput("GBuffer" + std::to_string(i + 1)));
-    //}
-
-    commandList->DispatchShader(static_cast<uint32_t>(device.GetWidth() / 8), static_cast<uint32_t>(device.GetHeight() / 8), 1);
+    uint32_t texWidth = renderTarget->GetTexture(device, 0)->GetWidth();
+    uint32_t texHeight = renderTarget->GetTexture(device, 0)->GetHeight();
+    commandList->DispatchShader(texWidth / 8, texHeight / 8, 1);
 }

@@ -200,19 +200,30 @@ int main()
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
 
+        glm::vec3 lightPosition1 = glm::vec3(2.f, 0.f, 0.f);
+        glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
+
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
         glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
         glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, -0.5f, 3.f));
         glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-2.f, -0.5f, 3.f));
+        glm::mat4x4 transform4 = glm::translate(glm::mat4x4(1.f), lightPosition1);
+        glm::mat4x4 transform5 = glm::translate(glm::mat4x4(1.f), lightPosition2);
         transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
         transform2 = glm::rotate(transform2, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
         transform3 = glm::rotate(transform3, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
+        transform4 = glm::rotate(transform4, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
+        transform5 = glm::rotate(transform5, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
+        transform4 = glm::scale(transform4, glm::vec3(0.1f));
+        transform5 = glm::scale(transform5, glm::vec3(0.1f));
         renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-        renderer.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-        renderer.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
+        renderer.QueuePointLight(lightPosition1, glm::vec3(1.f, 0.f, 0.f), 5.f, 1.f);
+        renderer.QueuePointLight(lightPosition2, glm::vec3(0.f, 0.f, 1.f), 5.f, 1.f);
         model_renderer->QueueModel(*device, model, transform);
         model_renderer->QueueModel(*device, model, transform2);
         model_renderer->QueueModel(*device, model, transform3);
+        model_renderer->QueueModel(*device, model, transform4);
+        model_renderer->QueueModel(*device, model, transform5);
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
         device->EndFrame();
