@@ -32,8 +32,8 @@ public:
 
     void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
     void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
-                std::shared_ptr<DepthStencil> depthStencil,
-                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs) override;
+                std::shared_ptr<DepthStencil> depthStencil, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
+                bool clearRenderTarget = true) override;
     void SetRaytraced(bool raytraced) { m_raytraced = raytraced; };
     
 private:

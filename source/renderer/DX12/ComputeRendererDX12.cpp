@@ -17,14 +17,18 @@ KS::ComputeRenderer::~ComputeRenderer()
 
 void KS::ComputeRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
                                       std::shared_ptr<DepthStencil> depthStencil,
-                                      std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs) 
+                                 std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRenderTarget)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
-    //renderTarget->Bind(device, depthStencil.get());
-    //renderTarget->Clear(device);
+
+    if (clearRenderTarget)
+    {
+        renderTarget->Bind(device, depthStencil.get());
+        renderTarget->Clear(device);
+    }
     renderTarget->GetTexture(device, 0)->Bind(device, m_shader->GetShaderInput()->GetInput("PBRRes"));
 
     for (int i = 0; i < inputs.size(); i++)

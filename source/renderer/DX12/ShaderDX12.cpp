@@ -57,6 +57,8 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature()),
             L"RENDER  COMPUTE PIPELINE");
     }
+
+    m_flags = flags;
 }
 
 KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags)
@@ -80,6 +82,8 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInpu
     m_impl->m_pipeline = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()),
                         reinterpret_cast<ID3D12RootSignature*>(shaderInput),
                         L"RENDER PIPELINE");
+
+    m_flags = flags;
 }
 
 KS::Shader::~Shader()

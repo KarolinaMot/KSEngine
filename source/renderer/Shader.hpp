@@ -27,8 +27,8 @@ public:
     ~Shader();
     std::shared_ptr<ShaderInputCollection> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
-    ShaderType GetShaderType() { return m_shader_type; }
-
+    ShaderType GetShaderType() const { return m_shader_type; }
+    int GetFlags() const { return m_flags; }
     enum MeshInputFlags
     {
         HAS_POSITIONS = 1 << 0,
@@ -42,5 +42,6 @@ private:
     std::unique_ptr<Impl> m_impl;
     std::shared_ptr<ShaderInputCollection> m_shader_input;
     ShaderType m_shader_type;
+    int m_flags;
 };
 }

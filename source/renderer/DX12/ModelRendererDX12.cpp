@@ -132,12 +132,19 @@ void KS::ModelRenderer::QueueModel(Device& device, ResourceHandle<Model> model, 
 
 void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
                                std::shared_ptr<DepthStencil> depthStencil,
-                               std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs)
+                               std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRenderTarget)
 {
     for (int i = 0; i < inputs.size(); i++)
     {
         inputs[i].first->Bind(device, inputs[i].second);
     }
+
+    renderTarget->Bind(device, depthStencil.get());
+    if (clearRenderTarget)
+    {
+        renderTarget->Clear(device);
+    }
+    depthStencil->Clear(device);
 
     if (m_raytraced)
         Raytrace(device, cpuFrameIndex, renderTarget, depthStencil, inputs);
@@ -316,9 +323,6 @@ void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
-    renderTarget->Bind(device, depthStencil.get());
-    renderTarget->Clear(device);
-    depthStencil->Clear(device);
 
     m_modelMatsBuffer->Update(device, &m_modelMatrices[0], m_modelCount);
     m_materialInfoBuffer->Update(device, &m_materialInstances[0], m_modelCount);
@@ -345,12 +349,21 @@ void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared
         auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
         auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
         auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+
+        
         m_modelIndexBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_index"), draw_entry.modelIndex);
 
-        positions->BindAsVertexData(device, 0);
-        normals->BindAsVertexData(device, 1);
-        uvs->BindAsVertexData(device, 2);
-        tangents->BindAsVertexData(device, 3);
+        int shaderFlags = m_shader->GetFlags();
+
+        if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) 
+            positions->BindAsVertexData(device, 0);
+        if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) 
+            normals->BindAsVertexData(device, 1);
+        if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) 
+            uvs->BindAsVertexData(device, 2);
+        if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) 
+            tangents->BindAsVertexData(device, 3);
+
         indices->BindAsIndexData(device);
 
         baseTex->Bind(device, m_shader->GetShaderInput()->GetInput("base_tex"));

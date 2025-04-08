@@ -47,6 +47,7 @@ public:
     void SetAmbientLight(glm::vec3 color, float intensity);
 
     std::vector<std::unique_ptr<SubRenderer>> m_subrenderers;
+    void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
 
 private:
     void UpdateLights(const Device& device);
@@ -73,6 +74,7 @@ private:
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_mainComputeShaderInputs;
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_deferredShaderInputs;
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_lightRenderInputs;
+    std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_lightOccluderInputs;
     LightInfo m_lightInfo {};
     FogInfo m_fogInfo {};
 

@@ -21,7 +21,7 @@ public:
     virtual ~SubRenderer() = default;
     virtual void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
                         std::shared_ptr<DepthStencil> depthStencil,
-                        std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs) = 0;
+                        std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRenderTarget=true) = 0;
     const Shader* GetShader() const { return m_shader.get(); }
 
 protected:

@@ -135,12 +135,17 @@ int main()
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
+    KS::Formats format[1] = {KS::Formats::R8G8B8A8_UNORM};
 
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,
         mainInputs,
         shaderPath, fullInputFlags,
         formats, 4);
+
+    std::shared_ptr<KS::Shader> lightOccluderShader = std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_MESH_RENDER, mainInputs, "assets/shaders/OccluderShader.hlsl",
+                                     positionsInputFlags, format, 1);
+
 
     std::shared_ptr<KS::Shader> computePBRShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_COMPUTE,
@@ -166,6 +171,11 @@ int main()
     KS::SubRendererDesc subRenderer3;
     subRenderer3.shader = lightRendererShader;
     initParams.subRenderers.push_back(subRenderer3);
+
+    KS::SubRendererDesc subRenderer4;
+    subRenderer4.shader = lightOccluderShader;
+    initParams.subRenderers.push_back(subRenderer4);
+
 
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 
@@ -222,11 +232,11 @@ int main()
         renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
         renderer.QueuePointLight(lightPosition1, glm::vec3(1.f, 0.f, 0.f), 5.f, 1.f);
         renderer.QueuePointLight(lightPosition2, glm::vec3(0.f, 0.f, 1.f), 5.f, 1.f);
-        model_renderer->QueueModel(*device, model, transform);
-        model_renderer->QueueModel(*device, model, transform2);
-        model_renderer->QueueModel(*device, model, transform3);
-        model_renderer->QueueModel(*device, model, transform4);
-        model_renderer->QueueModel(*device, model, transform5);
+        renderer.QueueModel(*device, model, transform);
+        renderer.QueueModel(*device, model, transform2);
+        renderer.QueueModel(*device, model, transform3);
+        renderer.QueueModel(*device, model, transform4);
+        renderer.QueueModel(*device, model, transform5);
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
         device->EndFrame();

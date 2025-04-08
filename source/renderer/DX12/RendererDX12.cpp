@@ -66,7 +66,7 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
         m_lightRenderingTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.0f, 0.0f, 1.f), KS::Formats::R8G8B8A8_UNORM);
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM);
 
     }
 
@@ -138,6 +138,8 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::FOG_INFO_BUFFER].get(),
                                                                               rootSignature->GetInput("fog_info")));
     m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
+
+    m_lightOccluderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
 }
 
 KS::Renderer::~Renderer() {}
@@ -163,6 +165,17 @@ void KS::Renderer::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, f
 void KS::Renderer::SetAmbientLight(glm::vec3 color, float intensity)
 {
     m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
+}
+
+void KS::Renderer::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform)
+{ 
+    for (int i = 0; i < m_subrenderers.size(); i++)
+    {
+        if (m_subrenderers[i]->GetShader()->GetShaderType() == ShaderType::ST_MESH_RENDER)
+        {
+            reinterpret_cast<ModelRenderer*>(m_subrenderers[i].get())->QueueModel(device, model, transform);
+        }
+    }
 }
 
 void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bool raytraced)
@@ -194,12 +207,15 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     rootSignature = m_subrenderers[1]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
-    m_lightRenderRT->Bind(device, m_deferredRendererDepthStencil.get());
-    m_lightRenderRT->Clear(device);
-
     m_subrenderers[2]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightRenderInputs);
 
-    auto& boundRT = raytraced ? m_raytracedRendererRT : m_lightRenderRT;
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), false);
+
+    m_subrenderers[3]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightOccluderInputs, false);
+
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+
+    auto& boundRT = raytraced ? m_raytracedRendererRT : m_deferredRendererRT;
 
     if (!raytraced)
         m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
