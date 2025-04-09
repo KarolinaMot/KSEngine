@@ -107,7 +107,7 @@ int main()
     std::shared_ptr<KS::ShaderInputCollection> mainInputs = KS::ShaderInputCollectionBuilder()
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
-                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "base_tex")
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, "base_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "normal_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
@@ -125,17 +125,12 @@ int main()
                                                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
                                                        .Build(*device, "MAIN SIGNATURE");
 
-    std::shared_ptr<KS::ShaderInputCollection> raytraceInputs =
-        KS::ShaderInputCollectionBuilder()
-            .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
-            .Build(*device, "RAYTRACE SIGNATURE");
-
     int fullInputFlags = KS::Shader::HAS_POSITIONS | KS::Shader::HAS_NORMALS | KS::Shader::HAS_UVS |  KS::Shader::HAS_TANGENTS;
     int positionsInputFlags = KS::Shader::HAS_POSITIONS;
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
-    KS::Formats format[1] = {KS::Formats::R8G8B8A8_UNORM};
+    KS::Formats format[1] = {KS::Formats::R32G32B32A32_FLOAT};
 
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,
@@ -157,6 +152,10 @@ int main()
         mainInputs, 
         "assets/shaders/LightRenderer.hlsl", 0);
 
+    std::shared_ptr<KS::Shader> lightShaftShader = std::make_shared<KS::Shader>(*device,
+        KS::ShaderType::ST_COMPUTE,
+        mainInputs,
+        "assets/shaders/LightShaftShader.hlsl");
 
     KS::RendererInitParams initParams {};
 
@@ -175,6 +174,10 @@ int main()
     KS::SubRendererDesc subRenderer4;
     subRenderer4.shader = lightOccluderShader;
     initParams.subRenderers.push_back(subRenderer4);
+
+    KS::SubRendererDesc subRenderer5;
+    subRenderer5.shader = lightShaftShader;
+    initParams.subRenderers.push_back(subRenderer5);
 
 
     KS::Renderer renderer = KS::Renderer(*device, initParams);
@@ -230,13 +233,13 @@ int main()
         transform4 = glm::scale(transform4, glm::vec3(0.1f));
         transform5 = glm::scale(transform5, glm::vec3(0.1f));
         renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-        renderer.QueuePointLight(lightPosition1, glm::vec3(1.f, 0.f, 0.f), 5.f, 1.f);
-        renderer.QueuePointLight(lightPosition2, glm::vec3(0.f, 0.f, 1.f), 5.f, 1.f);
+        renderer.QueuePointLight(lightPosition1, glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
+        //renderer.QueuePointLight(lightPosition2, glm::vec3(0.f, 0.f, 1.f), 5.f, 2.f);
         renderer.QueueModel(*device, model, transform);
         renderer.QueueModel(*device, model, transform2);
         renderer.QueueModel(*device, model, transform3);
         renderer.QueueModel(*device, model, transform4);
-        renderer.QueueModel(*device, model, transform5);
+        //renderer.QueueModel(*device, model, transform5);
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
         device->EndFrame();

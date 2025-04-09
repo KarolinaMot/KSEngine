@@ -59,11 +59,13 @@ private:
     std::shared_ptr<Texture> m_pbrResTex[2];
     std::shared_ptr<Texture> m_raytracingResTex[2];
     std::shared_ptr<Texture> m_lightRenderingTex[2];
+    std::shared_ptr<Texture> m_lightShaftTex[2];
 
     std::shared_ptr<RenderTarget> m_deferredRendererRT;
     std::shared_ptr<RenderTarget> m_raytracedRendererRT;
     std::shared_ptr<RenderTarget> m_pbrResRT;
     std::shared_ptr<RenderTarget> m_lightRenderRT;
+    std::shared_ptr<RenderTarget> m_lightShaftRT;
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
 
     std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
@@ -75,6 +77,7 @@ private:
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_deferredShaderInputs;
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_lightRenderInputs;
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_lightOccluderInputs;
+    std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_lightShaftInputs;
     LightInfo m_lightInfo {};
     FogInfo m_fogInfo {};
 

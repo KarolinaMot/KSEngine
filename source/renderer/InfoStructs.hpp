@@ -94,6 +94,11 @@ struct FogInfo
 {
     glm::vec3 fogColor;
     float fogDensity;
+    int lightShaftNumberSamples;
+    int sourceMipNumber;
+    float exposure;
+    float weight;
+    float decay;
 };
 
 struct CameraMats

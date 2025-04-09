@@ -66,8 +66,12 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
         m_lightRenderingTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM, 4);
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R32G32B32A32_FLOAT, 4);
 
+       m_lightShaftTex[i] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                                       glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM);
     }
 
     m_deferredRendererRT = std::make_shared<RenderTarget>();
@@ -76,6 +80,7 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
         m_deferredRendererRT->AddTexture(device, m_deferredRendererTex[0][i], m_deferredRendererTex[1][i],
                                          "DEFERRED RENDERER" + std::to_string(i));
     }
+
     m_pbrResRT = std::make_shared<RenderTarget>();
     m_pbrResRT->AddTexture(device, m_pbrResTex[0], m_pbrResTex[1], "PBR RENDER RES");
 
@@ -85,17 +90,26 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_lightRenderRT = std::make_shared<RenderTarget>();
     m_lightRenderRT->AddTexture(device, m_lightRenderingTex[0], m_lightRenderingTex[1], "LIGHT RENDER RES");
 
+    m_lightShaftRT = std::make_shared<RenderTarget>();
+    m_lightShaftRT->AddTexture(device, m_lightShaftTex[0], m_lightShaftTex[1], "LIGHT SHAFT RENDER RES");
 
     m_deferredRendererDepthTex =
         std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE,
                                   glm::vec4(1.f), KS::Formats::D32_FLOAT);
+
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, m_deferredRendererDepthTex);
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
-    m_fogInfo.fogDensity = 0.9f;
+    m_fogInfo.fogDensity = 0.1f;
+    m_fogInfo.exposure = 0.15f;
+    m_fogInfo.lightShaftNumberSamples = 64;
+    m_fogInfo.sourceMipNumber = 1;
+    m_fogInfo.weight = 0.05f;
+    m_fogInfo.decay = 0.99f;
+
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
     mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
@@ -140,6 +154,10 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
 
     m_lightOccluderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
+
+    m_lightShaftInputs = m_lightRenderInputs;
+    m_lightShaftInputs.push_back(
+        std::pair<ShaderInput*, ShaderInputDesc>(m_lightRenderingTex[0].get(), rootSignature->GetInput("base_tex")));
 }
 
 KS::Renderer::~Renderer() {}
@@ -216,6 +234,12 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     //GENERATE LIGHT SCATTERING RENDER TARGET MIPS
     m_lightRenderingTex[device.GetCPUFrameIndex()]->GenerateMipmaps(device);
 
+    //LIGHT SHAFT RENDER
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+    m_subrenderers[4]->Render(device, params.cpuFrame, m_lightShaftRT, m_deferredRendererDepthStencil, m_lightShaftInputs,
+                              true);
+
+
     //PBR RENDER
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
     auto& boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
@@ -224,7 +248,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
 
 
-    device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
+    device.GetRenderTarget()->CopyTo(device, m_lightShaftRT, 0, 0);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

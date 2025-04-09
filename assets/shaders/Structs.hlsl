@@ -69,4 +69,15 @@ struct LightInfo
     uint2 padding1;
     float4 ambientLightIntensity;
 };
+
+struct LightShaftInfo
+{
+    float3 fogColor;
+    float fogDensity;
+    int lightShaftNumberSamples;
+    int sourceMipNumber;
+    float exposure;
+    float weight;
+    float decay;
+};
 #endif

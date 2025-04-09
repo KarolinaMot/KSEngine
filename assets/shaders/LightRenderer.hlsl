@@ -7,8 +7,7 @@ cbuffer Camera : register(b0)
 
 cbuffer LightRenderingBuffer : register(b1)
 {
-    float3 fogColor;
-    float fogDensity;
+    LightShaftInfo lightShaftInfo;
 };
 
 cbuffer LightInfoBuffer : register(b2)
@@ -58,7 +57,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
             // Blend the edge based on global fog density.
             // Here, we are reducing the light's intensity based on the fog.
-            float fogFactor = saturate(1.0 - fogDensity);
+            float fogFactor = saturate(1.0 - lightShaftInfo.fogDensity);
             // If you had a per-pixel fog density, you could sample it like this:
             // float fogFactor = saturate(1.0 - FogTexture.Load(int3(pixelCoord, 0)));
             alpha *= fogFactor;
