@@ -66,7 +66,7 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
         m_lightRenderingTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM);
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM, 4);
 
     }
 
@@ -200,29 +200,31 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
-
     device.TrackResource(m_camera_buffer);
+
+    //DEFERRED RENDERER
     m_subrenderers[0]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil, m_deferredShaderInputs);
 
-    rootSignature = m_subrenderers[1]->GetShader()->GetShaderInput();
+    //RENDERING LIGHTS
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
-
     m_subrenderers[2]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightRenderInputs);
 
+    //RENDERING OCCLUDER MESHES
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), false);
-
     m_subrenderers[3]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightOccluderInputs, false);
 
+    //GENERATE LIGHT SCATTERING RENDER TARGET MIPS
+    m_lightRenderingTex[device.GetCPUFrameIndex()]->GenerateMipmaps(device);
+
+    //PBR RENDER
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
-
-    auto& boundRT = raytraced ? m_raytracedRendererRT : m_deferredRendererRT;
-
+    auto& boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
     if (!raytraced)
         m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
 
 
 
-    device.GetRenderTarget()->CopyTo(device, m_lightRenderRT, 0, 0);
+    device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

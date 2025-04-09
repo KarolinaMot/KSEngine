@@ -87,7 +87,7 @@ KS::Texture::Texture(Device& device, const Image& image, int type)
     GenerateMipmaps(device);
 }
 
-KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format)
+KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format, int mipLevels)
 {
     m_impl = new Impl();
 
@@ -97,6 +97,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     m_format = format;
     m_flag = type;
     m_clearColor = clearColor;
+    m_mipLevels = mipLevels;
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = Conversion::KSFormatsToDXGI(format);
@@ -114,15 +115,34 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
 
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(KS::Conversion::KSFormatsToDXGI(m_format),
         m_width,
-        m_height,
-        1,
-        1,
+        m_height, 
+        1, 
+        m_mipLevels,
         1,
         0,
         flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
+
+    if (m_mipLevels > 1)
+    {
+        auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+        m_impl->AllocateAsSRV(descriptorHeap);
+
+        for (int i = 1; i < resourceDesc.MipLevels; i++)
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            uavDesc.Format = resourceDesc.Format;
+            uavDesc.Texture2D.MipSlice = i;
+            uavDesc.Texture2D.PlaneSlice = 0;
+
+            m_impl->mUAVMipslots[i - 1] = descriptorHeap->AllocateUAV(m_impl->mTextureBuffer.get(), &uavDesc);
+        }
+
+    }
+
 }
 
 KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, int type)
@@ -212,13 +232,6 @@ void KS::Texture::GenerateMipmaps(Device& device)
     auto resourceDesc = resource->GetDesc();
 
     if (resourceDesc.MipLevels < 4) return;
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = resourceDesc.Format;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.ViewDimension =
-        D3D12_SRV_DIMENSION_TEXTURE2D;  // Only 2D textures are supported (this was checked in the calling function).
-    srvDesc.Texture2D.MipLevels = resourceDesc.MipLevels;
 
     uint64_t srcWidth = resourceDesc.Width;
     uint32_t srcHeight = resourceDesc.Height;
