@@ -17,7 +17,7 @@ cbuffer LightInfoBuffer : register(b2)
 
 StructuredBuffer<PointLight> pointLights : register(t6);
 
-SamplerState mainSampler : register(s0);
+SamplerState mainSampler : register(s1);
 Texture2D<float4> SourceTex : register(t0);
 RWTexture2D<float4> FinalRes : register(u0);
 
@@ -43,7 +43,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float2 texDimentions;
     FinalRes.GetDimensions(texDimentions.x, texDimentions.y);
     float2 UV = DTid.xy / texDimentions;
-    float4 result = float4(0.f, 0.f, 0.f, 1.f);
+    float4 result = float4(0.f, 0.f, 0.f, 0.f);
 
     for (int i = 0; i < lightInfo.numPointLight; i++)
     {

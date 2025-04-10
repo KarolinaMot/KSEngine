@@ -37,7 +37,7 @@ float2 GetScreenPosition(float4 worldPosition, float2 screenSize)
 [numthreads(8, 8, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    float3 finalColor = float3(0.f, 0.f, 0.f);
+    float4 finalColor = float4(0.f, 0.f, 0.f, 0.f);
     float2 screenSize;
     FinalRes.GetDimensions(screenSize.x, screenSize.y);
 
@@ -64,13 +64,15 @@ void main( uint3 DTid : SV_DispatchThreadID )
             
             float3 lightColor = pointLights[i].mColorAndIntensity.rgb;
             float3 pixelColor = lightColor * alpha;
-            finalColor += pixelColor;
+            finalColor.rgb += pixelColor;
+            finalColor.a = 1.f;
+
         }
         
         //finalColor = saturate(float3(lightScreenPos, 0.f));
 
     }
     
-    FinalRes[DTid.xy] = float4(finalColor, 1.f);
+    FinalRes[DTid.xy] = finalColor;
 
 }

@@ -103,6 +103,8 @@ int main()
     auto input = std::make_shared<KS::RawInput>(device);
 
     device->NewFrame();
+    KS::SamplerDesc clampSampler;
+    clampSampler.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
 
     std::shared_ptr<KS::ShaderInputCollection> mainInputs = KS::ShaderInputCollectionBuilder()
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
@@ -123,6 +125,7 @@ int main()
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 200, "material_info")
                                                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                                                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
+                                                       .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
                                                        .Build(*device, "MAIN SIGNATURE");
 
     int fullInputFlags = KS::Shader::HAS_POSITIONS | KS::Shader::HAS_NORMALS | KS::Shader::HAS_UVS |  KS::Shader::HAS_TANGENTS;
@@ -240,7 +243,7 @@ int main()
         transform5 = glm::rotate(transform5, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
         transform4 = glm::scale(transform4, glm::vec3(0.1f));
         transform5 = glm::scale(transform5, glm::vec3(0.1f));
-        renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
+        //renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
         renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 8.f, 5.f);
         //renderer.QueuePointLight(lightPosition2, glm::vec3(0.597202f, 0.450786f, 0.450786f), 5.f, 2.f);
         renderer.QueueModel(*device, model, transform);

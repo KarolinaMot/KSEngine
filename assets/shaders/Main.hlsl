@@ -11,6 +11,7 @@ cbuffer LightInfoBuffer : register(b2)
     LightInfo lightInfo;
 };
 
+Texture2D<float4> LightShafts : register(t0);
 RWTexture2D<float4> FinalRes : register(u0);
 RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
@@ -37,6 +38,13 @@ float Attenuation(float distance, float range);
 
     float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
     mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    
+    float2 screenSize;
+    FinalRes.GetDimensions(screenSize.x, screenSize.y);
+    float2 UV = DispatchThreadID.xy / screenSize;
+    float3 result = float4(0.25f, 0.25f, 0.25f, 1.f);
+    
+    
     if (scalar != 0)
     {
         mat.F0 = float3(0.04, 0.04, 0.04);
@@ -67,13 +75,13 @@ float Attenuation(float distance, float range);
 
         GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
 
-        float3 result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+        result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
         result = LinearToSRGB(result);
-        FinalRes[DispatchThreadID.xy] = float4(result.rgb, 1.f);
     }
-    //else
-    //    FinalRes[DispatchThreadID.xy] = float4(0.25f, 0.25f, 0.25f, 1.f);
-
+    
+    float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
+    result += lightShaftColor.rgb;
+    FinalRes[DispatchThreadID.xy] = float4(result.rgb, 1.f);
 }
 
 // linear to sRGB approximation

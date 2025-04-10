@@ -143,6 +143,10 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
                                                                                   rootSignature->GetInput("GBuffer" + std::to_string(i + 1))));
     }
 
+    m_mainComputeShaderInputs.push_back(
+    std::pair<ShaderInput*, ShaderInputDesc>(m_upscaledLightShaftTex[0].get(), rootSignature->GetInput("base_tex")));
+
+
     rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
 
     m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::DIR_LIGHT_BUFFER].get(),
@@ -258,17 +262,14 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     m_subrenderers[5]->Render(device, params.cpuFrame, m_upscaledLightShaftRT, m_deferredRendererDepthStencil,
                               m_upscaleLightShaftInputs,
                               true);
-
-
     //PBR RENDER
-    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+    m_mainComputeShaderInputs[m_mainComputeShaderInputs.size() - 1] = std::pair<ShaderInput*, ShaderInputDesc>(
+        m_upscaledLightShaftTex[device.GetCPUFrameIndex()].get(), rootSignature->GetInput("base_tex"));
     auto& boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
     if (!raytraced)
         m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
 
-
-
-    device.GetRenderTarget()->CopyTo(device, m_upscaledLightShaftRT, 0, 0);
+    device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)
