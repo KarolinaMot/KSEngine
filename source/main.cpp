@@ -157,6 +157,10 @@ int main()
         mainInputs,
         "assets/shaders/LightShaftShader.hlsl");
 
+    std::shared_ptr<KS::Shader> upscalingShader =
+    std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_COMPUTE, mainInputs, "assets/shaders/Upscaling.hlsl");
+
+
     KS::RendererInitParams initParams {};
 
     KS::SubRendererDesc subRenderer1;
@@ -178,6 +182,10 @@ int main()
     KS::SubRendererDesc subRenderer5;
     subRenderer5.shader = lightShaftShader;
     initParams.subRenderers.push_back(subRenderer5);
+
+    KS::SubRendererDesc subRenderer6;
+    subRenderer6.shader = upscalingShader;
+    initParams.subRenderers.push_back(subRenderer6);
 
 
     KS::Renderer renderer = KS::Renderer(*device, initParams);
@@ -233,12 +241,12 @@ int main()
         transform4 = glm::scale(transform4, glm::vec3(0.1f));
         transform5 = glm::scale(transform5, glm::vec3(0.1f));
         renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-        renderer.QueuePointLight(lightPosition1, glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-        //renderer.QueuePointLight(lightPosition2, glm::vec3(0.f, 0.f, 1.f), 5.f, 2.f);
+        renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 8.f, 5.f);
+        //renderer.QueuePointLight(lightPosition2, glm::vec3(0.597202f, 0.450786f, 0.450786f), 5.f, 2.f);
         renderer.QueueModel(*device, model, transform);
         renderer.QueueModel(*device, model, transform2);
         renderer.QueueModel(*device, model, transform3);
-        renderer.QueueModel(*device, model, transform4);
+        //renderer.QueueModel(*device, model, transform4);
         //renderer.QueueModel(*device, model, transform5);
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);

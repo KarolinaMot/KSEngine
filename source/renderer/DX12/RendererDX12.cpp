@@ -69,9 +69,15 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
                                       glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R32G32B32A32_FLOAT, 4);
 
        m_lightShaftTex[i] =
-            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+            std::make_shared<Texture>(device, device.GetWidth()/4, device.GetHeight()/4,
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                       glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM);
+                                                       glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R32G32B32A32_FLOAT);
+
+        m_upscaledLightShaftTex[i] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                                Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                     glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM);
+
+
     }
 
     m_deferredRendererRT = std::make_shared<RenderTarget>();
@@ -92,6 +98,10 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
 
     m_lightShaftRT = std::make_shared<RenderTarget>();
     m_lightShaftRT->AddTexture(device, m_lightShaftTex[0], m_lightShaftTex[1], "LIGHT SHAFT RENDER RES");
+    
+    m_upscaledLightShaftRT = std::make_shared<RenderTarget>();
+    m_upscaledLightShaftRT->AddTexture(device, m_upscaledLightShaftTex[0], m_upscaledLightShaftTex[1],
+                                       "UPSCALED LIGHT SHAFT RENDER RES");
 
     m_deferredRendererDepthTex =
         std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE,
@@ -103,10 +113,10 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
-    m_fogInfo.fogDensity = 0.1f;
+    m_fogInfo.fogDensity = 0.5f;
     m_fogInfo.exposure = 0.15f;
-    m_fogInfo.lightShaftNumberSamples = 64;
-    m_fogInfo.sourceMipNumber = 1;
+    m_fogInfo.lightShaftNumberSamples = 132;
+    m_fogInfo.sourceMipNumber = 2;
     m_fogInfo.weight = 0.05f;
     m_fogInfo.decay = 0.99f;
 
@@ -158,6 +168,9 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_lightShaftInputs = m_lightRenderInputs;
     m_lightShaftInputs.push_back(
         std::pair<ShaderInput*, ShaderInputDesc>(m_lightRenderingTex[0].get(), rootSignature->GetInput("base_tex")));
+
+    m_upscaleLightShaftInputs.push_back(
+        std::pair<ShaderInput*, ShaderInputDesc>(m_lightShaftTex[0].get(), rootSignature->GetInput("base_tex")));
 }
 
 KS::Renderer::~Renderer() {}
@@ -235,8 +248,15 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     m_lightRenderingTex[device.GetCPUFrameIndex()]->GenerateMipmaps(device);
 
     //LIGHT SHAFT RENDER
+    m_lightShaftInputs[m_lightShaftInputs.size() - 1] =  std::pair<ShaderInput*, ShaderInputDesc>(m_lightRenderingTex[device.GetCPUFrameIndex()].get(), rootSignature->GetInput("base_tex"));
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
     m_subrenderers[4]->Render(device, params.cpuFrame, m_lightShaftRT, m_deferredRendererDepthStencil, m_lightShaftInputs,
+                              true);
+
+    //LIGHT SHAFT UPSCALE
+    m_upscaleLightShaftInputs[m_upscaleLightShaftInputs.size() - 1] =  std::pair<ShaderInput*, ShaderInputDesc>(m_lightShaftTex[device.GetCPUFrameIndex()].get(), rootSignature->GetInput("base_tex"));
+    m_subrenderers[5]->Render(device, params.cpuFrame, m_upscaledLightShaftRT, m_deferredRendererDepthStencil,
+                              m_upscaleLightShaftInputs,
                               true);
 
 
@@ -248,7 +268,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
 
 
 
-    device.GetRenderTarget()->CopyTo(device, m_lightShaftRT, 0, 0);
+    device.GetRenderTarget()->CopyTo(device, m_upscaledLightShaftRT, 0, 0);
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

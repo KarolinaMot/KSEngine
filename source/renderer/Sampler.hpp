@@ -28,7 +28,7 @@ enum class SamplerBorderColor
 struct SamplerDesc
 {
     SamplerFilter filter = SamplerFilter::SF_LINEAR;
-    SamplerAddressMode addressMode = SamplerAddressMode::SAM_WRAP;
+    SamplerAddressMode addressMode = SamplerAddressMode::SAM_CLAMP;
     SamplerBorderColor borderColor = SamplerBorderColor::SBC_OPAQUE_BLACK;
 };
 
