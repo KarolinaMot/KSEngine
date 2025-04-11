@@ -17,7 +17,9 @@
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/Renderer.hpp>
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputsBuilder.hpp>
+#include <renderer/ShaderInputCollection.hpp>
+#include <renderer/ShaderInputCollectionBuilder.hpp>
+#include <renderer/ShaderInput.hpp>
 #include <renderer/DX12/Helpers/DXSignature.hpp>
 #include <tools/Log.hpp>
 // #include <vector>
@@ -86,7 +88,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/Gears.glb").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;
@@ -101,12 +103,13 @@ int main()
     auto input = std::make_shared<KS::RawInput>(device);
 
     device->NewFrame();
+    KS::SamplerDesc clampSampler;
+    clampSampler.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
 
-    std::shared_ptr<KS::ShaderInputs> mainInputs = KS::ShaderInputsBuilder()
-
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix")
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "model_index")
-                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "base_tex")
+    std::shared_ptr<KS::ShaderInputCollection> mainInputs = KS::ShaderInputCollectionBuilder()
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, "base_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "normal_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
                                                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
@@ -120,29 +123,74 @@ int main()
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::VERTEX, 200, "model_matrix")
                                                        .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 200, "material_info")
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, "light_info")
+                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                                                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
+                                                       .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
                                                        .Build(*device, "MAIN SIGNATURE");
 
-    std::shared_ptr<KS::ShaderInputs> raytraceInputs = KS::ShaderInputsBuilder().AddUniform(KS::ShaderInputVisibility::COMPUTE, "camera_matrix").Build(*device, "RAYTRACE SIGNATURE");
+    int fullInputFlags = KS::Shader::HAS_POSITIONS | KS::Shader::HAS_NORMALS | KS::Shader::HAS_UVS |  KS::Shader::HAS_TANGENTS;
+    int positionsInputFlags = KS::Shader::HAS_POSITIONS;
 
     std::string shaderPath = "assets/shaders/Deferred.hlsl";
     KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
+    KS::Formats format[1] = {KS::Formats::R32G32B32A32_FLOAT};
 
     std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_MESH_RENDER,
         mainInputs,
-        shaderPath,
+        shaderPath, fullInputFlags,
         formats, 4);
+
+    std::shared_ptr<KS::Shader> lightOccluderShader = std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_MESH_RENDER, mainInputs, "assets/shaders/OccluderShader.hlsl",
+                                     positionsInputFlags, format, 1);
+
 
     std::shared_ptr<KS::Shader> computePBRShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_COMPUTE,
         mainInputs,
-        "assets/shaders/Main.hlsl");
+        "assets/shaders/Main.hlsl", 0);
+
+    std::shared_ptr<KS::Shader> lightRendererShader = std::make_shared<KS::Shader>(*device, 
+        KS::ShaderType::ST_COMPUTE, 
+        mainInputs, 
+        "assets/shaders/LightRenderer.hlsl", 0);
+
+    std::shared_ptr<KS::Shader> lightShaftShader = std::make_shared<KS::Shader>(*device,
+        KS::ShaderType::ST_COMPUTE,
+        mainInputs,
+        "assets/shaders/LightShaftShader.hlsl");
+
+    std::shared_ptr<KS::Shader> upscalingShader =
+    std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_COMPUTE, mainInputs, "assets/shaders/Upscaling.hlsl");
+
 
     KS::RendererInitParams initParams {};
-    initParams.shaders.push_back(mainShader);
-    initParams.shaders.push_back(computePBRShader);
+
+    KS::SubRendererDesc subRenderer1;
+    subRenderer1.shader = mainShader;
+    initParams.subRenderers.push_back(subRenderer1);
+
+    KS::SubRendererDesc subRenderer2;
+    subRenderer2.shader = computePBRShader;
+    initParams.subRenderers.push_back(subRenderer2);
+
+    KS::SubRendererDesc subRenderer3;
+    subRenderer3.shader = lightRendererShader;
+    initParams.subRenderers.push_back(subRenderer3);
+
+    KS::SubRendererDesc subRenderer4;
+    subRenderer4.shader = lightOccluderShader;
+    initParams.subRenderers.push_back(subRenderer4);
+
+    KS::SubRendererDesc subRenderer5;
+    subRenderer5.shader = lightShaftShader;
+    initParams.subRenderers.push_back(subRenderer5);
+
+    KS::SubRendererDesc subRenderer6;
+    subRenderer6.shader = upscalingShader;
+    initParams.subRenderers.push_back(subRenderer6);
+
+
     KS::Renderer renderer = KS::Renderer(*device, initParams);
 
     device->EndFrame();
@@ -159,6 +207,28 @@ int main()
     KS::Timer frametimer {};
     bool raytraced = false;
 
+    glm::vec3 lightPosition1 = glm::vec3(0.f, 0.f, 7.f);
+    glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
+
+    glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
+    glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(1.f,1.f, 4.f));
+    glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-1.f, 1.f, 4.f));
+    glm::mat4x4 transform4 = glm::translate(glm::mat4x4(1.f), lightPosition1);
+    glm::mat4x4 transform5 = glm::translate(glm::mat4x4(1.f), lightPosition2);
+    transform = glm::rotate(transform, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+    transform = glm::rotate(transform, glm::radians(40.f), glm::vec3(0.f, 0.f, 1.f));
+
+    transform2 = glm::rotate(transform2, glm::radians(-50.f), glm::vec3(0.f, 1.f, 0.f));
+    transform2 = glm::rotate(transform2, glm::radians(120.f), glm::vec3(0.f, 0.f, 1.f));
+
+    transform3 = glm::rotate(transform3, glm::radians(50.f), glm::vec3(0.f, 1.f, 0.f));
+    transform3 = glm::rotate(transform3, glm::radians(120.f), glm::vec3(0.f, 0.f, 1.f));
+
+    transform4 = glm::scale(transform4, glm::vec3(0.1f));
+    transform5 = glm::scale(transform5, glm::vec3(0.1f));
+
+    float rotationSpeed = 0.1f;
+
     while (device->IsWindowOpen())
     {
         auto dt = frametimer.Tick();
@@ -173,24 +243,27 @@ int main()
 
         auto renderParams = KS::RendererRenderParams();
 
+        transform = glm::rotate(transform, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+        transform2 = glm::rotate(transform2, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+        transform3 = glm::rotate(transform3, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+
+
         renderParams.cpuFrame = device->GetFrameIndex();
         renderParams.projectionMatrix = camera.GetProjection();
         renderParams.viewMatrix = camera.GetView();
         renderParams.cameraPos = camera.GetPosition();
+        renderParams.cameraRight = camera.GetRight();
+
 
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
-        glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
-        glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, -0.5f, 3.f));
-        glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-2.f, -0.5f, 3.f));
-        transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform2 = glm::rotate(transform2, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform3 = glm::rotate(transform3, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-        renderer.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-        renderer.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
-        model_renderer->QueueModel(*device, model, transform);
-        model_renderer->QueueModel(*device, model, transform2);
-        model_renderer->QueueModel(*device, model, transform3);
+        //renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
+        renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
+        //renderer.QueuePointLight(lightPosition2, glm::vec3(0.597202f, 0.450786f, 0.450786f), 5.f, 2.f);
+        renderer.QueueModel(*device, model, transform);
+        renderer.QueueModel(*device, model, transform2);
+        renderer.QueueModel(*device, model, transform3);
+        //renderer.QueueModel(*device, model, transform4);
+        //renderer.QueueModel(*device, model, transform5);
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
         device->EndFrame();

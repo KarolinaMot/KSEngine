@@ -1,8 +1,8 @@
 #include <device/Device.hpp>
 #include <renderer/DX12/Helpers/DXSignature.hpp>
-#include <renderer/ShaderInputsBuilder.hpp>
+#include <renderer/ShaderInputCollectionBuilder.hpp>
 
-class KS::ShaderInputsBuilder::Impl
+class KS::ShaderInputCollectionBuilder::Impl
 {
 public:
     int mRangeCounter = 0;
@@ -20,15 +20,15 @@ public:
                     D3D12_COMPARISON_FUNC comparison = D3D12_COMPARISON_FUNC_NEVER);
 };
 
-KS::ShaderInputsBuilder::ShaderInputsBuilder()
+KS::ShaderInputCollectionBuilder::ShaderInputCollectionBuilder()
 {
     m_impl = std::make_unique<Impl>();
     m_impl->mRanges.resize(20);
 }
 
-KS::ShaderInputsBuilder::~ShaderInputsBuilder() {}
+KS::ShaderInputCollectionBuilder::~ShaderInputCollectionBuilder() {}
 
-void KS::ShaderInputsBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
+void KS::ShaderInputCollectionBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
 {
     D3D12_ROOT_DESCRIPTOR desc;
     desc.RegisterSpace = 0;
@@ -42,7 +42,7 @@ void KS::ShaderInputsBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3
     mParameters.push_back(par);
 }
 
-void KS::ShaderInputsBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+void KS::ShaderInputCollectionBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
                                              int numDescriptors, int shaderRegister)
 {
     D3D12_DESCRIPTOR_RANGE range;
@@ -66,7 +66,7 @@ void KS::ShaderInputsBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D
     mParameters.push_back(par);
 }
 
-void KS::ShaderInputsBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
+void KS::ShaderInputCollectionBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
                                                D3D12_TEXTURE_ADDRESS_MODE mode, D3D12_FILTER filter,
                                                D3D12_STATIC_BORDER_COLOR color, D3D12_COMPARISON_FUNC comparison)
 {
@@ -88,9 +88,10 @@ void KS::ShaderInputsBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3
     mSamplers.push_back(sampler);
 }
 
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddUniform(ShaderInputVisibility visibility, std::string name)
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddUniform(
+    ShaderInputVisibility visibility,const std::initializer_list<std::string>& names)
 {
-    KS::ShaderInput input;
+    KS::ShaderInputDesc input;
     input.rootIndex = m_input_counter;
     input.type = InputType::BUFFER;
     input.typeIndex = m_buffer_counter;
@@ -101,14 +102,17 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddUniform(ShaderInputVisibili
     m_input_counter++;
     m_buffer_counter++;
 
-    m_descriptors[name] = input;
+    for (const auto& name : names)
+    {
+        m_descriptors[name] = input;
+    }
     return *this;
 }
 
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
                                                                    std::string name, ShaderInputMod modifiable)
 {
-    KS::ShaderInput input;
+    KS::ShaderInputDesc input;
     input.modifications = modifiable;
     input.numberOfElements = numberOfElements;
     input.rootIndex = m_input_counter;
@@ -132,10 +136,10 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStorageBuffer(ShaderInputVi
     return *this;
 }
 
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
                                                              ShaderInputMod modifiable)
 {
-    KS::ShaderInput input;
+    KS::ShaderInputDesc input;
     input.modifications = modifiable;
     input.rootIndex = m_input_counter;
     input.type = modifiable == ShaderInputMod::READ_ONLY ? InputType::RO_DATA : InputType::RW_DATA;
@@ -158,7 +162,7 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddTexture(ShaderInputVisibili
     return *this;
 }
 
-KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
 {
     std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
     D3D12_TEXTURE_ADDRESS_MODE addressMode;
@@ -218,7 +222,7 @@ KS::ShaderInputsBuilder& KS::ShaderInputsBuilder::AddStaticSampler(ShaderInputVi
     return *this;
 }
 
-std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& device, std::string name)
+std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Build(const Device& device, std::string name)
 {
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
@@ -254,10 +258,10 @@ std::shared_ptr<KS::ShaderInputs> KS::ShaderInputsBuilder::Build(const Device& d
     }
     signature->SetName(wString);
 
-    return std::make_shared<ShaderInputs>(device, std::move(m_descriptors), signature.Get(), name);
+    return std::make_shared<ShaderInputCollection>(device, std::move(m_descriptors), signature.Get(), name);
 }
 
-D3D12_SHADER_VISIBILITY KS::ShaderInputsBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
+D3D12_SHADER_VISIBILITY KS::ShaderInputCollectionBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
 {
     D3D12_SHADER_VISIBILITY descVisibility;
     switch (visibility)

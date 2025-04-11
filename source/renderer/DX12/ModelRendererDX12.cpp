@@ -1,6 +1,6 @@
 #include "../ModelRenderer.hpp"
 #include "../Shader.hpp"
-#include "../ShaderInputs.hpp"
+#include "../ShaderInputCollection.hpp"
 #include "Helpers/DXPipeline.hpp"
 #include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXCommandList.hpp"
@@ -63,7 +63,8 @@ public:
     
 };
 
-KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, const UniformBuffer* cameraBuffer)
+KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader> shader,
+                                 const UniformBuffer* cameraBuffer)
     : SubRenderer(device, shader)
 {
     m_impl = std::make_unique<Impl>();
@@ -77,7 +78,7 @@ KS::ModelRenderer::~ModelRenderer()
 {
 }
 
-void KS::ModelRenderer::QueueModel(const Device& device, ResourceHandle<Model> model, const glm::mat4& transform)
+void KS::ModelRenderer::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform)
 {
     if (auto* ptr = GetModel(model))
     {
@@ -129,12 +130,26 @@ void KS::ModelRenderer::QueueModel(const Device& device, ResourceHandle<Model> m
     }
 }
 
-void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ModelRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                               std::shared_ptr<DepthStencil> depthStencil,
+                               std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRenderTarget)
 {
+    for (int i = 0; i < inputs.size(); i++)
+    {
+        inputs[i].first->Bind(device, inputs[i].second);
+    }
+
+    renderTarget->Bind(device, depthStencil.get());
+    if (clearRenderTarget)
+    {
+        renderTarget->Clear(device);
+    }
+    depthStencil->Clear(device);
+
     if (m_raytraced)
-        Raytrace(device, cpuFrameIndex, renderTarget, depthStencil, previoiusPassResults, numTextures);
+        Raytrace(device, cpuFrameIndex, renderTarget, depthStencil, inputs);
     else
-        Rasterize(device, cpuFrameIndex, renderTarget, depthStencil, previoiusPassResults, numTextures);
+        Rasterize(device, cpuFrameIndex, renderTarget, depthStencil, inputs);
 
     m_modelCount = 0;
     draw_queue.clear();
@@ -184,7 +199,7 @@ const KS::Model* KS::ModelRenderer::GetModel(ResourceHandle<Model> model)
     return nullptr;
 }
 
-std::shared_ptr<KS::Texture> KS::ModelRenderer::GetTexture(const Device& device, ResourceHandle<Texture> imgPath)
+std::shared_ptr<KS::Texture> KS::ModelRenderer::GetTexture(Device& device, ResourceHandle<Texture> imgPath)
 {
     // Cached result
     if (auto it = tex_cache.find(imgPath); it != tex_cache.end())
@@ -222,7 +237,9 @@ KS::MaterialInfo KS::ModelRenderer::GetMaterialInfo(const KS::Material& material
     return info;
 }
 
-void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                                 std::shared_ptr<DepthStencil> depthStencil,
+                                 std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs)
 {
     if (!m_impl->m_updateBVH)
     {
@@ -298,20 +315,19 @@ void KS::ModelRenderer::Raytrace(Device& device, int cpuFrameIndex, std::shared_
     // renderTarget->CopyTo(device, m_impl->m_raytraceRenderTargets[cpuFrameIndex], cpuFrameIndex);
 }
 
-void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                                  std::shared_ptr<DepthStencil> depthStencil,
+                                  std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
-    renderTarget->Bind(device, depthStencil.get());
-    renderTarget->Clear(device);
-    depthStencil->Clear(device);
 
     m_modelMatsBuffer->Update(device, &m_modelMatrices[0], m_modelCount);
     m_materialInfoBuffer->Update(device, &m_materialInstances[0], m_modelCount);
-    m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix").rootIndex);
-    m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info").rootIndex);
+    m_modelMatsBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix"));
+    m_materialInfoBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("material_info"));
 
     for (const auto& draw_entry : draw_queue)
     {
@@ -333,25 +349,28 @@ void KS::ModelRenderer::Rasterize(Device& device, int cpuFrameIndex, std::shared
         auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
         auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
         auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
-        m_modelIndexBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_index").rootIndex, draw_entry.modelIndex);
 
-        positions->BindAsVertexData(device, 0);
-        normals->BindAsVertexData(device, 1);
-        uvs->BindAsVertexData(device, 2);
-        tangents->BindAsVertexData(device, 3);
+        
+        m_modelIndexBuffer->Bind(device, m_shader->GetShaderInput()->GetInput("model_index"), draw_entry.modelIndex);
+
+        int shaderFlags = m_shader->GetFlags();
+
+        if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) 
+            positions->BindAsVertexData(device, 0);
+        if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) 
+            normals->BindAsVertexData(device, 1);
+        if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) 
+            uvs->BindAsVertexData(device, 2);
+        if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) 
+            tangents->BindAsVertexData(device, 3);
+
         indices->BindAsIndexData(device);
 
-        auto baseTexRoot = m_shader->GetShaderInput()->GetInput("base_tex").rootIndex;
-        auto normalTexRoot = m_shader->GetShaderInput()->GetInput("normal_tex").rootIndex;
-        auto emissiveTexRoot = m_shader->GetShaderInput()->GetInput("emissive_tex").rootIndex;
-        auto roughMetTexRoot = m_shader->GetShaderInput()->GetInput("roughmet_tex").rootIndex;
-        auto oucclusionTexRoot = m_shader->GetShaderInput()->GetInput("occlusion_tex").rootIndex;
-
-        baseTex->Bind(device, baseTexRoot);
-        normalTex->Bind(device, normalTexRoot);
-        emissiveTex->Bind(device, emissiveTexRoot);
-        roughMetTex->Bind(device, roughMetTexRoot);
-        occlusionTex->Bind(device, oucclusionTexRoot);
+        baseTex->Bind(device, m_shader->GetShaderInput()->GetInput("base_tex"));
+        normalTex->Bind(device, m_shader->GetShaderInput()->GetInput("normal_tex"));
+        emissiveTex->Bind(device, m_shader->GetShaderInput()->GetInput("emissive_tex"));
+        roughMetTex->Bind(device, m_shader->GetShaderInput()->GetInput("roughmet_tex"));
+        occlusionTex->Bind(device, m_shader->GetShaderInput()->GetInput("occlusion_tex"));
 
         commandList->DrawIndexed(indices->GetElementCount());
     }

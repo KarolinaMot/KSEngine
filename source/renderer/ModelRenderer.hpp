@@ -26,24 +26,29 @@ struct DrawEntry;
 class ModelRenderer : public SubRenderer
 {
 public:
-    ModelRenderer(const Device& device, std::shared_ptr<Shader> shader, const UniformBuffer* cameraBuffer);
+    ModelRenderer(const Device& device,
+                  std::shared_ptr<Shader> shader, const UniformBuffer* cameraBuffer);
     ~ModelRenderer();
 
-    void QueueModel(const Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
-    void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0) override;
+    void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform);
+    void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                std::shared_ptr<DepthStencil> depthStencil, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
+                bool clearRenderTarget = true) override;
     void SetRaytraced(bool raytraced) { m_raytraced = raytraced; };
-
+    
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
 
     const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);
     const Model* GetModel(ResourceHandle<Model> model);
-    std::shared_ptr<Texture> GetTexture(const Device& device, ResourceHandle<Texture> imgPath);
+    std::shared_ptr<Texture> GetTexture(Device& device, ResourceHandle<Texture> imgPath);
     void UpdateLights(const Device& device);
     MaterialInfo GetMaterialInfo(const Material& material);
-    void Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);
-    void Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults = nullptr, int numTextures = 0);
+    void Raytrace(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                  std::shared_ptr<DepthStencil> depthStencil, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs);
+    void Rasterize(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                   std::shared_ptr<DepthStencil> depthStencil, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs);
     void CreateBottomLevelAS(const Device& device, const Mesh* mesh, int cpuFrame);
     void CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex,
                                      int cpuFrame);

@@ -1,8 +1,11 @@
 #include <resources/Texture.hpp>
 #include <device/Device.hpp>
 #include <resources/Image.hpp>
+#include <renderer/Shader.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 #include <renderer/RenderTarget.hpp>
 #include <renderer/DepthStencil.hpp>
+#include <renderer/UniformBuffer.hpp>
 #include "Helpers/DXResource.hpp"
 #include "Helpers/DXHeapHandle.hpp"
 #include "Helpers/DXDescHeap.hpp"
@@ -13,8 +16,10 @@ class KS::Texture::Impl
 {
 public:
     std::unique_ptr<DXResource> mTextureBuffer {};
+    std::unique_ptr<UniformBuffer> mMipmapUB {};
     DXHeapHandle mSRVHeapSlot {};
     DXHeapHandle mUAVHeapSlot {};
+    DXHeapHandle mUAVMipslots[3]{};
 
     void AllocateAsUAV(DXDescHeap* descriptorHeap);
     void AllocateAsUAV(DXDescHeap* descriptorHeap, int slot);
@@ -22,7 +27,7 @@ public:
     void AllocateAsSRV(DXDescHeap* descriptorHeap, int slot);
 };
 
-KS::Texture::Texture(const Device& device, const Image& image, int type)
+KS::Texture::Texture(Device& device, const Image& image, int type)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -36,21 +41,22 @@ KS::Texture::Texture(const Device& device, const Image& image, int type)
         flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
     if (m_flag & TextureFlags::RENDER_TARGET)
         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    if (m_flag & TextureFlags::RW_TEXTURE)
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto resourceDesc
         = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
             m_width,
             m_height,
             1,
-            1,
+            m_width <= 5 ? 1 : 4,
             1,
             0,
             flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "Texture Buffer Resource Heap");
+    m_mipLevels = resourceDesc.MipLevels;
 
     UINT64 textureUploadBufferSize;
     engineDevice->GetCopyableFootprints(&resourceDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
@@ -64,9 +70,24 @@ KS::Texture::Texture(const Device& device, const Image& image, int type)
     textureData.SlicePitch = bytesPerRow * m_height;
     m_impl->mTextureBuffer->CreateUploadBuffer(engineDevice, static_cast<int>(textureUploadBufferSize), 0);
     m_impl->mTextureBuffer->Update(commandList, textureData, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 0, 1);
+    auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    m_impl->AllocateAsSRV(descriptorHeap);
+
+    for (int i = 1; i < resourceDesc.MipLevels; i++)
+    {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        uavDesc.Format = resourceDesc.Format;
+        uavDesc.Texture2D.MipSlice = i;
+        uavDesc.Texture2D.PlaneSlice = 0;
+
+        m_impl->mUAVMipslots[i - 1] = descriptorHeap->AllocateUAV(m_impl->mTextureBuffer.get(), &uavDesc);
+    }
+
+    GenerateMipmaps(device);
 }
 
-KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format)
+KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format, int mipLevels)
 {
     m_impl = new Impl();
 
@@ -76,6 +97,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     m_format = format;
     m_flag = type;
     m_clearColor = clearColor;
+    m_mipLevels = mipLevels;
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = Conversion::KSFormatsToDXGI(format);
@@ -93,15 +115,34 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
 
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(KS::Conversion::KSFormatsToDXGI(m_format),
         m_width,
-        m_height,
-        1,
-        1,
+        m_height, 
+        1, 
+        m_mipLevels,
         1,
         0,
         flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
+
+    if (m_mipLevels > 1)
+    {
+        auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+        m_impl->AllocateAsSRV(descriptorHeap);
+
+        for (int i = 1; i < resourceDesc.MipLevels; i++)
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            uavDesc.Format = resourceDesc.Format;
+            uavDesc.Texture2D.MipSlice = i;
+            uavDesc.Texture2D.PlaneSlice = 0;
+
+            m_impl->mUAVMipslots[i - 1] = descriptorHeap->AllocateUAV(m_impl->mTextureBuffer.get(), &uavDesc);
+        }
+
+    }
+
 }
 
 KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, int type)
@@ -129,22 +170,22 @@ KS::Texture::~Texture()
     delete m_impl;
 }
 
-void KS::Texture::Bind(const Device& device, uint32_t rootIndex, bool readOnly) const
+void KS::Texture::Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex)
 {
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    if (readOnly)
+    if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
         TransitionToRO(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
-        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootIndex);
+        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
     }
     else
     {
         TransitionToRW(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, rootIndex);
+        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, desc.rootIndex);
     }
 }
 
@@ -176,6 +217,71 @@ void KS::Texture::TransitionToRW(const Device& device) const
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
+void KS::Texture::GenerateMipmaps(Device& device)
+{
+    // FROM: https://www.3dgep.com/learning-directx-12-4/#Generate_Mipmaps_Compute_Shader
+    // TODO: Do the required steps if resource does not support UAVs
+
+    ID3D12Device5* engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+
+    GenerateMipsInfo generateMipsCB;
+    generateMipsCB.IsSRGB = false;  // TODO: check if format is SRGB
+
+    auto resource = m_impl->mTextureBuffer->GetResource();
+    auto resourceDesc = resource->GetDesc();
+
+    if (resourceDesc.MipLevels < 4) return;
+
+    uint64_t srcWidth = resourceDesc.Width;
+    uint32_t srcHeight = resourceDesc.Height;
+    uint32_t dstWidth = static_cast<uint32_t>(srcWidth >> 1);
+    uint32_t dstHeight = srcHeight >> 1;
+
+    // 0b00(0): Both width and height are even.
+    // 0b01(1): Width is odd, height is even.
+    // 0b10(2): Width is even, height is odd.
+    // 0b11(3): Both width and height are odd.
+    generateMipsCB.SrcDimension = (srcHeight & 1) << 1 | (srcWidth & 1);
+    DWORD mipCount = 4;
+
+    // The number of times we can half the size of the texture and get
+    // exactly a 50% reduction in size.
+    // A 1 bit in the width or height indicates an odd dimension.
+    // The case where either the width or the height is exactly 1 is handled
+    // as a special case (as the dimension does not require reduction).
+    _BitScanForward(&mipCount, (dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
+
+    // Dimensions should not reduce to 0.
+    // This can happen if the width and height are not the same.
+    dstWidth = std::max<DWORD>(1, dstWidth);
+    dstHeight = std::max<DWORD>(1, dstHeight);
+
+    generateMipsCB.SrcMipLevel = 0;
+    generateMipsCB.NumMipLevels = mipCount;
+    generateMipsCB.TexelSize.x = 1.0f / (float)dstWidth;
+    generateMipsCB.TexelSize.y = 1.0f / (float)dstHeight;
+
+    CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    m_impl->mMipmapUB = std::make_unique<UniformBuffer>(device, "Texture mipmap buffer", generateMipsCB, 1);
+
+    ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(device.GetMipGenShader()->GetPipeline());
+    commandList->BindPipeline(pipeline);
+
+    auto rootSignature = device.GetMipGenShaderInputs();
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
+    m_impl->mMipmapUB->Bind(device, rootSignature->GetInput("mipmap_info"));
+    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[0], rootSignature->GetInput("mip_1").rootIndex);
+    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[1], rootSignature->GetInput("mip_2").rootIndex);
+    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[2], rootSignature->GetInput("mip_3").rootIndex);
+    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootSignature->GetInput("mip_0").rootIndex);
+
+    commandList->DispatchShader(dstWidth / 8, dstHeight / 8, 1);
+}
 
 void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap)
 {
@@ -207,7 +313,7 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = mTextureBuffer->GetDesc().Format;
-    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MipLevels = mTextureBuffer->GetDesc().MipLevels;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     mSRVHeapSlot = descriptorHeap->AllocateResource(mTextureBuffer.get(), &srvDesc);

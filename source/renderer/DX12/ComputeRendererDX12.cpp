@@ -3,7 +3,7 @@
 #include <resources/Texture.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputs.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 #include <device/Device.hpp>
 
 KS::ComputeRenderer::ComputeRenderer(const Device& device, std::shared_ptr<Shader> shader)
@@ -15,18 +15,28 @@ KS::ComputeRenderer::~ComputeRenderer()
 {
 }
 
-void KS::ComputeRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget, std::shared_ptr<DepthStencil> depthStencil, Texture** previoiusPassResults, int numTextures)
+void KS::ComputeRenderer::Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
+                                      std::shared_ptr<DepthStencil> depthStencil,
+                                 std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRenderTarget)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
-    renderTarget->GetTexture(device, 0)->Bind(device, m_shader->GetShaderInput()->GetInput("PBRRes").rootIndex, false);
 
-    for (int i = 0; i < numTextures; i++)
+    if (clearRenderTarget)
     {
-        previoiusPassResults[i]->Bind(device, m_shader->GetShaderInput()->GetInput("GBuffer" + std::to_string(i + 1)).rootIndex, false);
+        renderTarget->Bind(device, depthStencil.get());
+        renderTarget->Clear(device);
+    }
+    renderTarget->GetTexture(device, 0)->Bind(device, m_shader->GetShaderInput()->GetInput("PBRRes"));
+
+    for (int i = 0; i < inputs.size(); i++)
+    {
+        inputs[i].first->Bind(device, inputs[i].second);
     }
 
-    commandList->DispatchShader(static_cast<uint32_t>(device.GetWidth() / 8), static_cast<uint32_t>(device.GetHeight() / 8), 1);
+    uint32_t texWidth = renderTarget->GetTexture(device, 0)->GetWidth();
+    uint32_t texHeight = renderTarget->GetTexture(device, 0)->GetHeight();
+    commandList->DispatchShader(texWidth / 8, texHeight / 8, 1);
 }

@@ -39,6 +39,7 @@ struct CameraMats
     float4x4 mInvView;
     float4x4 mCamera;
     float4 mCameraPos;
+    float4 mCameraRight;
 };
 
 struct ModelMat
@@ -67,5 +68,16 @@ struct LightInfo
     uint numPointLight;
     uint2 padding1;
     float4 ambientLightIntensity;
+};
+
+struct LightShaftInfo
+{
+    float3 fogColor;
+    float fogDensity;
+    int lightShaftNumberSamples;
+    int sourceMipNumber;
+    float exposure;
+    float weight;
+    float decay;
 };
 #endif

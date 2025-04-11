@@ -174,7 +174,15 @@ glm::mat3 KS::Camera::GetRotation() const
 
 glm::vec3 KS::Camera::GetPosition() const
 {
-    return position;
+    return position; }
+
+glm::vec3 KS::Camera::GetForward() const { return glm::normalize(lookat - position); }
+
+glm::vec3 KS::Camera::GetRight() const
+{
+    auto right = glm::normalize(glm::cross(GetForward(), World::UP));
+
+    return right;
 }
 
 std::array<KS::Plane, 6> KS::Camera::GetFrustum() const

@@ -6,7 +6,7 @@
 namespace KS
 {
 class Device;
-class ShaderInputs;
+class ShaderInputCollection;
 
 enum class ShaderType
 {
@@ -16,20 +16,32 @@ enum class ShaderType
 
     ST_COMPUTE
 };
+
+
 class Shader
 {
 public:
-    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputs> shaderInput, std::string path, Formats* rtFormats = nullptr, int numFormats = 1);
-    Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path);
+    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path,
+           int flags = 0, Formats* rtFormats = nullptr, int numFormats = 1);
+    Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags = 0);
     ~Shader();
-    std::shared_ptr<ShaderInputs> GetShaderInput() const { return m_shader_input; };
+    std::shared_ptr<ShaderInputCollection> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
-    ShaderType GetShaderType() { return m_shader_type; }
+    ShaderType GetShaderType() const { return m_shader_type; }
+    int GetFlags() const { return m_flags; }
+    enum MeshInputFlags
+    {
+        HAS_POSITIONS = 1 << 0,
+        HAS_NORMALS = 1 << 1,
+        HAS_UVS = 1 << 2,
+        HAS_TANGENTS = 1 << 3,
+    };
 
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
-    std::shared_ptr<ShaderInputs> m_shader_input;
+    std::shared_ptr<ShaderInputCollection> m_shader_input;
     ShaderType m_shader_type;
+    int m_flags;
 };
 }

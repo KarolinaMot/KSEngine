@@ -1,17 +1,17 @@
-#include "../ShaderInputs.hpp"
+#include "../ShaderInputCollection.hpp"
 #include "Helpers/DXIncludes.hpp"
 #include "Helpers/DXSignature.hpp"
 #include "device/Device.hpp"
 #include "tools/Log.hpp"
-#include <renderer/ShaderInputsBuilder.hpp>
+#include <renderer/ShaderInputCollectionBuilder.hpp>
 
-class KS::ShaderInputs::Impl
+class KS::ShaderInputCollection::Impl
 {
 public:
     ComPtr<ID3D12RootSignature> m_signature;
 };
 
-KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers, int totalDataCount, std::string name)
+KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers, int totalDataCount, std::string name)
 {
     m_impl = std::make_unique<Impl>();
     DXSignatureBuilder builder = DXSignatureBuilder(totalDataCount);
@@ -135,7 +135,7 @@ KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::str
     m_impl->m_signature = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()), wString);
 }
 
-KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::string, ShaderInput>&& inputs, void* signature, std::string name)
+KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name)
 {
     m_impl = std::make_unique<Impl>();
     m_descriptors = std::move(inputs);
@@ -143,16 +143,16 @@ KS::ShaderInputs::ShaderInputs(const Device& device, std::unordered_map<std::str
     m_impl->m_signature = reinterpret_cast<ID3D12RootSignature*>(signature);
 }
 
-KS::ShaderInputs::~ShaderInputs()
+KS::ShaderInputCollection::~ShaderInputCollection()
 {
 }
 
-void* KS::ShaderInputs::GetSignature() const
+void* KS::ShaderInputCollection::GetSignature() const
 {
     return m_impl->m_signature.Get();
 }
 
-KS::ShaderInput KS::ShaderInputs::GetInput(std::string key) const
+KS::ShaderInputDesc KS::ShaderInputCollection::GetInput(std::string key) const
 {
     auto res = m_descriptors.find(key);
     if (res == m_descriptors.end())

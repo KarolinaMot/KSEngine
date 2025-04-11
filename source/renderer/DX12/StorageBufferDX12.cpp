@@ -4,6 +4,7 @@
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/StorageBuffer.hpp>
+#include <renderer/ShaderInputCollection.hpp>
 
 class KS::StorageBuffer::Impl
 {
@@ -73,22 +74,22 @@ void KS::StorageBuffer::Resize(const Device& device, int newNumOfElements)
     m_impl->m_resource->CreateUploadBuffer(engineDevice, sizeOfBuffer, 0);
 }
 
-void KS::StorageBuffer::Bind(Device& device, int rootIndex, bool readOnly)
+void KS::StorageBuffer::Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex)
 {
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
-    if (readOnly)
+    if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
         if (!m_impl->m_SRV_handle.IsValid()) AllocateAsReadOnly(device);
 
-        commandList->BindHeapResource(m_impl->m_resource, m_impl->m_SRV_handle, rootIndex);
+        commandList->BindHeapResource(m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
     }
     else
     {
         if (!m_impl->m_UAV_handle.IsValid()) AllocateAsReadWrite(device);
 
-        commandList->BindHeapResource(m_impl->m_resource, m_impl->m_UAV_handle, rootIndex);
+        commandList->BindHeapResource(m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
     }
 }
 

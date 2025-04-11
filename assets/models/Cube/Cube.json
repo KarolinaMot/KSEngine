@@ -49,11 +49,18 @@
                         "value": {
                             "index": 3,
                             "data": {
-                                "value0": 0.800000011920929,
-                                "value1": 0.800000011920929,
-                                "value2": 0.800000011920929,
+                                "value0": 1.0,
+                                "value1": 1.0,
+                                "value2": 1.0,
                                 "value3": 1.0
                             }
+                        }
+                    },
+                    {
+                        "key": "BASE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets\\models\\Cube\\textures\\red-color-solid-background-1920x1080.png"
                         }
                     },
                     {
