@@ -88,7 +88,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/Gears.glb").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;
@@ -207,6 +207,22 @@ int main()
     KS::Timer frametimer {};
     bool raytraced = false;
 
+    glm::vec3 lightPosition1 = glm::vec3(0.f, 0.f, 7.f);
+    glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
+
+    glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
+    glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, -0.5f, 3.f));
+    glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-2.f, -0.5f, 3.f));
+    glm::mat4x4 transform4 = glm::translate(glm::mat4x4(1.f), lightPosition1);
+    glm::mat4x4 transform5 = glm::translate(glm::mat4x4(1.f), lightPosition2);
+    transform = glm::rotate(transform, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+    transform2 = glm::rotate(transform2, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+    transform3 = glm::rotate(transform3, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+    transform4 = glm::scale(transform4, glm::vec3(0.1f));
+    transform5 = glm::scale(transform5, glm::vec3(0.1f));
+
+    float rotationSpeed = 0.1f;
+
     while (device->IsWindowOpen())
     {
         auto dt = frametimer.Tick();
@@ -221,30 +237,21 @@ int main()
 
         auto renderParams = KS::RendererRenderParams();
 
+        transform = glm::rotate(transform, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+        transform2 = glm::rotate(transform2, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+        transform3 = glm::rotate(transform3, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+
+
         renderParams.cpuFrame = device->GetFrameIndex();
         renderParams.projectionMatrix = camera.GetProjection();
         renderParams.viewMatrix = camera.GetView();
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
 
-        glm::vec3 lightPosition1 = glm::vec3(2.f, 0.f, 0.f);
-        glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
 
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
-        glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
-        glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, -0.5f, 3.f));
-        glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-2.f, -0.5f, 3.f));
-        glm::mat4x4 transform4 = glm::translate(glm::mat4x4(1.f), lightPosition1);
-        glm::mat4x4 transform5 = glm::translate(glm::mat4x4(1.f), lightPosition2);
-        transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform2 = glm::rotate(transform2, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform3 = glm::rotate(transform3, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform4 = glm::rotate(transform4, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform5 = glm::rotate(transform5, glm::radians(-180.f), glm::vec3(0.f, 0.f, 1.f));
-        transform4 = glm::scale(transform4, glm::vec3(0.1f));
-        transform5 = glm::scale(transform5, glm::vec3(0.1f));
         //renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-        renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 8.f, 5.f);
+        renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
         //renderer.QueuePointLight(lightPosition2, glm::vec3(0.597202f, 0.450786f, 0.450786f), 5.f, 2.f);
         renderer.QueueModel(*device, model, transform);
         renderer.QueueModel(*device, model, transform2);

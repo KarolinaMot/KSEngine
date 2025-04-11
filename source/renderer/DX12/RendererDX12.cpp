@@ -113,7 +113,7 @@ KS::Renderer::Renderer(Device& device, RendererInitParams& params)
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
-    m_fogInfo.fogDensity = 0.5f;
+    m_fogInfo.fogDensity = 0.4f;
     m_fogInfo.exposure = 0.15f;
     m_fogInfo.lightShaftNumberSamples = 132;
     m_fogInfo.sourceMipNumber = 2;
