@@ -211,13 +211,19 @@ int main()
     glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
 
     glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(0.f, -0.5f, 3.f));
-    glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, -0.5f, 3.f));
-    glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-2.f, -0.5f, 3.f));
+    glm::mat4x4 transform2 = glm::translate(glm::mat4x4(1.f), glm::vec3(1.f,1.f, 4.f));
+    glm::mat4x4 transform3 = glm::translate(glm::mat4x4(1.f), glm::vec3(-1.f, 1.f, 4.f));
     glm::mat4x4 transform4 = glm::translate(glm::mat4x4(1.f), lightPosition1);
     glm::mat4x4 transform5 = glm::translate(glm::mat4x4(1.f), lightPosition2);
     transform = glm::rotate(transform, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-    transform2 = glm::rotate(transform2, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-    transform3 = glm::rotate(transform3, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+    transform = glm::rotate(transform, glm::radians(40.f), glm::vec3(0.f, 0.f, 1.f));
+
+    transform2 = glm::rotate(transform2, glm::radians(-50.f), glm::vec3(0.f, 1.f, 0.f));
+    transform2 = glm::rotate(transform2, glm::radians(120.f), glm::vec3(0.f, 0.f, 1.f));
+
+    transform3 = glm::rotate(transform3, glm::radians(50.f), glm::vec3(0.f, 1.f, 0.f));
+    transform3 = glm::rotate(transform3, glm::radians(120.f), glm::vec3(0.f, 0.f, 1.f));
+
     transform4 = glm::scale(transform4, glm::vec3(0.1f));
     transform5 = glm::scale(transform5, glm::vec3(0.1f));
 
