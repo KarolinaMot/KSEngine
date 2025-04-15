@@ -73,8 +73,6 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
         camera.eulerAngles += eulerDelta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
-        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
-
         auto rotation = glm::quat(camera.eulerAngles);
         auto translation = transform.GetLocalTranslation();
 
@@ -100,10 +98,10 @@ int main()
     device->InitializeSwapchain();
     device->FinishInitialization();
 
+    auto input = std::make_shared<KS::RawInput>(device);
     auto editor = std::make_shared<KS::Editor>(*device);
 
     auto ecs = std::make_shared<KS::EntityComponentSystem>();
-    auto input = std::make_shared<KS::RawInput>(device);
 
     device->NewFrame();
     KS::SamplerDesc clampSampler;
@@ -146,7 +144,6 @@ int main()
 
     std::shared_ptr<KS::Shader> lightOccluderShader = std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_MESH_RENDER, mainInputs, "assets/shaders/OccluderShader.hlsl",
                                      positionsInputFlags, format, 1);
-
 
     std::shared_ptr<KS::Shader> computePBRShader = std::make_shared<KS::Shader>(*device,
         KS::ShaderType::ST_COMPUTE,
@@ -259,14 +256,12 @@ int main()
 
 
         auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
-        //renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
+
         renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
-        //renderer.QueuePointLight(lightPosition2, glm::vec3(0.597202f, 0.450786f, 0.450786f), 5.f, 2.f);
         renderer.QueueModel(*device, model, transform);
         renderer.QueueModel(*device, model, transform2);
         renderer.QueueModel(*device, model, transform3);
-        //renderer.QueueModel(*device, model, transform4);
-        //renderer.QueueModel(*device, model, transform5);
+
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
         editor->RenderWindow();
