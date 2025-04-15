@@ -270,6 +270,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
         m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
 
     device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
+    device.GetRenderTarget()->Bind(device, device.GetDepthStencil().get());
 }
 
 void KS::Renderer::UpdateLights(const Device& device)

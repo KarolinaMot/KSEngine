@@ -25,6 +25,7 @@
 // #include <vector>
 #include <resources/Model.hpp>
 #include <tools/Timer.hpp>
+#include <editor/Editor.hpp>
 
 KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& registry, float dt)
 {
@@ -98,6 +99,8 @@ int main()
     auto device = std::make_shared<KS::Device>(params);
     device->InitializeSwapchain();
     device->FinishInitialization();
+
+    auto editor = std::make_shared<KS::Editor>(*device);
 
     auto ecs = std::make_shared<KS::EntityComponentSystem>();
     auto input = std::make_shared<KS::RawInput>(device);
@@ -266,6 +269,7 @@ int main()
         //renderer.QueueModel(*device, model, transform5);
         model_renderer->SetRaytraced(raytraced);
         renderer.Render(*device, renderParams, raytraced);
+        editor->RenderWindow();
         device->EndFrame();
     }
 
