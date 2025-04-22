@@ -162,7 +162,7 @@ int main()
 
         scene.Tick(*device);
         renderer.Render(*device, scene, renderParams, raytraced);
-        editor->RenderWindow();
+        editor->RenderWindows(*device, scene);
         device->EndFrame();
     }
 

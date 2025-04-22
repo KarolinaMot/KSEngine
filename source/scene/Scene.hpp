@@ -56,6 +56,7 @@ public:
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) { return mUniformBuffers[buffer].get(); }
     size_t GetDrawQueueSize() { return draw_queue.size(); }
+    std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
 
 private:
     void CreateBottomLevelAS(const Device& device, const Mesh* mesh, int cpuFrame);
