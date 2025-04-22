@@ -1,30 +1,17 @@
-// #include <cereal/archives/binary.hpp>
-// #include <cereal/archives/json.hpp>
-// #include <code_utility.hpp>
-// #include <compare>
 #include <components/ComponentCamera.hpp>
 #include <components/ComponentTransform.hpp>
-// #include <containers/SlotMap.hpp>
 #include <device/Device.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <fileio/FileIO.hpp>
-// #include <glm/glm.hpp>
-// #include <glm/gtc/matrix_transform.hpp>
 #include <input/RawInput.hpp>
 #include <math/Geometry.hpp>
-// #include <iostream>
 #include <memory>
-#include <renderer/ModelRenderer.hpp>
 #include <renderer/Renderer.hpp>
-#include <renderer/Shader.hpp>
-#include <renderer/ShaderInputCollection.hpp>
-#include <renderer/ShaderInputCollectionBuilder.hpp>
-#include <renderer/ShaderInput.hpp>
-#include <renderer/DX12/Helpers/DXSignature.hpp>
+#include <scene/Scene.hpp>
 #include <tools/Log.hpp>
-// #include <vector>
 #include <resources/Model.hpp>
 #include <tools/Timer.hpp>
+#include <editor/Editor.hpp>
 
 KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& registry, float dt)
 {
@@ -72,8 +59,6 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
         camera.eulerAngles += eulerDelta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
-        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
-
         auto rotation = glm::quat(camera.eulerAngles);
         auto translation = transform.GetLocalTranslation();
 
@@ -99,101 +84,16 @@ int main()
     device->InitializeSwapchain();
     device->FinishInitialization();
 
-    auto ecs = std::make_shared<KS::EntityComponentSystem>();
     auto input = std::make_shared<KS::RawInput>(device);
+    auto editor = std::make_shared<KS::Editor>(*device);
+
+    auto ecs = std::make_shared<KS::EntityComponentSystem>();
 
     device->NewFrame();
-    KS::SamplerDesc clampSampler;
-    clampSampler.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
 
-    std::shared_ptr<KS::ShaderInputCollection> mainInputs = KS::ShaderInputCollectionBuilder()
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, "base_tex")
-                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "normal_tex")
-                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
-                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
-                                                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "occlusion_tex")
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "PBRRes", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer1", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer2", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer3", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer4", KS::ShaderInputMod::READ_WRITE)
-                                                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "dir_lights")
-                                                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
-                                                       .AddStorageBuffer(KS::ShaderInputVisibility::VERTEX, 200, "model_matrix")
-                                                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 200, "material_info")
-                                                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
-                                                       .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc {})
-                                                       .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
-                                                       .Build(*device, "MAIN SIGNATURE");
+    KS::Renderer renderer = KS::Renderer(*device);
+    KS::Scene scene = KS::Scene(*device);
 
-    int fullInputFlags = KS::Shader::HAS_POSITIONS | KS::Shader::HAS_NORMALS | KS::Shader::HAS_UVS |  KS::Shader::HAS_TANGENTS;
-    int positionsInputFlags = KS::Shader::HAS_POSITIONS;
-
-    std::string shaderPath = "assets/shaders/Deferred.hlsl";
-    KS::Formats formats[4] = { KS::Formats::R32G32B32A32_FLOAT, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM, KS::Formats::R8G8B8A8_UNORM };
-    KS::Formats format[1] = {KS::Formats::R32G32B32A32_FLOAT};
-
-    std::shared_ptr<KS::Shader> mainShader = std::make_shared<KS::Shader>(*device,
-        KS::ShaderType::ST_MESH_RENDER,
-        mainInputs,
-        shaderPath, fullInputFlags,
-        formats, 4);
-
-    std::shared_ptr<KS::Shader> lightOccluderShader = std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_MESH_RENDER, mainInputs, "assets/shaders/OccluderShader.hlsl",
-                                     positionsInputFlags, format, 1);
-
-
-    std::shared_ptr<KS::Shader> computePBRShader = std::make_shared<KS::Shader>(*device,
-        KS::ShaderType::ST_COMPUTE,
-        mainInputs,
-        "assets/shaders/Main.hlsl", 0);
-
-    std::shared_ptr<KS::Shader> lightRendererShader = std::make_shared<KS::Shader>(*device, 
-        KS::ShaderType::ST_COMPUTE, 
-        mainInputs, 
-        "assets/shaders/LightRenderer.hlsl", 0);
-
-    std::shared_ptr<KS::Shader> lightShaftShader = std::make_shared<KS::Shader>(*device,
-        KS::ShaderType::ST_COMPUTE,
-        mainInputs,
-        "assets/shaders/LightShaftShader.hlsl");
-
-    std::shared_ptr<KS::Shader> upscalingShader =
-    std::make_shared<KS::Shader>(*device, KS::ShaderType::ST_COMPUTE, mainInputs, "assets/shaders/Upscaling.hlsl");
-
-
-    KS::RendererInitParams initParams {};
-
-    KS::SubRendererDesc subRenderer1;
-    subRenderer1.shader = mainShader;
-    initParams.subRenderers.push_back(subRenderer1);
-
-    KS::SubRendererDesc subRenderer2;
-    subRenderer2.shader = computePBRShader;
-    initParams.subRenderers.push_back(subRenderer2);
-
-    KS::SubRendererDesc subRenderer3;
-    subRenderer3.shader = lightRendererShader;
-    initParams.subRenderers.push_back(subRenderer3);
-
-    KS::SubRendererDesc subRenderer4;
-    subRenderer4.shader = lightOccluderShader;
-    initParams.subRenderers.push_back(subRenderer4);
-
-    KS::SubRendererDesc subRenderer5;
-    subRenderer5.shader = lightShaftShader;
-    initParams.subRenderers.push_back(subRenderer5);
-
-    KS::SubRendererDesc subRenderer6;
-    subRenderer6.shader = upscalingShader;
-    initParams.subRenderers.push_back(subRenderer6);
-
-
-    KS::Renderer renderer = KS::Renderer(*device, initParams);
-
-    device->EndFrame();
 
     // Scene Setup
     {
@@ -229,6 +129,13 @@ int main()
 
     float rotationSpeed = 0.1f;
 
+    scene.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
+    scene.QueueModel(*device, model, transform, "Gear1");
+    scene.QueueModel(*device, model, transform2, "Gear2");
+    scene.QueueModel(*device, model, transform3, "Gear3");
+
+    device->EndFrame();
+
     while (device->IsWindowOpen())
     {
         auto dt = frametimer.Tick();
@@ -241,31 +148,21 @@ int main()
         if (input->GetKeyboard(KS::KeyboardKey::Space) == KS::InputState::Down)
             raytraced = !raytraced;
 
-        auto renderParams = KS::RendererRenderParams();
+        auto newTransform = glm::rotate(glm::mat4(1.f), glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
+        scene.ApplyModelTransform(*device, "Gear1", newTransform);
+        scene.ApplyModelTransform(*device, "Gear2", newTransform);
+        scene.ApplyModelTransform(*device, "Gear3", newTransform);
 
-        transform = glm::rotate(transform, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
-        transform2 = glm::rotate(transform2, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
-        transform3 = glm::rotate(transform3, glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
-
-
+        auto renderParams = KS::RenderTickParams();
         renderParams.cpuFrame = device->GetFrameIndex();
         renderParams.projectionMatrix = camera.GetProjection();
         renderParams.viewMatrix = camera.GetView();
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
 
-
-        auto* model_renderer = dynamic_cast<KS::ModelRenderer*>(renderer.m_subrenderers.front().get());
-        //renderer.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-        renderer.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
-        //renderer.QueuePointLight(lightPosition2, glm::vec3(0.597202f, 0.450786f, 0.450786f), 5.f, 2.f);
-        renderer.QueueModel(*device, model, transform);
-        renderer.QueueModel(*device, model, transform2);
-        renderer.QueueModel(*device, model, transform3);
-        //renderer.QueueModel(*device, model, transform4);
-        //renderer.QueueModel(*device, model, transform5);
-        model_renderer->SetRaytraced(raytraced);
-        renderer.Render(*device, renderParams, raytraced);
+        scene.Tick(*device);
+        renderer.Render(*device, scene, renderParams, raytraced);
+        editor->RenderWindows(*device, scene);
         device->EndFrame();
     }
 

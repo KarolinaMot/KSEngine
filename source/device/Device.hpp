@@ -46,6 +46,8 @@ public:
     void EndFrame();
     void InitializeSwapchain();
     void FinishInitialization();
+    void InitializeImGUI();
+
     unsigned int GetFrameIndex() const { return m_frame_index; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
     int GetWidth() const { return m_width; }

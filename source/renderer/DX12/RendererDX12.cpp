@@ -1,3 +1,5 @@
+#include "../Renderer.hpp"
+
 #include <device/Device.hpp>
 #include <glm/glm.hpp>
 
@@ -7,213 +9,215 @@
 #include <renderer/InfoStructs.hpp>
 #include <renderer/RenderTarget.hpp>
 #include <renderer/Shader.hpp>
+#include <renderer/Subrenderer.hpp>
 #include <renderer/ShaderInputCollection.hpp>
+#include <renderer/ShaderInputCollectionBuilder.hpp>
 #include <renderer/ShaderInput.hpp>
+#include <renderer/Shader.hpp>
+#include <renderer/ComputeRenderer.hpp>
+#include <renderer/ModelRenderer.hpp>
+#include <renderer/RTRenderer.hpp>
+#include <renderer/UniformBuffer.hpp>
+#include <renderer/DX12/Helpers/DX12Common.hpp>
+
 #include <resources/Texture.hpp>
+#include <scene/Scene.hpp>
 
-#include "../ComputeRenderer.hpp"
-#include "../ModelRenderer.hpp"
-#include "../Renderer.hpp"
-#include "../SubRenderer.hpp"
-#include "../UniformBuffer.hpp"
-#include "Helpers/DX12Common.hpp"
-
-KS::Renderer::Renderer(Device& device, RendererInitParams& params)
+KS::Renderer::Renderer(Device& device)
 {
-    CameraMats cam{};
-    m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
+    SamplerDesc clampSampler;
+    clampSampler.addressMode = SamplerAddressMode::SAM_CLAMP;
 
-    for (int i = 0; i < params.subRenderers.size(); i++)
-    {
-        if (params.subRenderers[i].shader->GetShaderType() == ShaderType::ST_MESH_RENDER)
-        {
-            m_subrenderers.push_back(std::make_unique<ModelRenderer>(device, params.subRenderers[i].shader,
-                                                                     m_camera_buffer.get()));
-        }
-        else
-        {
-            m_subrenderers.push_back(
-                std::make_unique<ComputeRenderer>(device, params.subRenderers[i].shader));
-        }
-    }
+    m_mainInputs = ShaderInputCollectionBuilder()
+                     .AddUniform(ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                     .AddUniform(ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
+                     .AddTexture(ShaderInputVisibility::COMPUTE, "base_tex")
+                     .AddTexture(ShaderInputVisibility::PIXEL, "normal_tex")
+                     .AddTexture(ShaderInputVisibility::PIXEL, "emissive_tex")
+                     .AddTexture(ShaderInputVisibility::PIXEL, "roughmet_tex")
+                     .AddTexture(ShaderInputVisibility::PIXEL, "occlusion_tex")
+                     .AddTexture(ShaderInputVisibility::COMPUTE, "PBRRes", ShaderInputMod::READ_WRITE)
+                     .AddTexture(ShaderInputVisibility::COMPUTE, "GBuffer1", ShaderInputMod::READ_WRITE)
+                     .AddTexture(ShaderInputVisibility::COMPUTE, "GBuffer2", ShaderInputMod::READ_WRITE)
+                     .AddTexture(ShaderInputVisibility::COMPUTE, "GBuffer3", ShaderInputMod::READ_WRITE)
+                     .AddTexture(ShaderInputVisibility::COMPUTE, "GBuffer4", ShaderInputMod::READ_WRITE)
+                     .AddStorageBuffer(ShaderInputVisibility::COMPUTE, 100, "dir_lights")
+                     .AddStorageBuffer(ShaderInputVisibility::COMPUTE, 100, "point_lights")
+                     .AddStorageBuffer(ShaderInputVisibility::VERTEX, 200, "model_matrix")
+                     .AddStorageBuffer(ShaderInputVisibility::PIXEL, 200, "material_info")
+                     .AddUniform(ShaderInputVisibility::COMPUTE, {"light_info"})
+                     .AddStaticSampler(ShaderInputVisibility::COMPUTE, SamplerDesc{})
+                     .AddStaticSampler(ShaderInputVisibility::COMPUTE, clampSampler)
+                     .Build(device, "MAIN SIGNATURE");
+
+    std::shared_ptr<Texture> deferredRendererTex[2][4];
+    std::shared_ptr<Texture> deferredRendererDepthTex;
+    std::shared_ptr<Texture> pbrResTex[2];
+    std::shared_ptr<Texture> raytracingResTex[2];
+    std::shared_ptr<Texture> lightRenderingTex[2];
+    std::shared_ptr<Texture> lightShaftTex[2];
+    std::shared_ptr<Texture> upscaledLightShaftTex[2];
 
     for (int i = 0; i < 2; i++)
     {
-        m_deferredRendererTex[i][0] =
+        deferredRendererTex[i][0] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R32G32B32A32_FLOAT);
-        m_deferredRendererTex[i][1] =
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R32G32B32A32_FLOAT);
+        deferredRendererTex[i][1] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_deferredRendererTex[i][2] =
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+        deferredRendererTex[i][2] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_deferredRendererTex[i][3] =
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+        deferredRendererTex[i][3] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_pbrResTex[i] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
-                                                   Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                   glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM);
-        m_raytracingResTex[i] =
-            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), KS::Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
 
-        m_lightRenderingTex[i] =
+        pbrResTex[i] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                                 Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                                 glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM);
+        raytracingResTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R32G32B32A32_FLOAT, 4);
+                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
 
-       m_lightShaftTex[i] =
-            std::make_shared<Texture>(device, device.GetWidth()/4, device.GetHeight()/4,
+        lightRenderingTex[i] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                       glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R32G32B32A32_FLOAT);
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT, 4);
 
-        m_upscaledLightShaftTex[i] = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
-                                                Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                     glm::vec4(0.f, 0.f, 0.f, 0.f), KS::Formats::R8G8B8A8_UNORM);
+        lightShaftTex[i] = std::make_shared<Texture>(device, device.GetWidth() / 4, device.GetHeight() / 4,
+                                                     Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                                     glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT);
 
-
+        upscaledLightShaftTex[i] =
+            std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R8G8B8A8_UNORM);
     }
 
-    m_deferredRendererRT = std::make_shared<RenderTarget>();
+    deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE,
+                                glm::vec4(1.f), Formats::D32_FLOAT);
+    m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, deferredRendererDepthTex);
+    CameraMats cam{};
+    m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
+
+
+    int fullInputFlags = Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS;
+    int positionsInputFlags = Shader::HAS_POSITIONS;
+
+    std::shared_ptr<Shader> mainShader = std::make_shared<Shader>(
+        device, ShaderType::ST_MESH_RENDER, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Deferred.hlsl"},
+                                 std::initializer_list<Formats>{Formats::R32G32B32A32_FLOAT, Formats::R8G8B8A8_UNORM,
+                                                                Formats::R8G8B8A8_UNORM,
+                                      Formats::R8G8B8A8_UNORM},
+                                     fullInputFlags);
+
+    
+    std::shared_ptr<Shader> lightOccluderShader =
+        std::make_shared<Shader>(device, ShaderType::ST_MESH_RENDER, m_mainInputs,
+                                 std::initializer_list<std::string>{"assets/shaders/OccluderShader.hlsl"},
+                                 std::initializer_list<Formats>{Formats::R32G32B32A32_FLOAT}, positionsInputFlags);
+
+    std::shared_ptr<Shader> computePBRShader =
+        std::make_shared<Shader>(device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Main.hlsl"},
+        std::initializer_list<Formats>{});
+
+    std::shared_ptr<Shader> lightRendererShader = std::make_shared<Shader>(
+        device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/LightRenderer.hlsl"},
+                                 std::initializer_list<Formats>{});
+
+    std::shared_ptr<Shader> lightShaftShader = std::make_shared<Shader>(
+        device, ShaderType::ST_COMPUTE, m_mainInputs,
+        std::initializer_list<std::string>{"assets/shaders/LightShaftShader.hlsl"},
+                                 std::initializer_list<Formats>{});
+
+    std::shared_ptr<Shader> upscalingShader = std::make_shared<Shader>(
+        device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Upscaling.hlsl"},
+                                 std::initializer_list<Formats>{});
+
+
+    m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
     for (int i = 0; i < 4; i++)
     {
-        m_deferredRendererRT->AddTexture(device, m_deferredRendererTex[0][i], m_deferredRendererTex[1][i],
+        m_renderTargets[DEFERRED_RENDER]->AddTexture(device, deferredRendererTex[0][i], deferredRendererTex[1][i],
                                          "DEFERRED RENDERER" + std::to_string(i));
     }
 
-    m_pbrResRT = std::make_shared<RenderTarget>();
-    m_pbrResRT->AddTexture(device, m_pbrResTex[0], m_pbrResTex[1], "PBR RENDER RES");
+    m_renderTargets[PBR_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[PBR_RENDER]->AddTexture(device, pbrResTex[0], pbrResTex[1], "PBR RENDER RES");
 
-    m_raytracedRendererRT = std::make_shared<RenderTarget>();
-    m_raytracedRendererRT->AddTexture(device, m_raytracingResTex[0], m_raytracingResTex[1], "RAYTRACED RENDER RES");
+    m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
 
-    m_lightRenderRT = std::make_shared<RenderTarget>();
-    m_lightRenderRT->AddTexture(device, m_lightRenderingTex[0], m_lightRenderingTex[1], "LIGHT RENDER RES");
+    m_renderTargets[LIGHT_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[LIGHT_RENDER]->AddTexture(device, lightRenderingTex[0], lightRenderingTex[1], "LIGHT RENDER RES");
 
-    m_lightShaftRT = std::make_shared<RenderTarget>();
-    m_lightShaftRT->AddTexture(device, m_lightShaftTex[0], m_lightShaftTex[1], "LIGHT SHAFT RENDER RES");
+    m_renderTargets[LIGHT_SHAFT_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[LIGHT_SHAFT_RENDER]->AddTexture(device, lightShaftTex[0], lightShaftTex[1], "LIGHT SHAFT RENDER RES");
     
-    m_upscaledLightShaftRT = std::make_shared<RenderTarget>();
-    m_upscaledLightShaftRT->AddTexture(device, m_upscaledLightShaftTex[0], m_upscaledLightShaftTex[1],
+    m_renderTargets[UPSCALING_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[UPSCALING_RENDER]->AddTexture(device, upscaledLightShaftTex[0], upscaledLightShaftTex[1],
                                        "UPSCALED LIGHT SHAFT RENDER RES");
 
-    m_deferredRendererDepthTex =
-        std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(), Texture::TextureFlags::DEPTH_TEXTURE,
-                                  glm::vec4(1.f), KS::Formats::D32_FLOAT);
+    SubRendererDesc defferedDesc;
+    defferedDesc.shader = mainShader;
+    defferedDesc.renderTarget = m_renderTargets[DEFERRED_RENDER];
+    defferedDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[DEFERRED_RENDER] = std::make_unique<ModelRenderer>(device, defferedDesc);
 
-    m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, m_deferredRendererDepthTex);
+    SubRendererDesc occluderDesc;
+    occluderDesc.shader = lightOccluderShader;
+    occluderDesc.renderTarget = m_renderTargets[LIGHT_RENDER];
+    occluderDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[OCCLUDER_RENDER] = std::make_unique<ModelRenderer>(device, occluderDesc);
 
-    m_pointLights = std::vector<PointLightInfo>(100);
-    m_directionalLights = std::vector<DirLightInfo>(100);
+    SubRendererDesc pbrDesc;
+    pbrDesc.shader = computePBRShader;
+    pbrDesc.renderTarget = m_renderTargets[PBR_RENDER];
+    pbrDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[PBR_RENDER] = std::make_unique<ComputeRenderer>(device, pbrDesc);
 
-    m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
-    m_fogInfo.fogDensity = 0.6f;
-    m_fogInfo.exposure = 0.15f;
-    m_fogInfo.lightShaftNumberSamples = 132;
-    m_fogInfo.sourceMipNumber = 2;
-    m_fogInfo.weight = 0.05f;
-    m_fogInfo.decay = 0.99f;
+    SubRendererDesc lightDesc;
+    lightDesc.shader = lightRendererShader;
+    lightDesc.renderTarget = m_renderTargets[LIGHT_RENDER];
+    lightDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[LIGHT_RENDER] = std::make_unique<ComputeRenderer>(device, lightDesc);
 
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
-    mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1);
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
+    SubRendererDesc lightShaftDesc;
+    lightShaftDesc.shader = lightShaftShader;
+    lightShaftDesc.renderTarget = m_renderTargets[LIGHT_SHAFT_RENDER];
+    lightShaftDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[LIGHT_SHAFT_RENDER] = std::make_unique<ComputeRenderer>(device, lightShaftDesc);
 
-    auto rootSignature = m_subrenderers[1]->GetShader()->GetShaderInput();
+    SubRendererDesc upscalingDesc;
+    upscalingDesc.shader = upscalingShader;
+    upscalingDesc.renderTarget = m_renderTargets[UPSCALING_RENDER];
+    upscalingDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[UPSCALING_RENDER] = std::make_unique<ComputeRenderer>(device, upscalingDesc);
 
-    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::DIR_LIGHT_BUFFER].get(),
-                                                                               rootSignature->GetInput("dir_lights")));
-    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::POINT_LIGHT_BUFFER].get(),
-                                                                               rootSignature->GetInput("point_lights")));
-    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::LIGHT_INFO_BUFFER].get(),
-                                                                               rootSignature->GetInput("light_info")));
-    m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),
-                                                                               rootSignature->GetInput("camera_matrix")));
-    for (int i = 0; i < 4; i++)
-    {
-        m_mainComputeShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_deferredRendererTex[device.GetCPUFrameIndex()][i].get(),
-                                                                                  rootSignature->GetInput("GBuffer" + std::to_string(i + 1))));
-    }
+    //SubRendererDesc rtDesc;
+    //rtDesc.shader = rtShader;
+    //rtDesc.renderTarget = m_renderTargets[RT_RENDER];
+    //rtDesc.depthStencil = m_deferredRendererDepthStencil;
+    //m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtDesc, m_camera_buffer.get());
 
-    m_mainComputeShaderInputs.push_back(
-    std::pair<ShaderInput*, ShaderInputDesc>(m_upscaledLightShaftTex[0].get(), rootSignature->GetInput("base_tex")));
-
-
-    rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
-
-    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::DIR_LIGHT_BUFFER].get(),
-                                                                                 rootSignature->GetInput("dir_lights")));
-    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::POINT_LIGHT_BUFFER].get(),
-                                                                                 rootSignature->GetInput("point_lights")));
-    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::LIGHT_INFO_BUFFER].get(),
-                                                                                 rootSignature->GetInput("light_info")));
-    m_deferredShaderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
-
-
-
-    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mStorageBuffers[KS::POINT_LIGHT_BUFFER].get(),
-                                                                              rootSignature->GetInput("point_lights")));
-    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::LIGHT_INFO_BUFFER].get(),
-                                                                              rootSignature->GetInput("light_info")));
-    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(mUniformBuffers[KS::FOG_INFO_BUFFER].get(),
-                                                                              rootSignature->GetInput("fog_info")));
-    m_lightRenderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
-
-    m_lightOccluderInputs.push_back(std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix")));
-
-    m_lightShaftInputs = m_lightRenderInputs;
-    m_lightShaftInputs.push_back(
-        std::pair<ShaderInput*, ShaderInputDesc>(m_lightRenderingTex[0].get(), rootSignature->GetInput("base_tex")));
-
-    m_upscaleLightShaftInputs.push_back(
-        std::pair<ShaderInput*, ShaderInputDesc>(m_lightShaftTex[0].get(), rootSignature->GetInput("base_tex")));
+    m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(6);
+    m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(2);
+    m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(9);
+    m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(4);
+    m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(5);
+    m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(1);
 }
 
 KS::Renderer::~Renderer() {}
 
-void KS::Renderer::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
-{
-    PointLightInfo pLight;
-    pLight.mColorAndIntensity = glm::vec4(color, intensity);
-    pLight.mPosition = glm::vec4(position, 0.f);
-    pLight.mRadius = radius;
-    m_pointLights[m_lightInfo.numPointLights] = pLight;
-    m_lightInfo.numPointLights++;
-}
-void KS::Renderer::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity)
-{
-    DirLightInfo dLight;
-    dLight.mDir = glm::vec4(direction, 0.f);
-    dLight.mColorAndIntensity = glm::vec4(color, intensity);
-    m_directionalLights[m_lightInfo.numDirLights] = dLight;
-    m_lightInfo.numDirLights++;
-}
 
-void KS::Renderer::SetAmbientLight(glm::vec3 color, float intensity)
-{
-    m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
-}
-
-void KS::Renderer::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform)
-{ 
-    for (int i = 0; i < m_subrenderers.size(); i++)
-    {
-        if (m_subrenderers[i]->GetShader()->GetShaderType() == ShaderType::ST_MESH_RENDER)
-        {
-            reinterpret_cast<ModelRenderer*>(m_subrenderers[i].get())->QueueModel(device, model, transform);
-        }
-    }
-}
-
-void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bool raytraced)
+void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
@@ -226,9 +230,7 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
     cam.m_cameraRight = glm::vec4(params.cameraRight, 1.f);
     m_camera_buffer->Update(device, cam, 0);
-    mUniformBuffers[KS::FOG_INFO_BUFFER]->Update(device, m_fogInfo);
 
-    UpdateLights(device);
 
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
@@ -238,46 +240,63 @@ void KS::Renderer::Render(Device& device, const RendererRenderParams& params, bo
     device.TrackResource(m_camera_buffer);
 
     //DEFERRED RENDERER
-    m_subrenderers[0]->Render(device, params.cpuFrame, m_deferredRendererRT, m_deferredRendererDepthStencil, m_deferredShaderInputs);
+    m_inputs[DEFERRED_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), rootSignature->GetInput("dir_lights"));
+    m_inputs[DEFERRED_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
+    m_inputs[DEFERRED_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),rootSignature->GetInput("light_info"));
+    m_inputs[DEFERRED_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
+    m_inputs[DEFERRED_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER), rootSignature->GetInput("model_matrix"));
+    m_inputs[DEFERRED_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), rootSignature->GetInput("material_info"));
+    m_subrenderers[DEFERRED_RENDER]->Render(device, scene, m_inputs[DEFERRED_RENDER], true);
 
     //RENDERING LIGHTS
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
-    m_subrenderers[2]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightRenderInputs);
+    m_inputs[LIGHT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
+    m_inputs[LIGHT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
+    m_inputs[LIGHT_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER),  rootSignature->GetInput("fog_info"));
+    m_inputs[LIGHT_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
+    m_subrenderers[LIGHT_RENDER]->Render(device, scene, m_inputs[LIGHT_RENDER], true);
 
     //RENDERING OCCLUDER MESHES
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), false);
-    m_subrenderers[3]->Render(device, params.cpuFrame, m_lightRenderRT, m_deferredRendererDepthStencil, m_lightOccluderInputs, false);
+    m_inputs[OCCLUDER_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
+    m_inputs[OCCLUDER_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER), rootSignature->GetInput("model_matrix"));
+    m_subrenderers[OCCLUDER_RENDER]->Render(device, scene, m_inputs[OCCLUDER_RENDER], false);
 
     //GENERATE LIGHT SCATTERING RENDER TARGET MIPS
-    m_lightRenderingTex[device.GetCPUFrameIndex()]->GenerateMipmaps(device);
+    auto lightRenderTex = m_renderTargets[LIGHT_RENDER]->GetTexture(device, 0);
+    lightRenderTex->GenerateMipmaps(device);
 
     //LIGHT SHAFT RENDER
-    m_lightShaftInputs[m_lightShaftInputs.size() - 1] =  std::pair<ShaderInput*, ShaderInputDesc>(m_lightRenderingTex[device.GetCPUFrameIndex()].get(), rootSignature->GetInput("base_tex"));
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
-    m_subrenderers[4]->Render(device, params.cpuFrame, m_lightShaftRT, m_deferredRendererDepthStencil, m_lightShaftInputs,
-                              true);
+    m_inputs[LIGHT_SHAFT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
+    m_inputs[LIGHT_SHAFT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
+    m_inputs[LIGHT_SHAFT_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER),  rootSignature->GetInput("fog_info"));
+    m_inputs[LIGHT_SHAFT_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
+    m_inputs[LIGHT_SHAFT_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(lightRenderTex.get(), rootSignature->GetInput("base_tex"));
+    m_subrenderers[LIGHT_SHAFT_RENDER]->Render(device, scene, m_inputs[LIGHT_SHAFT_RENDER], true);
 
     //LIGHT SHAFT UPSCALE
-    m_upscaleLightShaftInputs[m_upscaleLightShaftInputs.size() - 1] =  std::pair<ShaderInput*, ShaderInputDesc>(m_lightShaftTex[device.GetCPUFrameIndex()].get(), rootSignature->GetInput("base_tex"));
-    m_subrenderers[5]->Render(device, params.cpuFrame, m_upscaledLightShaftRT, m_deferredRendererDepthStencil,
-                              m_upscaleLightShaftInputs,
-                              true);
+    auto lightShaftTex = m_renderTargets[LIGHT_SHAFT_RENDER]->GetTexture(device, 0);
+    m_inputs[UPSCALING_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(lightShaftTex.get(), rootSignature->GetInput("base_tex"));
+    m_subrenderers[UPSCALING_RENDER]->Render(device, scene, m_inputs[UPSCALING_RENDER], true);
+
     //PBR RENDER
-    m_mainComputeShaderInputs[m_mainComputeShaderInputs.size() - 1] = std::pair<ShaderInput*, ShaderInputDesc>(
-        m_upscaledLightShaftTex[device.GetCPUFrameIndex()].get(), rootSignature->GetInput("base_tex"));
-    auto& boundRT = raytraced ? m_raytracedRendererRT : m_pbrResRT;
-    if (!raytraced)
-        m_subrenderers[1]->Render(device, params.cpuFrame, boundRT, m_deferredRendererDepthStencil, m_mainComputeShaderInputs);
+    auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(device, 0);
+    for (int i = 0; i < 4; i++)
+    {
+    auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(device, i);
+    m_inputs[PBR_RENDER][i] = std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
+    }
+    m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("base_tex"));
+    m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
+    m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
+    m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), rootSignature->GetInput("dir_lights"));
+    m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
+    m_subrenderers[PBR_RENDER]->Render(device, scene, m_inputs[PBR_RENDER], true);
 
+    //if (!raytraced) m_subrenderers[RT_RENDER]->Render(device, scene, m_inputs[RT_RENDER], true);
+
+    auto& boundRT = raytraced ? m_renderTargets[RT_RENDER] : m_renderTargets[PBR_RENDER];
     device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);
-}
-
-void KS::Renderer::UpdateLights(const Device& device)
-{
-    m_lightInfo.padding[1] = 1;
-    mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, m_directionalLights);
-    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, m_pointLights);
-    m_lightInfo.numDirLights = 0;
-    m_lightInfo.numPointLights = 0;
+    device.GetRenderTarget()->Bind(device, device.GetDepthStencil().get());
 }

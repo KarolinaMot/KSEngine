@@ -6,8 +6,22 @@
 namespace KS
 {
 
+enum Subrenderers
+{
+    DEFERRED_RENDER,
+    OCCLUDER_RENDER,
+    PBR_RENDER,
+    LIGHT_RENDER,
+    LIGHT_SHAFT_RENDER,
+    UPSCALING_RENDER,
+    RT_RENDER,
+    NUM_SUBRENDER
+};
+
 enum StorageBuffers
 {
+    MODEL_MAT_BUFFER,
+    MATERIAL_INFO_BUFFER,
     DIR_LIGHT_BUFFER,
     POINT_LIGHT_BUFFER,
     NUM_SBUFFER
@@ -15,10 +29,10 @@ enum StorageBuffers
 
 enum UniformBuffers
 {
-    // MODEL_MAT_BUFFER,
-    // MATERIAL_INFO_BUFFER,
     LIGHT_INFO_BUFFER,
     FOG_INFO_BUFFER,
+    MODEL_INDEX_BUFFER,
+    //CAMERA_BUFFER,
     NUM_UBUFFER
 };
 

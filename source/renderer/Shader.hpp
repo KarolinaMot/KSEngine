@@ -14,6 +14,8 @@ enum class ShaderType
 
     ST_MESH_RENDER,
 
+    ST_RAYTRACER,
+
     ST_COMPUTE
 };
 
@@ -21,8 +23,8 @@ enum class ShaderType
 class Shader
 {
 public:
-    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput, std::string path,
-           int flags = 0, Formats* rtFormats = nullptr, int numFormats = 1);
+    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput,
+           std::initializer_list<std::string> paths, std::initializer_list<Formats> rtFormats, int flags = 0);
     Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags = 0);
     ~Shader();
     std::shared_ptr<ShaderInputCollection> GetShaderInput() const { return m_shader_input; };

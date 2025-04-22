@@ -11,6 +11,10 @@
 #include <tools/Log.hpp>
 #include "DX12/DXFactory.hpp"
 
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_dx12.h>
+
 #include <thread>
 #include <vector>
 #include "Device.hpp"
@@ -113,13 +117,26 @@ void KS::Device::NewFrame()
     m_swapchainRT->Bind(*this, m_swapchainDS.get());
     m_swapchainRT->Clear(*this);
     m_swapchainDS->Clear(*this);
+
+    ImGui::GetIO().DisplaySize.x = m_width;
+    ImGui::GetIO().DisplaySize.y = m_height;
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 }
 
 void KS::Device::EndFrame()
 {
+    ImGui::Render();
+    const DXCommandList* commandLists[] = {m_impl->m_command_list.get()};
+
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_impl->m_command_list->GetCommandList().Get());
+
     glfwSwapBuffers(m_impl->m_window);
     m_swapchainRT->PrepareToPresent(*this);
     m_impl->EndFrame(m_cpu_frame);
+    ImGui::EndFrame();
+    ImGui::UpdatePlatformWindows();
 }
 
 void KS::Device::InitializeSwapchain()
@@ -161,16 +178,41 @@ void KS::Device::FinishInitialization()
         .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
         .Build(*this, "MIPMAP SIGNATURE");
 
-    m_mipMapShader = std::make_shared<KS::Shader>(*this,
-            KS::ShaderType::ST_COMPUTE,
-            m_mipMapShaderInputs,
-            "assets/shaders/MipGen.hlsl");
+   m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
+                                              std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
+                                              std::initializer_list<Formats>{});
+
 
     m_impl->m_command_list->Close();
 
     const DXCommandList* commandLists[] = { m_impl->m_command_list.get() };
     auto frame_setup = m_impl->m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
     frame_setup.Wait();
+}
+
+void KS::Device::InitializeImGUI()
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable |
+                                  ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_NavEnableKeyboard;
+    ImGui::GetIO().ConfigViewportsNoDecoration = false;
+    ImGui::GetIO().DisplaySize.x = m_width;
+    ImGui::GetIO().DisplaySize.y = m_height;
+
+    auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP];
+
+   CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+        resourceHeap->Get()->GetCPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize());
+    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+        resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize()); 
+
+    ImGui_ImplDX12_Init(m_impl->m_device.Get(), FRAME_BUFFER_COUNT, DXGI_FORMAT_R8G8B8A8_UNORM,
+                        resourceHeap->Get(),
+                        D3D12_CPU_DESCRIPTOR_HANDLE(cpuHandle.ptr), 
+                        D3D12_GPU_DESCRIPTOR_HANDLE(gpuHandle.ptr));
+    ImGui_ImplGlfw_InitForOther(m_impl->m_window, true);
+    ImGui_ImplGlfw_SetCallbacksChainForAllWindows(true);
 }
 
 void KS::Device::TrackResource(std::shared_ptr<void> buffer)

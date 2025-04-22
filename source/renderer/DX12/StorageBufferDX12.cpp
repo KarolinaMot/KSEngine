@@ -150,6 +150,11 @@ void KS::StorageBuffer::AllocateAsReadWrite(Device& device, int slot)
         m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc, slot);
 }
 
+size_t KS::StorageBuffer::GetGPUAddress(int elementIndex, int frameIndex) const
+{
+    return m_impl->m_resource->GetResource()->GetGPUVirtualAddress() + (m_buffer_stride * elementIndex);
+}
+
 void* KS::StorageBuffer::GetRawRealResource() const { return m_impl->m_resource->Get(); }
 
 void* KS::StorageBuffer::GetRawResource() const { return m_impl->m_resource.get(); }

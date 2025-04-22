@@ -11,7 +11,7 @@ class DepthStencil
     friend class RenderTarget;
 
 public:
-    DepthStencil(Device& device, std::shared_ptr<Texture> texture);
+    DepthStencil(Device& device, std::shared_ptr<Texture>& texture);
     ~DepthStencil();
     void Clear(Device& device);
     bool IsValid() const { return m_texture != nullptr; }

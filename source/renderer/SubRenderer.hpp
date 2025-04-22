@@ -1,5 +1,4 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -11,20 +10,31 @@ class Shader;
 class RenderTarget;
 class DepthStencil;
 class Texture;
+class Scene;
 class ShaderInput;
 struct ShaderInputDesc;
+
+struct SubRendererDesc
+{
+    std::shared_ptr<Shader> shader;
+    std::shared_ptr<RenderTarget> renderTarget;
+    std::shared_ptr<DepthStencil> depthStencil;
+};
+
+
+
 class SubRenderer
 {
 public:
-    SubRenderer(const Device& device, std::shared_ptr<Shader> shader)
-        : m_shader(shader){};
+    SubRenderer(const Device& device, SubRendererDesc& desc)
+        : m_shader(desc.shader), m_renderTarget(desc.renderTarget), m_depthStencil(desc.depthStencil){};
     virtual ~SubRenderer() = default;
-    virtual void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
-                        std::shared_ptr<DepthStencil> depthStencil,
-                        std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRenderTarget=true) = 0;
+    virtual void Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT) = 0;
     const Shader* GetShader() const { return m_shader.get(); }
 
 protected:
     std::shared_ptr<Shader> m_shader;
+    std::shared_ptr<RenderTarget> m_renderTarget;
+    std::shared_ptr<DepthStencil> m_depthStencil;
 };
-}
+}  // namespace KS

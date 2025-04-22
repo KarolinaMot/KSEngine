@@ -217,6 +217,11 @@ void KS::Texture::TransitionToRW(const Device& device) const
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
+size_t KS::Texture::GetGPUAddress(int elementIndex, int frameIndex) const
+{
+    return m_impl->mTextureBuffer->GetResource()->GetGPUVirtualAddress();
+}
+
 void KS::Texture::GenerateMipmaps(Device& device)
 {
     // FROM: https://www.3dgep.com/learning-directx-12-4/#Generate_Mipmaps_Compute_Shader
@@ -545,7 +550,7 @@ std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(Device& device, int in
     return m_textures[device.GetCPUFrameIndex()][index];
 }
 
-KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)
+KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture>& texture)
 {
     m_impl = std::make_unique<Impl>();
 

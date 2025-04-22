@@ -49,6 +49,7 @@ public:
 
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
+    size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 
     void GenerateMipmaps(Device& device);
 
