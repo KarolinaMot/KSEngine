@@ -14,6 +14,7 @@ public:
     void RenderWindows(Device& device, Scene& scene);
     void SceneHierarchy(Scene& scene);
     void TransformWindow(Device& device, Scene& scene);
+    void FogWindow(Device& device, Scene& scene);
 
 private:
     int m_selectedObject = -1;

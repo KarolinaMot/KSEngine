@@ -46,13 +46,14 @@ public:
     void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
     void SetAmbientLight(glm::vec3 color, float intensity);
+    void SetFogValues(Device& device, const FogInfo& newFogInfo);
 
     void Tick(Device& device);
 
     int32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
     MeshSet GetMeshSet(Device& device, int index);
-
+    FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) { return mUniformBuffers[buffer].get(); }
     size_t GetDrawQueueSize() { return draw_queue.size(); }

@@ -62,13 +62,6 @@ KS::Scene::Scene(const Device& device)
         device, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), 200, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] = std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, 200, false);
 
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1, false);
-    mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1);
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
-
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
     m_fogInfo.fogDensity = 0.6f;
     m_fogInfo.exposure = 0.15f;
@@ -76,6 +69,14 @@ KS::Scene::Scene(const Device& device)
     m_fogInfo.sourceMipNumber = 2;
     m_fogInfo.weight = 0.05f;
     m_fogInfo.decay = 0.99f;
+
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1, false);
+    mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1, false);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
+        std::make_unique<StorageBuffer>(device, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
+        std::make_unique<StorageBuffer>(device, "POINT LIGHT BUFFER", m_pointLights, false);
+
 }
 
 KS::Scene::~Scene() {}
@@ -172,6 +173,12 @@ void KS::Scene::SetAmbientLight(glm::vec3 color, float intensity)
     m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
 }
 
+void KS::Scene::SetFogValues(Device& device, const FogInfo& newFogInfo)
+{ 
+    m_fogInfo = newFogInfo;
+    mUniformBuffers[KS::FOG_INFO_BUFFER]->Update(device, m_fogInfo);
+}
+
 void KS::Scene::Tick(Device& device)
 {
     if (!m_impl->m_updateBVH)
@@ -196,7 +203,6 @@ void KS::Scene::Tick(Device& device)
     CreateTopLevelAS(device, m_impl->m_updateBVH, cpuFrameIndex);
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, &m_modelMatrices[0], m_modelCount);
-    mUniformBuffers[KS::FOG_INFO_BUFFER]->Update(device, m_fogInfo);
 }
 
 const KS::Mesh* KS::Scene::GetMesh(const Device& device, ResourceHandle<Mesh> mesh)

@@ -19,6 +19,7 @@ void KS::Editor::RenderWindows(Device& device, Scene& scene)
 {
     SceneHierarchy(scene);
     TransformWindow(device, scene);
+    FogWindow(device, scene);
 }
 
 void KS::Editor::SceneHierarchy(Scene& scene)
@@ -69,7 +70,7 @@ void KS::Editor::TransformWindow(Device& device, Scene& scene)
     auto& drawQueue = scene.GetQueue();
     bool open = true;
 
-    ImGui::Begin("Scene hierarchy", &open);
+    ImGui::Begin("Transform", &open);
     if (m_selectedObject == -1)
         ImGui::Text("No object was selected");
     else
@@ -93,5 +94,25 @@ void KS::Editor::TransformWindow(Device& device, Scene& scene)
         }
 
     }
+    ImGui::End();
+}
+
+void KS::Editor::FogWindow(Device& device, Scene& scene)
+{
+    bool open = true;
+    FogInfo fogInfo = scene.GetFogValues();
+    bool fogChanged = false;
+
+    ImGui::Begin("Fog window", &open);
+
+    if (ImGui::DragFloat("Fog density", &fogInfo.fogDensity, 0.01f)) fogChanged = true;
+    if (ImGui::DragInt("Sample numbers", &fogInfo.lightShaftNumberSamples, 1)) fogChanged = true;
+    if (ImGui::DragFloat("Sample weight", &fogInfo.weight, 0.001f)) fogChanged = true;
+    if (ImGui::DragFloat("Sample decay", &fogInfo.decay, 0.001f)) fogChanged = true;
+    if (ImGui::DragFloat("Exposure", &fogInfo.exposure, 0.01f)) fogChanged = true;
+
+    if (fogChanged) 
+        scene.SetFogValues(device, fogInfo);
+
     ImGui::End();
 }
