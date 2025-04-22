@@ -38,8 +38,6 @@ void KS::ModelRenderer::Render(Device& device, Scene& scene, std::vector<std::pa
 
     commandList->BindPipeline(pipeline);
 
-    //scene.GetModelMatrixlBuffer().Bind(device, m_shader->GetShaderInput()->GetInput("model_matrix"));
-    //scene.GetModelMaterialBuffer().Bind(device, m_shader->GetShaderInput()->GetInput("material_info"));
     int drawQueueSize = scene.GetDrawQueueSize();
 
     for (int i = 0; i < drawQueueSize; i++)
