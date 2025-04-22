@@ -49,7 +49,7 @@ public:
     size_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
     size_t GetElementCount() const { return m_num_elements; }
-    size_t GetGPUAddress(int elementIndex, int frameIndex) const;
+    size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 
     virtual void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0) override;
 

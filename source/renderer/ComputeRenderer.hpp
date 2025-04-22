@@ -3,16 +3,16 @@
 
 namespace KS
 {
+class Scene;
 class ComputeRenderer : public SubRenderer
 {
 public:
-    ComputeRenderer(const Device& device, std::shared_ptr<Shader> shader);
+    ComputeRenderer(const Device& device, SubRendererDesc& desc);
     ~ComputeRenderer();
 
-    void Render(Device& device, int cpuFrameIndex, std::shared_ptr<RenderTarget> renderTarget,
-                std::shared_ptr<DepthStencil> depthStencil, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
-                bool clearRenderTarget = true) override;
+    void Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
+                bool clearRT) override;
 
 private:
 };
-} // namespace KS
+}  // namespace KS

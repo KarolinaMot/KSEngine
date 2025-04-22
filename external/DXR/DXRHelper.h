@@ -12,7 +12,7 @@
 #include <DirectXMath.h>
 #include <vector>
 
-void ThrowIfFailed(HRESULT hr)
+inline void ThrowIfFailed(HRESULT hr)
 {
     assert(true && "Error occurred in DXRHealpers");
 }
@@ -63,7 +63,7 @@ static const D3D12_HEAP_PROPERTIES kDefaultHeapProps = {
 //--------------------------------------------------------------------------------------------------
 // Compile a HLSL file into a DXIL library
 //
-IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
+inline IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
 {
   static IDxcCompiler* pCompiler = nullptr;
   static IDxcLibrary* pLibrary = nullptr;
@@ -130,7 +130,7 @@ IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
 //--------------------------------------------------------------------------------------------------
 //
 //
-ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, uint32_t count,
+inline ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, uint32_t count,
                                            D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible)
 {
   D3D12_DESCRIPTOR_HEAP_DESC desc = {};

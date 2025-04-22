@@ -39,6 +39,7 @@
     <ClCompile Include="external\imgui\implot.cpp" />
     <ClCompile Include="external\imgui\implot_demo.cpp" />
     <ClCompile Include="external\imgui\implot_items.cpp" />
+    <ClCompile Include="source\renderer\DX12\RTRendererDX12.cpp" />
     <ClCompile Include="source\components\ComponentCamera.cpp" />
     <ClCompile Include="source\components\ComponentTransform.cpp" />
     <ClCompile Include="source\containers\ByteBuffer.cpp" />
@@ -70,6 +71,7 @@
     <ClCompile Include="source\resources\Material.cpp" />
     <ClCompile Include="source\resources\Mesh.cpp" />
     <ClCompile Include="source\resources\Model.cpp" />
+    <ClCompile Include="source\scene\Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="external\DXR\DXRHelper.h" />
@@ -133,6 +135,8 @@
     <ClInclude Include="external\imgui\imstb_rectpack.h" />
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
+    <ClInclude Include="source\renderer\RTRenderer.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXRTPipeline.hpp" />
     <ClInclude Include="source\editor\Editor.hpp" />
     <ClInclude Include="source\renderer\ShaderInput.hpp" />
     <ClInclude Include="source\components\ComponentCamera.hpp" />
@@ -178,6 +182,7 @@
     <ClInclude Include="source\resources\Mesh.hpp" />
     <ClInclude Include="source\resources\Model.hpp" />
     <ClInclude Include="source\resources\Texture.hpp" />
+    <ClInclude Include="source\scene\Scene.hpp" />
     <ClInclude Include="source\tools\Log.hpp" />
     <ClInclude Include="source\tools\Profiler.hpp" />
     <ClInclude Include="source\tools\Timer.hpp" />

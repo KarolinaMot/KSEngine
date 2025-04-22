@@ -178,10 +178,10 @@ void KS::Device::FinishInitialization()
         .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
         .Build(*this, "MIPMAP SIGNATURE");
 
-    m_mipMapShader = std::make_shared<KS::Shader>(*this,
-            KS::ShaderType::ST_COMPUTE,
-            m_mipMapShaderInputs,
-            "assets/shaders/MipGen.hlsl");
+   m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
+                                              std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
+                                              std::initializer_list<Formats>{});
+
 
     m_impl->m_command_list->Close();
 
