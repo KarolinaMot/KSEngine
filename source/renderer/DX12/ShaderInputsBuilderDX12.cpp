@@ -113,8 +113,8 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStorageBu
                                                                    std::string name, ShaderInputMod modifiable)
 {
     KS::ShaderInputDesc input;
-    input.modifications = modifiable;
-    input.numberOfElements = numberOfElements;
+    input.modifications[0] = modifiable;
+    input.numberOfElements[0] = numberOfElements;
     input.rootIndex = m_input_counter;
     input.type = modifiable == ShaderInputMod::READ_ONLY ? InputType::RO_DATA : InputType::RW_DATA;
     input.typeIndex = modifiable == ShaderInputMod::READ_ONLY ? m_ro_array_counter : m_rw_array_counter;
@@ -140,7 +140,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddTexture(S
                                                              ShaderInputMod modifiable)
 {
     KS::ShaderInputDesc input;
-    input.modifications = modifiable;
+    input.modifications[0] = modifiable;
     input.rootIndex = m_input_counter;
     input.type = modifiable == ShaderInputMod::READ_ONLY ? InputType::RO_DATA : InputType::RW_DATA;
     input.typeIndex = modifiable == ShaderInputMod::READ_ONLY ? m_ro_array_counter : m_rw_array_counter;
@@ -158,6 +158,60 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddTexture(S
         m_impl->AddTable(m_impl->GetVisibility(visibility), D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, m_rw_array_counter);
         m_rw_array_counter++;
     }
+
+    return *this;
+}
+
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddRanges(
+    ShaderInputVisibility visibility, std::initializer_list<std::tuple<ShaderInputMod, int>> ranges, std::string name)
+{
+    KS::ShaderInputDesc input;
+    input.rootIndex = m_input_counter;
+    input.numOfRanges = ranges.size();
+    input.visibility = visibility;
+
+    for (int i = 0; i < ranges.size(); i++)
+    {
+        auto& range = *(ranges.begin() + i);
+        input.modifications[i] = std::get<0>(range);
+        input.numberOfElements[i] = std::get<1>(range);
+
+        D3D12_DESCRIPTOR_RANGE_TYPE type;
+        int typeIndex = 0;
+        if (std::get<0>(range) == ShaderInputMod::READ_ONLY)
+        {
+            type = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            typeIndex = m_ro_array_counter;
+            m_ro_array_counter++;
+        }
+        else
+        {
+            type = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+            typeIndex = m_rw_array_counter;
+            m_rw_array_counter++;
+        }
+
+        D3D12_DESCRIPTOR_RANGE rangeDesc;
+        rangeDesc.RangeType = type;
+        rangeDesc.NumDescriptors = std::get<1>(range);
+        rangeDesc.BaseShaderRegister = typeIndex;
+        rangeDesc.RegisterSpace = 0;
+        rangeDesc.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+        m_impl->mRanges[m_impl->mRangeCounter] = rangeDesc;
+        m_impl->mRangeCounter++;
+    }
+
+    D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable;
+    descriptorTable.NumDescriptorRanges = ranges.size();
+    descriptorTable.pDescriptorRanges = &m_impl->mRanges[m_impl->mRangeCounter - ranges.size()];
+
+    D3D12_ROOT_PARAMETER par{};
+    par.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    par.DescriptorTable = descriptorTable;
+    par.ShaderVisibility = m_impl->GetVisibility(visibility);
+    m_impl->mParameters.push_back(par);
+
+    m_input_counter++;
 
     return *this;
 }
@@ -222,18 +276,21 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
     return *this;
 }
 
-std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Build(const Device& device, std::string name)
+std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Build(const Device& device, std::string name, bool isLocal)
 {
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
 
+
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(static_cast<UINT>(m_impl->mParameters.size()), m_impl->mParameters.data(),
                            static_cast<UINT>(m_impl->mSamplers.size()), m_impl->mSamplers.data(),
-                           D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                               D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                               D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                               D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
+                           isLocal
+                               ? D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE
+                                   : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                                         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                                         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                                         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
 
     ComPtr<ID3DBlob> serializedSignature;
     ComPtr<ID3DBlob> errBlob;

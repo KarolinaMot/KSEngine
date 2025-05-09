@@ -50,6 +50,13 @@ KS::Renderer::Renderer(Device& device)
                      .AddStaticSampler(ShaderInputVisibility::COMPUTE, clampSampler)
                      .Build(device, "MAIN SIGNATURE");
 
+    m_rtInputs = ShaderInputCollectionBuilder()
+                     .AddRanges(ShaderInputVisibility::COMPUTE,
+                                {{ShaderInputMod::READ_WRITE, 1}, {ShaderInputMod::READ_ONLY, 1}}, "heap_range")
+                     .AddUniform(ShaderInputVisibility::COMPUTE, {"frame_index"})
+                     .AddUniform(ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                     .Build(device, "RAYTRACE SIGNATURE", true);
+
     std::shared_ptr<Texture> deferredRendererTex[2][4];
     std::shared_ptr<Texture> deferredRendererDepthTex;
     std::shared_ptr<Texture> pbrResTex[2];
@@ -83,8 +90,8 @@ KS::Renderer::Renderer(Device& device)
         raytracingResTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
-
+                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, 1, -1, RAYTRACE_RT_SLOT+i);
+        
         lightRenderingTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
@@ -139,6 +146,11 @@ KS::Renderer::Renderer(Device& device)
     std::shared_ptr<Shader> upscalingShader = std::make_shared<Shader>(
         device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Upscaling.hlsl"},
                                  std::initializer_list<Formats>{});
+
+    std::shared_ptr<Shader> rtShader = std::make_shared<Shader>(
+        device, ShaderType::ST_RAYTRACER, m_rtInputs,
+        std::initializer_list<std::string>{"assets/shaders/Hit.hlsl", "assets/shaders/Miss.hlsl", "assets/shaders/RayGen.hlsl"},
+        std::initializer_list<Formats>{});
 
 
     m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
@@ -200,11 +212,11 @@ KS::Renderer::Renderer(Device& device)
     upscalingDesc.depthStencil = m_deferredRendererDepthStencil;
     m_subrenderers[UPSCALING_RENDER] = std::make_unique<ComputeRenderer>(device, upscalingDesc);
 
-    //SubRendererDesc rtDesc;
-    //rtDesc.shader = rtShader;
-    //rtDesc.renderTarget = m_renderTargets[RT_RENDER];
-    //rtDesc.depthStencil = m_deferredRendererDepthStencil;
-    //m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtDesc, m_camera_buffer.get());
+    SubRendererDesc rtDesc;
+    rtDesc.shader = rtShader;
+    rtDesc.renderTarget = m_renderTargets[RT_RENDER];
+    rtDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtDesc, m_camera_buffer.get());
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(6);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(2);
@@ -294,7 +306,11 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
     m_subrenderers[PBR_RENDER]->Render(device, scene, m_inputs[PBR_RENDER], true);
 
-    //if (!raytraced) m_subrenderers[RT_RENDER]->Render(device, scene, m_inputs[RT_RENDER], true);
+    if (raytraced)
+    {
+        commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_rtInputs->GetSignature()), false);
+        m_subrenderers[RT_RENDER]->Render(device, scene, m_inputs[RT_RENDER], true);
+    }
 
     auto& boundRT = raytraced ? m_renderTargets[RT_RENDER] : m_renderTargets[PBR_RENDER];
     device.GetRenderTarget()->CopyTo(device, boundRT, 0, 0);

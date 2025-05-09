@@ -156,10 +156,55 @@ KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, int t
     m_flag = type;
 }
 
-KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
+KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format, int mipLevels,
                      int srvAllocationSlot, int uavAllocationSlot)
-    : Texture(device, width, height, flags, clearColor, format)
 {
+    m_impl = new Impl();
+
+    auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
+    m_width = width;
+    m_height = height;
+    m_format = format;
+    m_flag = flags;
+    m_clearColor = clearColor;
+    m_mipLevels = mipLevels;
+
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = Conversion::KSFormatsToDXGI(format);
+    clearValue.Color[0] = clearColor.x;  // Red component
+    clearValue.Color[1] = clearColor.y;  // Green component
+    clearValue.Color[2] = clearColor.z;  // Blue component
+    clearValue.Color[3] = clearColor.w;  // Alpha component
+
+    D3D12_RESOURCE_FLAGS dxFlags = D3D12_RESOURCE_FLAG_NONE;
+    if (m_flag & TextureFlags::DEPTH_TEXTURE) dxFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (m_flag & TextureFlags::RENDER_TARGET) dxFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (m_flag & TextureFlags::RW_TEXTURE) dxFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(KS::Conversion::KSFormatsToDXGI(m_format), m_width, m_height, 1,
+                                                     m_mipLevels, 1, 0, dxFlags);
+
+    CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    m_impl->mTextureBuffer =
+        std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
+
+    if (m_mipLevels > 1)
+    {
+        auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+        m_impl->AllocateAsSRV(descriptorHeap);
+
+        for (int i = 1; i < resourceDesc.MipLevels; i++)
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            uavDesc.Format = resourceDesc.Format;
+            uavDesc.Texture2D.MipSlice = i;
+            uavDesc.Texture2D.PlaneSlice = 0;
+
+            m_impl->mUAVMipslots[i - 1] = descriptorHeap->AllocateUAV(m_impl->mTextureBuffer.get(), &uavDesc);
+        }
+    }
+
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     m_impl->AllocateAsSRV(resourceHeap, srvAllocationSlot);
     m_impl->AllocateAsUAV(resourceHeap, uavAllocationSlot);
@@ -175,7 +220,7 @@ void KS::Texture::Bind(Device& device, const ShaderInputDesc& desc, uint32_t off
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    if (desc.modifications == ShaderInputMod::READ_ONLY)
+    if (desc.modifications[0] == ShaderInputMod::READ_ONLY)
     {
         TransitionToRO(device);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
@@ -201,20 +246,23 @@ void KS::Texture::TransitionToRO(const Device& device) const
 
     commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_COMMON);
+    m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
 }
 
 void KS::Texture::TransitionToRW(const Device& device) const
-{
+{ 
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
-    if (!m_impl->mUAVHeapSlot.IsValid())
+    auto& heapSlot = m_impl->mUAVHeapSlot;
+    if (!heapSlot.IsValid())
     {
         m_impl->AllocateAsUAV(resourceHeap);
     }
 
     commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 size_t KS::Texture::GetGPUAddress(int elementIndex, int frameIndex) const
@@ -547,6 +595,11 @@ void KS::RenderTarget::PrepareToPresent(Device& device)
 
 std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(Device& device, int index)
 {
+    if (m_textureCount <= index)
+    {
+        LOG(Log::Severity::WARN,
+            "Texture index goes out of bounds. Texture index passed {} this render target has {} textures", index, m_textureCount);
+    }
     return m_textures[device.GetCPUFrameIndex()][index];
 }
 

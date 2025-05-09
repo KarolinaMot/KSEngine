@@ -30,18 +30,19 @@ enum class InputType
 struct ShaderInputDesc
 {
     ShaderInputVisibility visibility;
-    ShaderInputMod modifications;
+    ShaderInputMod modifications[20];
     InputType type;
-    int numberOfElements;
+    int numberOfElements[20];
     int rootIndex;
     int typeIndex;
+    int numOfRanges;
 };
 
 class Device;
 class ShaderInputCollection
 {
 public:
-    ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers,  int totalDataTypeCount, std::string name);
+    //ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers,  int totalDataTypeCount, std::string name);
     ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name);
     ~ShaderInputCollection();
     void* GetSignature() const;

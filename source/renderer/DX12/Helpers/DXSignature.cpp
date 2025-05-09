@@ -109,3 +109,32 @@ DXSignatureBuilder& DXSignatureBuilder::AddSampler(const uint32_t shaderRegister
     mSamplers.push_back(sampler);
     return *this;
 }
+
+DXSignatureBuilder& DXSignatureBuilder::AddRanges(D3D12_SHADER_VISIBILITY shader,
+                                                 std::vector<std::tuple<D3D12_DESCRIPTOR_RANGE_TYPE,
+                                                 int, int>> ranges)
+{
+    for (const auto& rangeDesc : ranges)
+    {
+        D3D12_DESCRIPTOR_RANGE range;
+        range.RangeType = std::get<0>(rangeDesc);
+        range.NumDescriptors = std::get<1>(rangeDesc);
+        range.BaseShaderRegister = std::get<2>(rangeDesc);
+        range.RegisterSpace = 0;
+        range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        mRanges[mRangeCounter] = range;
+        mRangeCounter++;
+    }
+
+    D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable;
+    descriptorTable.NumDescriptorRanges = ranges.size();
+    descriptorTable.pDescriptorRanges = &mRanges[mRangeCounter-1];
+
+    D3D12_ROOT_PARAMETER par{};
+    par.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    par.DescriptorTable = descriptorTable;
+    par.ShaderVisibility = shader;
+    mParameters.push_back(par);
+    return *this;
+}

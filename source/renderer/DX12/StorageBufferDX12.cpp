@@ -79,7 +79,7 @@ void KS::StorageBuffer::Bind(Device& device, const ShaderInputDesc& desc, uint32
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
-    if (desc.modifications == ShaderInputMod::READ_ONLY)
+    if (desc.modifications[0] == ShaderInputMod::READ_ONLY)
     {
         if (!m_impl->m_SRV_handle.IsValid()) AllocateAsReadOnly(device);
 

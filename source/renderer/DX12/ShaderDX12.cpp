@@ -123,6 +123,8 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         pipeline.SetMaxAttributeSize(2 * sizeof(float));  // barycentric coordinates
         pipeline.SetMaxRecursionDepth(1);
 
+
+        m_impl->m_pipelineSet.m_RTPipeline = std::make_shared<DXRTPipeline>();
         m_impl->m_pipelineSet.m_RTPipeline->m_pipeline = pipeline.Generate();
 
         m_impl->m_pipelineSet.m_RTPipeline->m_pipeline->QueryInterface(

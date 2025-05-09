@@ -95,8 +95,7 @@ void KS::RTRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<
     auto& sbtInfo = m_impl->m_SBTinfo[cpuFrameIndex];
 
     m_frameIndex->Update(device, cpuFrameIndex);
-
-    m_renderTarget->GetTexture(device, cpuFrameIndex)->TransitionToRW(device);
+    m_renderTarget->GetTexture(device, 0)->TransitionToRW(device);
 
     // Setup the raytracing task
     D3D12_DISPATCH_RAYS_DESC desc = {};

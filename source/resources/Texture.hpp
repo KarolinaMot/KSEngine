@@ -39,7 +39,7 @@ public:
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format, int mipLevels = 1);
     Texture(const Device& device, void* resource, glm::vec2 size, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
-        int srvAllocationSlot, int uavAllocationSlot);
+            int mipLevels, int srvAllocationSlot, int uavAllocationSlot);
     ~Texture();
     void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0);
     void TransitionToRO(const Device& device) const;

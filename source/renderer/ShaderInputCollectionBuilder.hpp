@@ -19,7 +19,10 @@ public:
     ShaderInputCollectionBuilder& AddTexture(ShaderInputVisibility visibility, std::string name,
                                     ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
     ShaderInputCollectionBuilder& AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc);
-    std::shared_ptr<ShaderInputCollection> Build(const Device& device, std::string name);
+    ShaderInputCollectionBuilder& AddRanges(ShaderInputVisibility visibility,
+                                            std::initializer_list<std::tuple<ShaderInputMod, int>> ranges, std::string name);
+
+    std::shared_ptr<ShaderInputCollection> Build(const Device& device, std::string name, bool isLocal=false);
 
 private:
     class Impl;
@@ -31,6 +34,7 @@ private:
     int m_rw_array_counter = 0;
     int m_texture_counter = 0;
     int m_input_counter = 0;
+    int m_range_counter = 0;
 };
 
 }  // namespace KS
