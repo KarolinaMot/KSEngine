@@ -181,8 +181,11 @@ void KS::Device::FinishInitialization()
                                               std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
                                               std::initializer_list<Formats>{});
 
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        m_impl->m_command_list[i]->Close();
 
-    m_impl->m_command_list[START_THREAD]->Close();
+    }
 
     const DXCommandList* commandLists[] = { m_impl->m_command_list[START_THREAD].get() };
     auto frame_setup = m_impl->m_command_queue->ExecuteCommandLists(&commandLists[START_THREAD], 1);
