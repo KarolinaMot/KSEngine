@@ -13,21 +13,21 @@ KS::ComputeRenderer::~ComputeRenderer() {}
 void KS::ComputeRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
                                  bool clearRT)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(END_THREAD));
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
 
     if (clearRT)
     {
-        m_renderTarget->Bind(device, m_depthStencil.get());
-        m_renderTarget->Clear(device);
+        m_renderTarget->Bind(device, *commandList, m_depthStencil.get());
+        m_renderTarget->Clear(device, *commandList);
     }
-    m_renderTarget->GetTexture(device, 0)->Bind(device, m_shader->GetShaderInput()->GetInput("PBRRes"));
+    m_renderTarget->GetTexture(device, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("PBRRes"));
 
     for (int i = 0; i < inputs.size(); i++)
     {
-        inputs[i].first->Bind(device, inputs[i].second);
+        inputs[i].first->Bind(device, *commandList, inputs[i].second);
     }
 
     uint32_t texWidth = m_renderTarget->GetTexture(device, 0)->GetWidth();

@@ -91,12 +91,12 @@ void KS::RTRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<
 {
     int i = 0;
     int cpuFrameIndex = device.GetFrameIndex();
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(START_THREAD));
     auto& sbtInfo = m_impl->m_SBTinfo[cpuFrameIndex];
 
     m_frameIndex->Update(device, cpuFrameIndex);
 
-    m_renderTarget->GetTexture(device, cpuFrameIndex)->TransitionToRW(device);
+    m_renderTarget->GetTexture(device, cpuFrameIndex)->TransitionToRW(device, *commandList);
 
     // Setup the raytracing task
     D3D12_DISPATCH_RAYS_DESC desc = {};

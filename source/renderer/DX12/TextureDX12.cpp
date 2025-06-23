@@ -27,11 +27,10 @@ public:
     void AllocateAsSRV(DXDescHeap* descriptorHeap, int slot);
 };
 
-KS::Texture::Texture(Device& device, const Image& image, int type)
+KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& image, int type)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     m_width = image.GetWidth();
     m_height = image.GetHeight();
     m_format = R8G8B8A8_UNORM;
@@ -84,10 +83,11 @@ KS::Texture::Texture(Device& device, const Image& image, int type)
         m_impl->mUAVMipslots[i - 1] = descriptorHeap->AllocateUAV(m_impl->mTextureBuffer.get(), &uavDesc);
     }
 
-    GenerateMipmaps(device);
+    GenerateMipmaps(device, commandList);
 }
 
-KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format, int mipLevels)
+KS::Texture::Texture(const Device& device,  uint32_t width, uint32_t height, int type,
+                     glm::vec4 clearColor, Formats format, int mipLevels)
 {
     m_impl = new Impl();
 
@@ -170,50 +170,44 @@ KS::Texture::~Texture()
     delete m_impl;
 }
 
-void KS::Texture::Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex)
+void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex)
 {
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
-        TransitionToRO(device);
+        TransitionToRO(device, commandList);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
-        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
+        commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
     }
     else
     {
-        TransitionToRW(device);
+        TransitionToRW(device, commandList);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, desc.rootIndex);
+        commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, desc.rootIndex);
     }
 }
 
-void KS::Texture::TransitionToRO(const Device& device) const
+void KS::Texture::TransitionToRO(const Device& device, DXCommandList& commandList) const
 {
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-
     if (!m_impl->mSRVHeapSlot.IsValid())
     {
         m_impl->AllocateAsSRV(resourceHeap);
     }
 
-    commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
+    commandList.ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_COMMON);
 }
 
-void KS::Texture::TransitionToRW(const Device& device) const
+void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandList) const
 {
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     if (!m_impl->mUAVHeapSlot.IsValid())
     {
         m_impl->AllocateAsUAV(resourceHeap);
     }
 
-    commandList->ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
+    commandList.ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
@@ -222,13 +216,12 @@ size_t KS::Texture::GetGPUAddress(int elementIndex, int frameIndex) const
     return m_impl->mTextureBuffer->GetResource()->GetGPUVirtualAddress();
 }
 
-void KS::Texture::GenerateMipmaps(Device& device)
+void KS::Texture::GenerateMipmaps(const Device& device, DXCommandList& commandList)
 {
     // FROM: https://www.3dgep.com/learning-directx-12-4/#Generate_Mipmaps_Compute_Shader
     // TODO: Do the required steps if resource does not support UAVs
 
     ID3D12Device5* engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     GenerateMipsInfo generateMipsCB;
     generateMipsCB.IsSRGB = false;  // TODO: check if format is SRGB
@@ -271,21 +264,21 @@ void KS::Texture::GenerateMipmaps(Device& device)
     m_impl->mMipmapUB = std::make_unique<UniformBuffer>(device, "Texture mipmap buffer", generateMipsCB, 1);
 
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(device.GetMipGenShader()->GetPipeline());
-    commandList->BindPipeline(pipeline);
+    commandList.BindPipeline(pipeline);
 
     auto rootSignature = device.GetMipGenShaderInputs();
-    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+    commandList.BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+    commandList.BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    m_impl->mMipmapUB->Bind(device, rootSignature->GetInput("mipmap_info"));
-    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[0], rootSignature->GetInput("mip_1").rootIndex);
-    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[1], rootSignature->GetInput("mip_2").rootIndex);
-    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[2], rootSignature->GetInput("mip_3").rootIndex);
-    commandList->BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootSignature->GetInput("mip_0").rootIndex);
+    m_impl->mMipmapUB->Bind(device, commandList, rootSignature->GetInput("mipmap_info"));
+    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[0], rootSignature->GetInput("mip_1").rootIndex);
+    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[1], rootSignature->GetInput("mip_2").rootIndex);
+    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[2], rootSignature->GetInput("mip_3").rootIndex);
+    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootSignature->GetInput("mip_0").rootIndex);
 
-    commandList->DispatchShader(dstWidth / 8, dstHeight / 8, 1);
+    commandList.DispatchShader(dstWidth / 8, dstHeight / 8, 1);
 }
 
 void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap)
@@ -462,7 +455,7 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
     texture1->m_impl->mTextureBuffer->Get()->SetName(wString);
     texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
 }
-void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
+void KS::RenderTarget::Bind(Device& device, DXCommandList& commandList, const DepthStencil* depth) const
 {
     if (m_textureCount <= 0)
     {
@@ -476,25 +469,24 @@ void KS::RenderTarget::Bind(Device& device, const DepthStencil* depth) const
         return;
     }
 
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     DXResource* m_resources[8];
     for (int i = 0; i < m_textureCount; i++)
     {
         m_resources[i] = m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer.get();
-        commandList->ResourceBarrier(*m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        commandList.ResourceBarrier(*m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_resources[i]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
-    commandList->ResourceBarrier(*depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    commandList.ResourceBarrier(*depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
     depth->m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-    commandList->BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
+    commandList.BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
 
-    commandList->GetCommandList()->RSSetViewports(1, &m_impl->m_viewport);
-    commandList->GetCommandList()->RSSetScissorRects(1, &m_impl->m_scissor_rect);
+    commandList.GetCommandList()->RSSetViewports(1, &m_impl->m_viewport);
+    commandList.GetCommandList()->RSSetScissorRects(1, &m_impl->m_scissor_rect);
 }
 
-void KS::RenderTarget::Clear(const Device& device)
+void KS::RenderTarget::Clear(const Device& device, DXCommandList& commandList)
 {
     if (m_textureCount <= 0)
     {
@@ -502,45 +494,40 @@ void KS::RenderTarget::Clear(const Device& device)
         return;
     }
 
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
         glm::vec4 clearColor = m_textures[device.GetCPUFrameIndex()][i]->m_clearColor;
-        commandList->ClearRenderTargets(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &clearColor[0]);
+        commandList.ClearRenderTargets(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &clearColor[0]);
     }
 }
 
-void KS::RenderTarget::CopyTo(Device& device, std::shared_ptr<RenderTarget> sourceRT, int sourceRtIndex, int dstRTIndex)
+void KS::RenderTarget::CopyTo(Device& device, DXCommandList& commandList, std::shared_ptr<RenderTarget> sourceRT,
+                              int sourceRtIndex, int dstRTIndex)
 {
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-
-    commandList->ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->Get(),
+    commandList.ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->Get(),
         m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->GetState(),
         D3D12_RESOURCE_STATE_COPY_DEST);
     m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
 
-    sourceRT->SetCopyFrom(device, sourceRtIndex);
+    sourceRT->SetCopyFrom(device, commandList, sourceRtIndex);
 
-    commandList->CopyResource(sourceRT->GetTexture(device, sourceRtIndex)->m_impl->mTextureBuffer,
+    commandList.CopyResource(sourceRT->GetTexture(device, sourceRtIndex)->m_impl->mTextureBuffer,
         m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer);
 }
 
-void KS::RenderTarget::SetCopyFrom(const Device& device, int rtIndex)
+void KS::RenderTarget::SetCopyFrom(const Device& device, DXCommandList& commandList, int rtIndex)
 {
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-
-    commandList->ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->Get(),
+    commandList.ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->Get(),
         m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->GetState(),
         D3D12_RESOURCE_STATE_COPY_SOURCE);
     m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_SOURCE);
 }
 
-void KS::RenderTarget::PrepareToPresent(Device& device)
+void KS::RenderTarget::PrepareToPresent(const Device& device, DXCommandList& commandList)
 {
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList->ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->Get(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
+        commandList.ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->Get(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
         m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
     }
 }
@@ -574,8 +561,7 @@ KS::DepthStencil::~DepthStencil()
 {
 }
 
-void KS::DepthStencil::Clear(Device& device)
+void KS::DepthStencil::Clear(Device& device, DXCommandList& commandList)
 {
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-    commandList->ClearDepthStencils(m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
+    commandList.ClearDepthStencils(m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
 }

@@ -73,7 +73,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/Gears.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;
@@ -130,16 +130,31 @@ int main()
     float rotationSpeed = 0.1f;
 
     scene.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
-    scene.QueueModel(*device, model, transform, "Gear1");
-    scene.QueueModel(*device, model, transform2, "Gear2");
-    scene.QueueModel(*device, model, transform3, "Gear3");
+    float spacing = 2.f;
+    int count = 1;
+    for (int i = 0; i < 5; i++)
+    {
+        for (int j = 0; j < 5; j++)
+        {
+            for (int k = 0; k < 5; k++)
+            {
+
+                glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(i, j, k)*spacing);
+                transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(1.f, 0.f, 0.f));
+                transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
+                scene.QueueModel(*device, model, transform, "Helmet " + std::to_string(count));
+                count++;
+
+            }
+        }
+    }
 
     device->EndFrame();
 
     while (device->IsWindowOpen())
     {
         auto dt = frametimer.Tick();
-
+        
         input->ProcessInput();
         device->NewFrame();
 
@@ -147,11 +162,6 @@ int main()
 
         if (input->GetKeyboard(KS::KeyboardKey::Space) == KS::InputState::Down)
             raytraced = !raytraced;
-
-        auto newTransform = glm::rotate(glm::mat4(1.f), glm::radians(rotationSpeed), glm::vec3(0.f, 1.f, 0.f));
-        scene.ApplyModelTransform(*device, "Gear1", newTransform);
-        scene.ApplyModelTransform(*device, "Gear2", newTransform);
-        scene.ApplyModelTransform(*device, "Gear3", newTransform);
 
         auto renderParams = KS::RenderTickParams();
         renderParams.cpuFrame = device->GetFrameIndex();
@@ -162,7 +172,7 @@ int main()
 
         scene.Tick(*device);
         renderer.Render(*device, scene, renderParams, raytraced);
-        editor->RenderWindows(*device, scene);
+        editor->RenderWindows(*device, scene, dt.count());
         device->EndFrame();
     }
 

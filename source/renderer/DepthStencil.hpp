@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 
+class DXCommandList;
 namespace KS
 {
 class Device;
@@ -13,7 +14,7 @@ class DepthStencil
 public:
     DepthStencil(Device& device, std::shared_ptr<Texture>& texture);
     ~DepthStencil();
-    void Clear(Device& device);
+    void Clear(Device& device, DXCommandList& commandList);
     bool IsValid() const { return m_texture != nullptr; }
 
 private:

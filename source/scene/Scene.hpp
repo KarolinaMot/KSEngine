@@ -10,6 +10,7 @@ class UniformBuffer;
 class StorageBuffer;
 class Texture;
 class Model;
+class CommandList;
 class Mesh;
 class Image;
 
@@ -60,10 +61,11 @@ public:
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
 
 private:
-    void CreateBottomLevelAS(const Device& device, const Mesh* mesh, int cpuFrame);
-    void CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex,
+    void CreateBottomLevelAS(const Device& device, DXCommandList& commandList, const Mesh* mesh, int cpuFrame);
+    void CreateBVHBotomLevelInstance(const Device& device, DXCommandList& commandList, const DrawEntry& draw_entry,
+                                     bool updateOnly, int entryIndex,
                                      int cpuFrame);
-    void CreateTopLevelAS(const Device& device, bool updateOnly, int cpuFrame);
+    void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
 
     const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);
     const Model* GetModel(ResourceHandle<Model> model);

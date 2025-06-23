@@ -35,7 +35,7 @@ public:
     ~Device();
 
     void* GetDevice() const;
-    void* GetCommandList() const;
+    void* GetCommandList(int index) const;
     void* GetResourceHeap() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;

@@ -3,16 +3,15 @@
 #include <renderer/InfoStructs.hpp>
 #include <renderer/ShaderInput.hpp>
 
+class DXCommandList;
 namespace KS
 {
 class Device;
 class Image;
-class CommandList;
 class RenderTarget;
 class DepthStencil;
 class Texture : public ShaderInput
 {
-    friend CommandList;
     friend RenderTarget;
     friend DepthStencil;
 
@@ -35,15 +34,15 @@ public:
     };
 
 
-    Texture(Device& device, const Image& image, int flags = 0);
+    Texture(Device& device, DXCommandList& commandList, const Image& image, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format, int mipLevels = 1);
     Texture(const Device& device, void* resource, glm::vec2 size, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
         int srvAllocationSlot, int uavAllocationSlot);
     ~Texture();
-    void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0);
-    void TransitionToRO(const Device& device) const;
-    void TransitionToRW(const Device& device) const;
+    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex = 0) override;
+    void TransitionToRO(const Device& device, DXCommandList& commandList) const;
+    void TransitionToRW(const Device& device, DXCommandList& commandList) const;
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format;}
 
@@ -51,7 +50,7 @@ public:
     uint32_t GetHeight() const { return m_height; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 
-    void GenerateMipmaps(Device& device);
+    void GenerateMipmaps(const Device& device, DXCommandList& commandList);
 
 
 private:

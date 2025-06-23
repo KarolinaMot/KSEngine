@@ -5,10 +5,11 @@
 #include <vector>
 #include <renderer/ShaderInput.hpp>
 
+class DXCommandList;
+
 namespace KS
 {
 class Device;
-class CommandList;
 class StorageBuffer : public ShaderInput
 {
 public:
@@ -16,13 +17,15 @@ public:
     ~StorageBuffer();
 
     template <typename T>
-    StorageBuffer(const Device& device, const std::string& name, const std::vector<T>& data, bool readWriteEnabled)
-        : StorageBuffer(device, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(),
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const std::vector<T>& data,
+                  bool readWriteEnabled)
+        : StorageBuffer(device, commandList, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(),
                         readWriteEnabled)
     {
     }
 
-    StorageBuffer(const Device& device, const std::string& name, const void* data, size_t stride, size_t element_count,
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, size_t stride,
+                  size_t element_count,
                   bool readWriteEnabled)
     {
         m_read_write = readWriteEnabled;
@@ -32,11 +35,11 @@ public:
         m_name = name;
 
         CreateBuffer(device, name, stride, m_num_elements);
-        UploadDataBuffer(device, data, m_num_elements);
+        UploadDataBuffer(commandList, data, m_num_elements);
     }
 
     template <typename T>
-    void Update(const Device& device, const std::vector<T>& data)
+    void Update(const Device& device, DXCommandList& commandList, const std::vector<T>& data)
     {
         if (sizeof(T) != m_buffer_stride)
         {
@@ -47,11 +50,11 @@ public:
 
         if (data.size() > m_num_elements) Resize(device, data.size());
 
-        UploadDataBuffer(device, data.data(), data.size());
+        UploadDataBuffer(commandList, data.data(), data.size());
     }
 
     template <typename T>
-    void Update(const Device& device, const T* data, size_t numElements)
+    void Update(const Device& device, DXCommandList& commandList, const T* data, size_t numElements)
     {
         if (sizeof(T) != m_buffer_stride)
         {
@@ -68,15 +71,16 @@ public:
 
         if (numElements > m_num_elements) Resize(device, numElements);
 
-        UploadDataBuffer(device, data, numElements);
+        UploadDataBuffer(commandList, data, numElements);
     }
 
     void Resize(const Device& device, int newNumOfElements);
-    virtual void Bind(Device& device, const ShaderInputDesc& desc, uint32_t offsetIndex = 0) override;
-    void BindAsVertexData(const Device& device, uint32_t inputSlot, uint32_t elementOffset = 0);
-    void BindAsIndexData(const Device& device, uint32_t elementOffset = 0);
-    void AllocateAsReadOnly(Device& device, int slot = -1);
-    void AllocateAsReadWrite(Device& device, int slot = -1);
+    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t offsetIndex = 0) override;
+    void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0);
+    void BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset = 0);
+    void AllocateAsReadOnly(const Device& device, int slot = -1);
+    void AllocateAsReadWrite(const Device& device, int slot = -1);
 
     size_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
@@ -89,7 +93,7 @@ public:
 
 private:
     void CreateBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
-    void UploadDataBuffer(const Device& device, const void* data, int numOfElements);
+    void UploadDataBuffer(DXCommandList& commandList, const void* data, int numOfElements);
 
     bool m_read_write = false;
     size_t m_total_buffer_size = 0;

@@ -1,5 +1,7 @@
 #include "Mesh.hpp"
 #include <device/Device.hpp>
+#include <renderer/DX12/Helpers/DX12Common.hpp>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
 
 void KS::MeshData::AddAttribute(const std::string& name, ByteBuffer&& data)
 {
@@ -17,6 +19,7 @@ const KS::ByteBuffer* KS::MeshData::GetAttribute(const std::string& name) const
 
 KS::Mesh::Mesh(const Device& device, const MeshData& data)
 {
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(START_THREAD));
     for (const auto& [name, attributes] : data)
     {
         auto view = attributes.GetView<uint8_t>();
@@ -27,8 +30,7 @@ KS::Mesh::Mesh(const Device& device, const MeshData& data)
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
-        auto buffer = std::make_shared<KS::StorageBuffer>(
-            device, name, start, stride, size / stride, false);
+        auto buffer = std::make_shared<KS::StorageBuffer>(device, *commandList, name, start, stride, size / stride, false);
 
         m_data.emplace(name, buffer);
     }

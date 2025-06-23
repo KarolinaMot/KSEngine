@@ -15,11 +15,12 @@ KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, Scene& scene)
+void KS::Editor::RenderWindows(Device& device, Scene& scene, float dt)
 {
-    SceneHierarchy(scene);
+    //SceneHierarchy(scene);
     TransformWindow(device, scene);
     FogWindow(device, scene);
+    FPSWindow(device, dt);
 }
 
 void KS::Editor::SceneHierarchy(Scene& scene)
@@ -114,5 +115,15 @@ void KS::Editor::FogWindow(Device& device, Scene& scene)
     if (fogChanged) 
         scene.SetFogValues(device, fogInfo);
 
+    ImGui::End();
+}
+
+void KS::Editor::FPSWindow(Device& device, float deltaTime)
+{ 
+    float FPS = 1000.f / deltaTime;
+    bool open = true;
+    ImGui::Begin("DT window", &open); 
+    ImGui::Text(("FPS: " + std::to_string(FPS)).c_str());
+    ImGui::Text(("Ms: " + std::to_string(deltaTime)).c_str());
     ImGui::End();
 }
