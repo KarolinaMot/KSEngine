@@ -67,7 +67,7 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     textureData.pData = image.GetData().GetView<uint8_t>().begin();
     textureData.RowPitch = bytesPerRow;
     textureData.SlicePitch = bytesPerRow * m_height;
-    m_impl->mTextureBuffer->CreateUploadBuffer(engineDevice, static_cast<int>(textureUploadBufferSize), 0);
+    m_impl->mTextureBuffer->CreateUploadBuffer(engineDevice, static_cast<int>(textureUploadBufferSize), 0, "Texture buffer resource upload buffer");
     m_impl->mTextureBuffer->Update(commandList, textureData, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 0, 1);
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     m_impl->AllocateAsSRV(descriptorHeap);
@@ -196,6 +196,7 @@ void KS::Texture::TransitionToRO(const Device& device, DXCommandList& commandLis
 
     commandList.ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_COMMON);
+   // m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
 }
 
 void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandList) const
@@ -209,6 +210,7 @@ void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandLis
 
     commandList.ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    //m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 size_t KS::Texture::GetGPUAddress(int elementIndex, int frameIndex) const
@@ -356,7 +358,8 @@ KS::RenderTarget::~RenderTarget()
 {
 }
 
-void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name)
+void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
+                                  std::shared_ptr<Texture> texture2, std::string name)
 {
     if (m_textureCount >= 8)
     {
@@ -372,6 +375,7 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
 
     m_textures[0][m_textureCount] = texture1;
     m_textures[1][m_textureCount] = texture2;
+    m_name = name;
 
     auto renderTargetHeap = reinterpret_cast<DXDescHeap*>(device.GetRenderTargetHeap());
 
@@ -400,13 +404,25 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
     m_impl->m_scissor_rect.right = static_cast<LONG>(m_impl->m_viewport.Width);
     m_impl->m_scissor_rect.bottom = static_cast<LONG>(m_impl->m_viewport.Height);
 
+    auto& texResource1 = texture1->m_impl->mTextureBuffer;
+    auto& texResource2 = texture2->m_impl->mTextureBuffer;
+
     wchar_t wString[4096];
-    MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
-    texture1->m_impl->mTextureBuffer->Get()->SetName(wString);
-    texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
+    MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(0)).c_str(), -1, wString, 4096);
+    texResource1->Get()->SetName(wString);
+    MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(1)).c_str(), -1, wString, 4096);
+
+    texResource2->Get()->SetName(wString);
+
+    commandList.ResourceBarrier(*texResource1->Get(), texResource1->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    texResource1->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    commandList.ResourceBarrier(*texResource2->Get(), texResource2->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    texResource2->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
-void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2)
+void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
+                                  std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2)
 {
     if (m_textureCount >= 8)
     {
@@ -419,6 +435,7 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
         LOG(Log::Severity::WARN, "Tried to attach a texture that was not created with the render target type. Command will be ignored.");
         return;
     }
+    m_name = name;
 
     m_textures[0][m_textureCount] = texture1;
     m_textures[1][m_textureCount] = texture2;
@@ -450,10 +467,21 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
     m_impl->m_scissor_rect.right = static_cast<LONG>(m_impl->m_viewport.Width);
     m_impl->m_scissor_rect.bottom = static_cast<LONG>(m_impl->m_viewport.Height);
 
+    auto& texResource1 = texture1->m_impl->mTextureBuffer;
+    auto& texResource2 = texture2->m_impl->mTextureBuffer;
+
     wchar_t wString[4096];
-    MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
-    texture1->m_impl->mTextureBuffer->Get()->SetName(wString);
-    texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
+    MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(0)).c_str(), -1, wString, 4096);
+    texResource1->Get()->SetName(wString);
+    MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(1)).c_str(), -1, wString, 4096);
+    texResource2->Get()->SetName(wString);
+
+    //commandList.ResourceBarrier(*texResource1->Get(), texResource1->GetState(),
+    //                            D3D12_RESOURCE_STATE_RENDER_TARGET);
+    //texResource1->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    //commandList.ResourceBarrier(*texResource2->Get(), texResource2->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    //texResource2->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 void KS::RenderTarget::Bind(Device& device, DXCommandList& commandList, const DepthStencil* depth) const
 {
@@ -473,12 +501,7 @@ void KS::RenderTarget::Bind(Device& device, DXCommandList& commandList, const De
     for (int i = 0; i < m_textureCount; i++)
     {
         m_resources[i] = m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer.get();
-        commandList.ResourceBarrier(*m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-        m_resources[i]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
-
-    commandList.ResourceBarrier(*depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    depth->m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     commandList.BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
 
@@ -527,8 +550,25 @@ void KS::RenderTarget::PrepareToPresent(const Device& device, DXCommandList& com
 {
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList.ResourceBarrier(*m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->Get(), m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
-        m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
+        int frameIndex = device.GetCPUFrameIndex();
+        auto& textureBuffer = m_textures[frameIndex][i]->m_impl->mTextureBuffer;
+        auto bufferState = textureBuffer->GetState();
+
+        commandList.ResourceBarrier(*textureBuffer->Get(), bufferState,
+                                    D3D12_RESOURCE_STATE_PRESENT);
+        textureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
+    }
+}
+
+void KS::RenderTarget::PrepareToRenderTo(const Device& device, DXCommandList& commandList)
+{
+    std::cout << m_name << std::endl;
+    for (int i = 0; i < m_textureCount; i++)
+    {
+        auto& texture = m_textures[device.GetCPUFrameIndex()][i];
+        auto resource = texture->m_impl->mTextureBuffer.get();
+        commandList.ResourceBarrier(*resource->Get(), resource->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        resource->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 }
 
@@ -537,7 +577,7 @@ std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(Device& device, int in
     return m_textures[device.GetCPUFrameIndex()][index];
 }
 
-KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture>& texture)
+KS::DepthStencil::DepthStencil(Device& device, DXCommandList& commandList, std::shared_ptr<Texture>& texture)
 {
     m_impl = std::make_unique<Impl>();
 
@@ -555,10 +595,20 @@ KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture>& texture
     depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
     m_impl->mDepthHandle = depthHeap->AllocateDepthStencil(m_texture->m_impl->mTextureBuffer.get(), &depthStencilDesc);
+
+    commandList.ResourceBarrier(*m_texture->m_impl->mTextureBuffer->Get(), m_texture->m_impl->mTextureBuffer->GetState(),
+                                D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
 KS::DepthStencil::~DepthStencil()
+{}
+
+void KS::DepthStencil::PrepareToUse(Device& device, DXCommandList& commandList)
 {
+    commandList.ResourceBarrier(*m_texture->m_impl->mTextureBuffer->Get(),
+                                m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
 void KS::DepthStencil::Clear(Device& device, DXCommandList& commandList)

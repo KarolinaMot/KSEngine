@@ -13,7 +13,7 @@ KS::ComputeRenderer::~ComputeRenderer() {}
 void KS::ComputeRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
                                  bool clearRT)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(END_THREAD));
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);

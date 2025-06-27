@@ -67,7 +67,6 @@ private:
                                      int cpuFrame);
     void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
 
-    const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);
     const Model* GetModel(ResourceHandle<Model> model);
     std::shared_ptr<Texture> GetTexture(Device& device, ResourceHandle<Texture> imgPath);
 
@@ -75,9 +74,7 @@ private:
     std::unique_ptr<Impl> m_impl;
 
     std::unordered_map<std::string, DrawEntry> draw_queue{};
-
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
-    std::unordered_map<ResourceHandle<Mesh>, Mesh> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
     std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
     std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];

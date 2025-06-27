@@ -22,7 +22,8 @@ public:
     size_t GetResourceSize() const { return mResourceSize; }
 
     void ChangeState(D3D12_RESOURCE_STATES dstState);
-    void CreateUploadBuffer(const ComPtr<ID3D12Device5>& device, int dataSize, int currentSubresource);
+    void CreateUploadBuffer(const ComPtr<ID3D12Device5>& device, int dataSize, int currentSubresource,
+                            const char* resourceName);
     void Update(DXCommandList& list, D3D12_SUBRESOURCE_DATA data, D3D12_RESOURCE_STATES dstState, int currentSubresource, int totalSubresources);
     bool mResizeBuffer = false;
 

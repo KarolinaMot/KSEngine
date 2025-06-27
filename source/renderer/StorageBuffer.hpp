@@ -7,32 +7,41 @@
 
 class DXCommandList;
 
+
 namespace KS
 {
 class Device;
 class StorageBuffer : public ShaderInput
 {
 public:
+
+    enum StorageBufferFlags
+    {
+        NONE = 1 << 0,
+        INDEX_DATA_BUFFER = 1 << 1,
+        VERTEX_DATA_BUFFER = 1 << 2
+    };
+
     StorageBuffer();
     ~StorageBuffer();
 
     template <typename T>
     StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const std::vector<T>& data,
-                  bool readWriteEnabled)
+                  bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
         : StorageBuffer(device, commandList, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(),
-                        readWriteEnabled)
+                        readWriteEnabled, flags)
     {
     }
 
     StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, size_t stride,
-                  size_t element_count,
-                  bool readWriteEnabled)
+                  size_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
     {
         m_read_write = readWriteEnabled;
         m_buffer_stride = stride;
         m_total_buffer_size = stride * element_count;
         m_num_elements = element_count;
         m_name = name;
+        m_flags = flags;
 
         CreateBuffer(device, name, stride, m_num_elements);
         UploadDataBuffer(commandList, data, m_num_elements);
@@ -91,8 +100,10 @@ public:
     void* GetRawResource() const;
     int GetAllocationIndex(bool readOnly);
 
+
 private:
-    void CreateBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
+    void CreateBuffer(const Device& device, const std::string& name, size_t dataSize,
+                      int numOfElements);
     void UploadDataBuffer(DXCommandList& commandList, const void* data, int numOfElements);
 
     bool m_read_write = false;
@@ -100,6 +111,7 @@ private:
     size_t m_buffer_stride = 0;
     int m_num_elements = 0;
     std::string m_name;
+    int m_flags = 0;
 
     class Impl;
     Impl* m_impl;

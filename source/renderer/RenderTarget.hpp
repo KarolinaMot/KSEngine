@@ -15,15 +15,17 @@ public:
     RenderTarget();
     ~RenderTarget();
 
-    void AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name);
-    void AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2);
-
+    void AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
+                    std::shared_ptr<Texture> texture2, std::string name);
+    void AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
+                    std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2);
     void Bind(Device& device, DXCommandList& commandList, const DepthStencil* depth) const;
     void Clear(const Device& device, DXCommandList& commandList);
     void CopyTo(Device& device, DXCommandList& commandList, std::shared_ptr<RenderTarget> sourceRT, int sourceRtIndex,
                 int dstRTIndex);
     void SetCopyFrom(const Device& device, DXCommandList& commandList, int rtIndex);
     void PrepareToPresent(const Device& device, DXCommandList& commandList);
+    void PrepareToRenderTo(const Device& device, DXCommandList& commandList);
     std::shared_ptr<Texture> GetTexture(Device& device, int index);
 
 private:
@@ -34,6 +36,7 @@ private:
     int m_textureCount = 0;
     glm::vec2 m_size {};
     Formats m_format {};
+    std::string m_name;
 };
 
 }

@@ -91,7 +91,7 @@ void KS::RTRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<
 {
     int i = 0;
     int cpuFrameIndex = device.GetFrameIndex();
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(START_THREAD));
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     auto& sbtInfo = m_impl->m_SBTinfo[cpuFrameIndex];
 
     m_frameIndex->Update(device, cpuFrameIndex);

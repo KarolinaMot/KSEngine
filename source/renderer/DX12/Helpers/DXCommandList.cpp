@@ -234,9 +234,6 @@ void DXCommandList::BindVertexData(const std::unique_ptr<DXResource>& buffer, si
         return;
     }
 
-    ResourceBarrier(*buffer->Get(), buffer->GetState(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    buffer->ChangeState(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = buffer->Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     vertexBufferView.StrideInBytes = bufferStride;
@@ -257,9 +254,6 @@ void DXCommandList::BindIndexData(const std::unique_ptr<DXResource>& buffer, siz
     D3D12_INDEX_BUFFER_VIEW indexBufferView {};
     indexBufferView.BufferLocation = buffer->Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     indexBufferView.SizeInBytes = buffer->GetResourceSize();
-
-    ResourceBarrier(*buffer->Get(), buffer->GetState(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
-    buffer->ChangeState(D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
     switch (bufferStride)
     {
