@@ -84,8 +84,8 @@ private:
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
 
-    ModelMat m_modelMatrices[200]{};
-    MaterialInfo m_materialInstances[200]{};
+    std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
+    std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);
     int32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};

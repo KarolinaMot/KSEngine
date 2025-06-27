@@ -33,56 +33,40 @@ void KS::ModelRenderer::Render(Device& device, Scene& scene, std::vector<std::pa
     m_depthStencil->Clear(device, *commandList);
 
 
+    auto BindDrawState = [&](DXCommandList* cmdList)
+    {
+        cmdList->BindPipeline(pipeline);
+        cmdList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), false);
+        cmdList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
+        for (const auto& input : inputs)
+        {
+            input.first->Bind(device, *cmdList, input.second);
+        }
+
+        m_renderTarget->Bind(device, *cmdList, m_depthStencil.get());
+    };
+
     int drawQueueSize = scene.GetDrawQueueSize();
-    int drawObjectsPerThread = drawQueueSize / NUM_DRAW_THREAD;
-    int leftOverObjects = drawQueueSize % NUM_DRAW_THREAD;
-    int lastThreadObjects = drawObjectsPerThread + leftOverObjects;
-    int threadCounter = 0;
+    int drawObjectsPerThread = drawQueueSize / (NUM_DRAW_THREAD);
+    int leftOverObjects = drawQueueSize % (NUM_DRAW_THREAD);
 
-    for (int i = FIRST_DRAW_THREAD; i <= LAST_DRAW_THREAD-1; i++)
+    for (int i = FIRST_DRAW_THREAD; i <= LAST_DRAW_THREAD; ++i)
     {
-        DXCommandList* drawCommandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(i));
-        drawCommandList->BindPipeline(pipeline);
-        drawCommandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()),
-                                       false);
-        drawCommandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+        DXCommandList* cmdList = reinterpret_cast<DXCommandList*>(device.GetCommandList(i));
 
-        for (int i = 0; i < inputs.size(); i++)
+        BindDrawState(cmdList);
+
+        int startMeshIndex = (i - FIRST_DRAW_THREAD) * drawObjectsPerThread;
+        int endMeshIndex = i == LAST_DRAW_THREAD 
+            ? endMeshIndex = startMeshIndex + (drawObjectsPerThread + leftOverObjects)
+            : startMeshIndex + drawObjectsPerThread;
+
+
+        for (int j = startMeshIndex; j < endMeshIndex; ++j)
         {
-            inputs[i].first->Bind(device, *drawCommandList, inputs[i].second);
+            DrawMesh(device, scene, *cmdList, j);
         }
-
-        m_renderTarget->Bind(device, *drawCommandList, m_depthStencil.get());
-
-        int startMeshIndex = threadCounter * drawObjectsPerThread;
-        int endMeshIndex = startMeshIndex + drawObjectsPerThread;
-        for (int j = startMeshIndex; j < endMeshIndex; j++)
-        {
-            DrawMesh(device, scene, *drawCommandList, j);
-
-        } 
-        threadCounter++;
-    }
-
-    DXCommandList* drawCommandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(LAST_DRAW_THREAD));
-    int startMeshIndex = threadCounter * drawObjectsPerThread;
-    int endMeshIndex = startMeshIndex + lastThreadObjects;
-    for (int j = startMeshIndex; j < endMeshIndex; j++)
-    {
-        drawCommandList->BindPipeline(pipeline);
-        drawCommandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()),
-                                           false);
-        drawCommandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
-
-        for (int i = 0; i < inputs.size(); i++)
-        {
-            inputs[i].first->Bind(device, *drawCommandList, inputs[i].second);
-        }
-
-        m_renderTarget->Bind(device, *drawCommandList, m_depthStencil.get());
-
-
-        DrawMesh(device, scene, *drawCommandList, j);
     }
 }
 

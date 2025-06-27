@@ -58,11 +58,11 @@ KS::Scene::Scene(const Device& device)
     m_directionalLights = std::vector<DirLightInfo>(100);
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(START_THREAD));
 
-    mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(device, *commandList, "MODEL MATRIX RESOURCE",
-                                                                        &m_modelMatrices[0], sizeof(ModelMat), 200, false);
+    mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(device, *commandList, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), 200, false);
-    mUniformBuffers[MODEL_INDEX_BUFFER] = std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, 200, false);
+        device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), MAX_MESHES, false);
+    mUniformBuffers[MODEL_INDEX_BUFFER] =
+        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
     m_fogInfo.fogDensity = 0.6f;
@@ -93,9 +93,9 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
             for (auto [mesh, material] : node.mesh_material_indices)
             {
-                if (m_modelCount >= 200)
+                if (m_modelCount >= MAX_MESHES)
                 {
-                    LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", 200);
+                    LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
                     return;
                 }
 
@@ -184,27 +184,27 @@ void KS::Scene::SetFogValues(Device& device, const FogInfo& newFogInfo)
 
 void KS::Scene::Tick(Device& device)
 {
-    if (!m_impl->m_updateBVH)
-    {
-        memset(m_impl->m_BLBuffers, 0, 200 * sizeof(Impl::ASBuffers));
-        m_impl->m_BLCount = 0;
-    }
+    //if (!m_impl->m_updateBVH)
+    //{
+    //    memset(m_impl->m_BLBuffers, 0, 200 * sizeof(Impl::ASBuffers));
+    //    m_impl->m_BLCount = 0;
+    //}
     auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(START_THREAD));
 
-    int i =0;
-    auto cpuFrameIndex = device.GetCPUFrameIndex();
-    for (const auto& draw_entry : draw_queue)
-    {
-        const Mesh* mesh = GetMesh(device, draw_entry.second.mesh);
-        auto baseTex = GetTexture(
-            device, *draw_entry.second.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+    //int i =0;
+    //auto cpuFrameIndex = device.GetCPUFrameIndex();
+    //for (const auto& draw_entry : draw_queue)
+    //{
+    //    const Mesh* mesh = GetMesh(device, draw_entry.second.mesh);
+    //    auto baseTex = GetTexture(
+    //        device, *draw_entry.second.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
 
-        if (mesh == nullptr || baseTex == nullptr) continue;
+    //    if (mesh == nullptr || baseTex == nullptr) continue;
 
-        CreateBVHBotomLevelInstance(device, *commandList, draw_entry.second, m_impl->m_updateBVH, i, cpuFrameIndex);
-        i++;
-    }
-    CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, cpuFrameIndex);
+    //    CreateBVHBotomLevelInstance(device, *commandList, draw_entry.second, m_impl->m_updateBVH, i, cpuFrameIndex);
+    //    i++;
+    //}
+    //CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, cpuFrameIndex);
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
 }

@@ -3,6 +3,10 @@
 #include <resources/Mesh.hpp>
 #include <glm/glm.hpp>
 
+#ifndef MAX_MESHES
+#define MAX_MESHES 10000
+#endif  // !MAX_MESHES
+
 namespace KS
 {
 
