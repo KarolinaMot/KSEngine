@@ -287,7 +287,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(LAST_THREAD));
 
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
-    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
     //PBR RENDER
     auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(device, 0);

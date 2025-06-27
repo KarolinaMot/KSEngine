@@ -562,7 +562,6 @@ void KS::RenderTarget::PrepareToPresent(const Device& device, DXCommandList& com
 
 void KS::RenderTarget::PrepareToRenderTo(const Device& device, DXCommandList& commandList)
 {
-    std::cout << m_name << std::endl;
     for (int i = 0; i < m_textureCount; i++)
     {
         auto& texture = m_textures[device.GetCPUFrameIndex()][i];

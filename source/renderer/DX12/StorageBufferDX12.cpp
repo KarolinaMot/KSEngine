@@ -20,7 +20,6 @@ public:
 KS::StorageBuffer::StorageBuffer() { m_impl = new Impl(); }
 
 KS::StorageBuffer::~StorageBuffer() { 
-    std::cout << m_name << std::endl;
     delete m_impl;
 }
 

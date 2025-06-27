@@ -59,25 +59,13 @@ void KS::ModelRenderer::Render(Device& device, Scene& scene, std::vector<std::pa
         {
             DrawMesh(device, scene, drawCmdList, meshIndex);
         }
-
-        drawCmdList.Close();
     };
 
     int drawQueueSize = scene.GetDrawQueueSize();
     int drawObjectsPerThread = drawQueueSize / NUM_DRAW_THREAD;
     int leftOverObjects = drawQueueSize % NUM_DRAW_THREAD;
     std::vector<std::thread> workerThreads;
-    //std::vector<std::shared_ptr<DXCommandList>> drawLists(NUM_DRAW_THREAD);
-    //std::vector<std::shared_ptr<DXCommandAllocator>> drawAllocators(NUM_DRAW_THREAD);
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-
-    //for (int i = 0; i < NUM_DRAW_THREAD; i++)
-    //{
-    //    drawAllocators[i] =
-    //        std::make_shared<DXCommandAllocator>(engineDevice, ("DRAW COMMAND ALLOCATOR " + std::to_string(i)).c_str());
-    //    drawLists[i] = std::make_shared<DXCommandList>(engineDevice, drawAllocators[i],
-    //                                                   ("DRAW COMMAND LIST " + std::to_string(i)).c_str());
-    //}
 
     for (int i = FIRST_DRAW_THREAD; i <= LAST_DRAW_THREAD; ++i)
     {
