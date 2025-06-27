@@ -196,7 +196,7 @@ void KS::Texture::TransitionToRO(const Device& device, DXCommandList& commandLis
 
     commandList.ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_COMMON);
-   // m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
+    m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
 }
 
 void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandList) const
@@ -210,7 +210,7 @@ void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandLis
 
     commandList.ResourceBarrier(*m_impl->mTextureBuffer->Get(), m_impl->mTextureBuffer->GetState(),
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    //m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 size_t KS::Texture::GetGPUAddress(int elementIndex, int frameIndex) const

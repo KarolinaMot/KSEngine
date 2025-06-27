@@ -67,25 +67,25 @@ void KS::ModelRenderer::Render(Device& device, Scene& scene, std::vector<std::pa
     int drawObjectsPerThread = drawQueueSize / NUM_DRAW_THREAD;
     int leftOverObjects = drawQueueSize % NUM_DRAW_THREAD;
     std::vector<std::thread> workerThreads;
-    std::vector<std::shared_ptr<DXCommandList>> drawLists(NUM_DRAW_THREAD);
-    std::vector<std::shared_ptr<DXCommandAllocator>> drawAllocators(NUM_DRAW_THREAD);
+    //std::vector<std::shared_ptr<DXCommandList>> drawLists(NUM_DRAW_THREAD);
+    //std::vector<std::shared_ptr<DXCommandAllocator>> drawAllocators(NUM_DRAW_THREAD);
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
-    for (int i = 0; i < NUM_DRAW_THREAD; i++)
-    {
-        drawAllocators[i] =
-            std::make_shared<DXCommandAllocator>(engineDevice, ("DRAW COMMAND ALLOCATOR " + std::to_string(i)).c_str());
-        drawLists[i] = std::make_shared<DXCommandList>(engineDevice, drawAllocators[i],
-                                                       ("DRAW COMMAND LIST " + std::to_string(i)).c_str());
-    }
+    //for (int i = 0; i < NUM_DRAW_THREAD; i++)
+    //{
+    //    drawAllocators[i] =
+    //        std::make_shared<DXCommandAllocator>(engineDevice, ("DRAW COMMAND ALLOCATOR " + std::to_string(i)).c_str());
+    //    drawLists[i] = std::make_shared<DXCommandList>(engineDevice, drawAllocators[i],
+    //                                                   ("DRAW COMMAND LIST " + std::to_string(i)).c_str());
+    //}
 
-    for (int i = 0; i < NUM_DRAW_THREAD; ++i)
+    for (int i = FIRST_DRAW_THREAD; i <= LAST_DRAW_THREAD; ++i)
     {
         int start = i * drawObjectsPerThread;
-        int count = (i == NUM_DRAW_THREAD - 1) ? drawObjectsPerThread + leftOverObjects : drawObjectsPerThread;
+        int count = (i == LAST_DRAW_THREAD) ? drawObjectsPerThread + leftOverObjects : drawObjectsPerThread;
         int end = start + count;
 
-        auto& drawList = *drawLists[i].get();
+        auto& drawList = *reinterpret_cast<DXCommandList*>(device.GetCommandList(i));
         workerThreads.emplace_back(RecordDrawCommandList, i, start, end, std::ref(drawList));
     }
 
@@ -93,12 +93,12 @@ void KS::ModelRenderer::Render(Device& device, Scene& scene, std::vector<std::pa
     {
         t.join();
     }
-
-    device.PassDrawCalls(drawLists);
 }
 
 void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index)
 {
+    if (index >= scene.GetDrawQueueSize()) return;
+
     MeshSet meshSet = scene.GetMeshSet(device, index);
     if (meshSet.mesh == nullptr || meshSet.baseTex == nullptr) return;
 

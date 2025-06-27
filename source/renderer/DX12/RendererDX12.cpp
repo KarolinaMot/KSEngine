@@ -284,19 +284,24 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     //m_inputs[UPSCALING_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(lightShaftTex.get(), rootSignature->GetInput("base_tex"));
     //m_subrenderers[UPSCALING_RENDER]->Render(device, scene, m_inputs[UPSCALING_RENDER], true);
 
+    commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(LAST_THREAD));
+
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
+
     //PBR RENDER
-    //auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(device, 0);
-    //for (int i = 0; i < 4; i++)
-    //{
-    //    auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(device, i);
-    //    m_inputs[PBR_RENDER][i] = std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
-    //}
-    //m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("base_tex"));
-    //m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
-    //m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
-    //m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), rootSignature->GetInput("dir_lights"));
-    //m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
-    //m_subrenderers[PBR_RENDER]->Render(device, scene, m_inputs[PBR_RENDER], true);
+    auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(device, 0);
+    for (int i = 0; i < 4; i++)
+    {
+        auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(device, i);
+        m_inputs[PBR_RENDER][i] = std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
+    }
+    m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("base_tex"));
+    m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
+    m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
+    m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), rootSignature->GetInput("dir_lights"));
+    m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
+    m_subrenderers[PBR_RENDER]->Render(device, scene, m_inputs[PBR_RENDER], true);
 
     //if (!raytraced) m_subrenderers[RT_RENDER]->Render(device, scene, m_inputs[RT_RENDER], true);
 

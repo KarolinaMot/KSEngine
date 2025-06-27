@@ -13,13 +13,14 @@ KS::ComputeRenderer::~ComputeRenderer() {}
 void KS::ComputeRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
                                  bool clearRT)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(LAST_THREAD));
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
 
     if (clearRT)
     {
+        m_renderTarget->PrepareToRenderTo(device, *commandList);
         m_renderTarget->Bind(device, *commandList, m_depthStencil.get());
         m_renderTarget->Clear(device, *commandList);
     }

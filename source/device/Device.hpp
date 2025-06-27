@@ -36,7 +36,7 @@ public:
     ~Device();
 
     void* GetDevice() const;
-    void* GetCommandList() const;
+    void* GetCommandList(int index = 0) const;
     void* GetResourceHeap() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;
@@ -45,7 +45,6 @@ public:
     inline bool IsWindowOpen() const { return m_window_open; }
     void NewFrame();
     void EndFrame();
-    void PassDrawCalls(std::vector<std::shared_ptr<DXCommandList>>& commandLists);
     void InitializeSwapchain();
     void FinishInitialization();
     void InitializeImGUI();

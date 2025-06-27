@@ -6,6 +6,10 @@ DXCommandAllocator::DXCommandAllocator(ComPtr<ID3D12Device5> device, const char*
 {
     HRESULT hr = device->CreateCommandAllocator(
         D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_allocator));
+    wchar_t wString[4096];
+    MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
+    m_allocator->SetName(wString);
+
     if (FAILED(hr))
     {
         LOG(Log::Severity::FATAL, "Failed to create command allocator");
