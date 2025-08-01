@@ -69,9 +69,9 @@ void KS::ModelRenderer::Render(Device& device, Scene& scene, std::vector<std::pa
 
     for (int i = FIRST_DRAW_THREAD; i <= LAST_DRAW_THREAD; ++i)
     {
-        int start = i * drawObjectsPerThread;
+        int start = (i - FIRST_DRAW_THREAD) * drawObjectsPerThread;
         int count = (i == LAST_DRAW_THREAD) ? drawObjectsPerThread + leftOverObjects : drawObjectsPerThread;
-        int end = start + count;
+        int end = start + count - 1;
 
         auto& drawList = *reinterpret_cast<DXCommandList*>(device.GetCommandList(i));
         workerThreads.emplace_back(RecordDrawCommandList, i, start, end, std::ref(drawList));
