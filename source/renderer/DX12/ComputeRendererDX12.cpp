@@ -10,13 +10,14 @@ KS::ComputeRenderer::ComputeRenderer(const Device& device, SubRendererDesc& desc
 
 KS::ComputeRenderer::~ComputeRenderer() {}
 
-void KS::ComputeRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
-                                 bool clearRT)
+void KS::ComputeRenderer::Render(Device& device, int commandListID, Scene& scene,
+                                 std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(LAST_THREAD));
+    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(commandListID));
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);
+    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), true);
 
     if (clearRT)
     {

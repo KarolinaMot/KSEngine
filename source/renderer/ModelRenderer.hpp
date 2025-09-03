@@ -14,8 +14,8 @@ public:
 
     ~ModelRenderer();
 
-    void Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
-                bool clearRT = true) override;
+    void Render(Device& device, int commandListID, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
+                bool clearRT) override;
 
 private:
     void DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index);

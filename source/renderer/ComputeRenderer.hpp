@@ -10,8 +10,8 @@ public:
     ComputeRenderer(const Device& device, SubRendererDesc& desc);
     ~ComputeRenderer();
 
-    void Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
-                bool clearRT) override;
+    void Render(Device& device, int commandListID, Scene& scene,
+                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT) override;
 
 private:
 };

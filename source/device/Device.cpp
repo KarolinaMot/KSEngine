@@ -127,7 +127,7 @@ void KS::Device::NewFrame()
 
 void KS::Device::EndFrame()
 {
-    auto& commandList = m_impl->m_command_list[LAST_THREAD];
+    auto& commandList = m_impl->m_command_list[FIRST_THREAD];
 
     ImGui::Render();
 

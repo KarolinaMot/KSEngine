@@ -79,8 +79,8 @@ float Attenuation(float distance, float range);
         result = LinearToSRGB(result);
     }
     
-    //float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
-    //result += lightShaftColor.rgb;
+    float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
+    result += lightShaftColor.rgb;
     FinalRes[DispatchThreadID.xy] = float4(result.rgb, 1.f);
 }
 

@@ -86,8 +86,8 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
 
 KS::RTRenderer::~RTRenderer() {}
 
-void KS::RTRenderer::Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
-                            bool clearRT)
+void KS::RTRenderer::Render(Device& device, int commandListID, Scene& scene,
+                            std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
     int i = 0;
     int cpuFrameIndex = device.GetFrameIndex();
