@@ -6,6 +6,10 @@ DXCommandAllocator::DXCommandAllocator(ComPtr<ID3D12Device5> device, const char*
 {
     HRESULT hr = device->CreateCommandAllocator(
         D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_allocator));
+    wchar_t wString[4096];
+    MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
+    m_allocator->SetName(wString);
+
     if (FAILED(hr))
     {
         LOG(Log::Severity::FATAL, "Failed to create command allocator");
@@ -234,9 +238,6 @@ void DXCommandList::BindVertexData(const std::unique_ptr<DXResource>& buffer, si
         return;
     }
 
-    ResourceBarrier(*buffer->Get(), buffer->GetState(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    buffer->ChangeState(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = buffer->Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     vertexBufferView.StrideInBytes = bufferStride;
@@ -257,9 +258,6 @@ void DXCommandList::BindIndexData(const std::unique_ptr<DXResource>& buffer, siz
     D3D12_INDEX_BUFFER_VIEW indexBufferView {};
     indexBufferView.BufferLocation = buffer->Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     indexBufferView.SizeInBytes = buffer->GetResourceSize();
-
-    ResourceBarrier(*buffer->Get(), buffer->GetState(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
-    buffer->ChangeState(D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
     switch (bufferStride)
     {

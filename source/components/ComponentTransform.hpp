@@ -8,8 +8,7 @@ namespace KS
 class ComponentTransform
 {
 public:
-    ComponentTransform(
-        const glm::vec3& translation = {},
+    ComponentTransform(const glm::vec3& translation = {0.0f, 0.0f, -5.f},
         const glm::quat& rotation = { 1.0f, 0.0f, 0.0f, 0.0f },
         const glm::vec3& scale = { 1.0f, 1.0f, 1.0f })
         : m_Translation(translation)

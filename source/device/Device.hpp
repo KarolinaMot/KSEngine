@@ -14,6 +14,7 @@
 #include <renderer/DepthStencil.hpp>
 #include <resources/Texture.hpp>
 
+class DXCommandList;
 namespace KS
 {
 
@@ -35,7 +36,7 @@ public:
     ~Device();
 
     void* GetDevice() const;
-    void* GetCommandList() const;
+    void* GetCommandList(int index = 0) const;
     void* GetResourceHeap() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;

@@ -10,6 +10,7 @@ class UniformBuffer;
 class StorageBuffer;
 class Texture;
 class Model;
+class CommandList;
 class Mesh;
 class Image;
 
@@ -60,12 +61,12 @@ public:
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
 
 private:
-    void CreateBottomLevelAS(const Device& device, const Mesh* mesh, int cpuFrame);
-    void CreateBVHBotomLevelInstance(const Device& device, const DrawEntry& draw_entry, bool updateOnly, int entryIndex,
+    void CreateBottomLevelAS(const Device& device, DXCommandList& commandList, const Mesh* mesh, int cpuFrame);
+    void CreateBVHBotomLevelInstance(const Device& device, DXCommandList& commandList, const DrawEntry& draw_entry,
+                                     bool updateOnly, int entryIndex,
                                      int cpuFrame);
-    void CreateTopLevelAS(const Device& device, bool updateOnly, int cpuFrame);
+    void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
 
-    const Mesh* GetMesh(const Device& device, ResourceHandle<Mesh> mesh);
     const Model* GetModel(ResourceHandle<Model> model);
     std::shared_ptr<Texture> GetTexture(Device& device, ResourceHandle<Texture> imgPath);
 
@@ -73,17 +74,15 @@ private:
     std::unique_ptr<Impl> m_impl;
 
     std::unordered_map<std::string, DrawEntry> draw_queue{};
-
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
-    std::unordered_map<ResourceHandle<Mesh>, Mesh> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
     std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
     std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
 
-    ModelMat m_modelMatrices[200]{};
-    MaterialInfo m_materialInstances[200]{};
+    std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
+    std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);
     int32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};

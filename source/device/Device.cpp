@@ -52,8 +52,8 @@ public:
     ComPtr<IDXGISwapChain3> m_swapchain;
 
     std::unique_ptr<DXCommandQueue> m_command_queue;
-    std::unique_ptr<DXCommandList> m_command_list;
-    std::shared_ptr<DXCommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT];
+    std::unique_ptr<DXCommandList> m_command_list[NUM_THREADS];
+    std::shared_ptr<DXCommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT][NUM_THREADS];
     DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
 
     std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
@@ -84,10 +84,7 @@ void* KS::Device::GetDevice() const
     return m_impl->m_device.Get();
 }
 
-void* KS::Device::GetCommandList() const
-{
-    return m_impl->m_command_list.get();
-}
+void* KS::Device::GetCommandList(int index) const { return m_impl->m_command_list[index].get(); }
 
 void* KS::Device::GetResourceHeap() const
 {
@@ -110,13 +107,16 @@ void* KS::Device::GetWindowHandle() const
 
 void KS::Device::NewFrame()
 {
+    auto& commandList = m_impl->m_command_list[FIRST_THREAD];
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
     m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
-    m_swapchainRT->Bind(*this, m_swapchainDS.get());
-    m_swapchainRT->Clear(*this);
-    m_swapchainDS->Clear(*this);
+    m_swapchainRT->PrepareToRenderTo(*this, *commandList);
+    m_swapchainDS->PrepareToUse(*this, *commandList);
+    m_swapchainRT->Bind(*this, *commandList, m_swapchainDS.get());
+    m_swapchainRT->Clear(*this, *commandList);
+    m_swapchainDS->Clear(*this, *commandList);
 
     ImGui::GetIO().DisplaySize.x = m_width;
     ImGui::GetIO().DisplaySize.y = m_height;
@@ -127,13 +127,14 @@ void KS::Device::NewFrame()
 
 void KS::Device::EndFrame()
 {
-    ImGui::Render();
-    const DXCommandList* commandLists[] = {m_impl->m_command_list.get()};
+    auto& commandList = m_impl->m_command_list[LAST_THREAD];
 
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_impl->m_command_list->GetCommandList().Get());
+    ImGui::Render();
+
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
     glfwSwapBuffers(m_impl->m_window);
-    m_swapchainRT->PrepareToPresent(*this);
+    m_swapchainRT->PrepareToPresent(*this, *commandList);
     m_impl->EndFrame(m_cpu_frame);
     ImGui::EndFrame();
     ImGui::UpdatePlatformWindows();
@@ -155,10 +156,13 @@ void KS::Device::InitializeSwapchain()
     }
 
     m_swapchainRT = std::make_shared<RenderTarget>();
-    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target", 0, 1);
+    m_swapchainRT->AddTexture(*this, *m_impl->m_command_list[FIRST_THREAD], m_swapchainTex[0], m_swapchainTex[1],
+                              "Swapchain render target",
+                              0,
+                              1);
 
     m_swapchainDepthTex = std::make_shared<Texture>(*this, m_width, m_height, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
-    m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
+    m_swapchainDS = std::make_shared<DepthStencil>(*this, *m_impl->m_command_list[FIRST_THREAD], m_swapchainDepthTex);
 }
 
 void KS::Device::FinishInitialization()
@@ -178,15 +182,17 @@ void KS::Device::FinishInitialization()
         .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
         .Build(*this, "MIPMAP SIGNATURE");
 
-   m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
+    m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
                                               std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
                                               std::initializer_list<Formats>{});
 
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        m_impl->m_command_list[i]->Close();
+    }
 
-    m_impl->m_command_list->Close();
-
-    const DXCommandList* commandLists[] = { m_impl->m_command_list.get() };
-    auto frame_setup = m_impl->m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
+    const DXCommandList* commandLists[] = {m_impl->m_command_list[FIRST_THREAD].get()};
+    auto frame_setup = m_impl->m_command_queue->ExecuteCommandLists(commandLists, 1);
     frame_setup.Wait();
 }
 
@@ -271,15 +277,26 @@ void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearC
     // Wait until the current swapchain is available;
     m_fence_values->Wait();
 
-    m_command_allocator[cpuFrame]->Reset();
-    m_command_list->Open(m_command_allocator[cpuFrame]);
-    m_command_list->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        m_command_allocator[cpuFrame][i]->Reset();
+        m_command_list[i]->Open(m_command_allocator[cpuFrame][i]);
+        m_command_list[i]->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    }
 }
 
 void KS::Device::Impl::EndFrame(int cpuFrame)
 {
+
     // CLOSE COMMAND LIST
-    m_command_list->Close();
+    const DXCommandList* commandLists[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        m_command_list[i]->Close();
+        commandLists[i] = m_command_list[i].get();
+    }
+
 
     // PRESENT
     if (FAILED(m_swapchain->Present(0, 0)))
@@ -287,9 +304,8 @@ void KS::Device::Impl::EndFrame(int cpuFrame)
         LOG(Log::Severity::FATAL, "Failed to present");
     }
 
-    const DXCommandList* commandLists[] = { m_command_list.get() };
-
-    m_fence_values[cpuFrame] = m_command_queue->ExecuteCommandLists(&commandLists[0], 1);
+    
+    m_fence_values[cpuFrame] = m_command_queue->ExecuteCommandLists(&commandLists[0], NUM_THREADS);
 }
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
@@ -377,11 +393,17 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
         m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
 
         // CREATE COMMAND ALLOCATOR
-        for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+
+        for (int j = 0; j < NUM_THREADS; j++)
         {
-            m_command_allocator[i] = std::make_shared<DXCommandAllocator>(m_device, ("MAIN COMMAND ALLOCATOR " + std::to_string(i + 1)).c_str());
+            for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+            {
+                m_command_allocator[i][j] =
+                    std::make_shared<DXCommandAllocator>(m_device, ("MAIN COMMAND ALLOCATOR " + std::to_string(i + 1)).c_str());
+            }
+            m_command_list[j] = std::make_unique<DXCommandList>(m_device, m_command_allocator[0][j], "MAIN COMMANDS LIST");
+
         }
-        m_command_list = std::make_unique<DXCommandList>(m_device, m_command_allocator[0], "MAIN COMMAND LIST");
 
         // CREATE DESCRIPTOR HEAPS
         m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 2000, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,

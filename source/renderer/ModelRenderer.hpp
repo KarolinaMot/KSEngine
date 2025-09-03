@@ -2,11 +2,11 @@
 
 #include "SubRenderer.hpp"
 
+class DXCommandList;
 namespace KS
 {
 class Device;
 class Scene;
-
 class ModelRenderer : public SubRenderer
 {
 public:
@@ -16,6 +16,9 @@ public:
 
     void Render(Device& device, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
                 bool clearRT = true) override;
+
+private:
+    void DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index);
 };
 }  // namespace KS
 

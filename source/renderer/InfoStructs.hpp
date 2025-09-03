@@ -3,6 +3,10 @@
 #include <resources/Mesh.hpp>
 #include <glm/glm.hpp>
 
+#ifndef MAX_MESHES
+#define MAX_MESHES 10000
+#endif  // !MAX_MESHES
+
 namespace KS
 {
 
@@ -56,7 +60,8 @@ enum Formats
 
 struct DrawEntry
 {
-    ResourceHandle<Mesh> mesh {};
+    ResourceHandle<Mesh> meshHandle {};
+    std::shared_ptr<Mesh> mesh {};
     Material material {};
     int modelIndex;
     glm::mat4x4 modelMat;
