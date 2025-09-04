@@ -35,6 +35,7 @@ public:
 
 private:
     std::shared_ptr<ShaderInputCollection> m_mainInputs;
+    std::shared_ptr<ShaderInputCollection> m_rtInputs;
     std::unique_ptr<SubRenderer> m_subrenderers[NUM_SUBRENDER];
     std::shared_ptr<RenderTarget> m_renderTargets[NUM_SUBRENDER];
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_inputs[NUM_SUBRENDER];

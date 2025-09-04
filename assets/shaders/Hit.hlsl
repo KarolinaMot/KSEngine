@@ -1,6 +1,6 @@
 #include "Common.hlsl"
 
-[shader("closesthit")] 
+[shader("closesthit")]
 void ClosestHit(inout HitInfo payload, Attributes attrib) 
 {
     float3 barycentrics =

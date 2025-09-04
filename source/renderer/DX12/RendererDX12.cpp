@@ -50,6 +50,13 @@ KS::Renderer::Renderer(Device& device)
                      .AddStaticSampler(ShaderInputVisibility::COMPUTE, clampSampler)
                      .Build(device, "MAIN SIGNATURE");
 
+    m_rtInputs = ShaderInputCollectionBuilder()
+                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
+                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 2, "bvh")
+                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output", ShaderInputMod::READ_WRITE)
+                     .Build(device, "RAYTRACE SIGNATURE");
+
     std::shared_ptr<Texture> deferredRendererTex[2][4];
     std::shared_ptr<Texture> deferredRendererDepthTex;
     std::shared_ptr<Texture> pbrResTex[2];
@@ -119,7 +126,6 @@ KS::Renderer::Renderer(Device& device)
                                       Formats::R8G8B8A8_UNORM},
                                      fullInputFlags);
 
-    
     std::shared_ptr<Shader> lightOccluderShader =
         std::make_shared<Shader>(device, ShaderType::ST_MESH_RENDER, m_mainInputs,
                                  std::initializer_list<std::string>{"assets/shaders/OccluderShader.hlsl"},
@@ -141,6 +147,11 @@ KS::Renderer::Renderer(Device& device)
     std::shared_ptr<Shader> upscalingShader = std::make_shared<Shader>(
         device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Upscaling.hlsl"},
                                  std::initializer_list<Formats>{});
+
+     std::shared_ptr<Shader> rtShader = std::make_shared<Shader>(
+        device, ShaderType::ST_RAYTRACER, m_rtInputs,
+        std::initializer_list<std::string>{"assets/shaders/Hit.hlsl", "assets/shaders/Miss.hlsl", "assets/shaders/RayGen.hlsl"},
+        std::initializer_list<Formats>{});
 
 
     m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
@@ -205,11 +216,11 @@ KS::Renderer::Renderer(Device& device)
     upscalingDesc.depthStencil = m_deferredRendererDepthStencil;
     m_subrenderers[UPSCALING_RENDER] = std::make_unique<ComputeRenderer>(device, upscalingDesc);
 
-    //SubRendererDesc rtDesc;
-    //rtDesc.shader = rtShader;
-    //rtDesc.renderTarget = m_renderTargets[RT_RENDER];
-    //rtDesc.depthStencil = m_deferredRendererDepthStencil;
-    //m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtDesc, m_camera_buffer.get());
+    SubRendererDesc rtDesc;
+    rtDesc.shader = rtShader;
+    rtDesc.renderTarget = m_renderTargets[RT_RENDER];
+    rtDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtDesc, m_camera_buffer.get());
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(6);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(2);
