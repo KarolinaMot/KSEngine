@@ -138,14 +138,29 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 1};
 
-          D3D12_STATE_SUBOBJECT subobjects[] = {
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &hitLibrary.libDesc},
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &missLibrary.libDesc},
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &rayGenLibrary.libDesc},
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, .pDesc = &hitGroup},
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, .pDesc = &shaderCfg},
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, .pDesc = &globalSig},
-            {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, .pDesc = &pipelineCfg}};
+        D3D12_STATE_SUBOBJECT subobjects[8] = {
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &hitLibrary.libDesc},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &missLibrary.libDesc},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &rayGenLibrary.libDesc},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, .pDesc = &hitGroup},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, .pDesc = &shaderCfg},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, .pDesc = &globalSig},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, .pDesc = &pipelineCfg}};
+
+        // Create a list of shader entry point names that use the payload.
+        const WCHAR* shaderPayloadExports[] = {
+            L"RayGen",
+            L"HitGroup",
+            L"Miss"
+        };
+
+        D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocDesc = {};
+        assocDesc.NumExports = _countof(shaderPayloadExports);
+        assocDesc.pExports = shaderPayloadExports;
+        assocDesc.pSubobjectToAssociate = &subobjects[4];
+
+        subobjects[7].Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+        subobjects[7].pDesc = &assocDesc; 
 
         D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
                                         .NumSubobjects = std::size(subobjects),

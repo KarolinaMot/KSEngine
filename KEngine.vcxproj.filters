@@ -171,10 +171,10 @@
     <ClCompile Include="source\renderer\DX12\RTRendererDX12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="scene\Scene.cpp">
+    <ClCompile Include="source\scene\Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\scene\Scene.cpp">
+    <ClCompile Include="source\renderer\DX12\Helpers\DXShaderTable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -512,10 +512,10 @@
     <ClInclude Include="source\renderer\DX12\Helpers\DXRTPipeline.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="scene\Scene.hpp">
+    <ClInclude Include="source\scene\Scene.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\scene\Scene.hpp">
+    <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
