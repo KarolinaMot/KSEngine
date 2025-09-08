@@ -123,17 +123,18 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 modelMat.mTransposed = glm::transpose(modelMat.mModel);
                 m_modelMatrices[m_modelCount] = modelMat;
 
+                auto baseTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME);
+                auto normalTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME);
+                auto emissiveTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME);
+                auto roughMetHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME);
+                auto occlusionHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME);
+
                 MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
-                auto baseTex =
-                    GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
-                auto normalTex =
-                    GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-                auto emissiveTex =
-                    GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
-                auto roughMetTex =
-                    GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-                auto occlusionTex =
-                    GetTexture(device, *mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
+                auto baseTex = GetTexture(device, *baseTexHandle);
+                auto normalTex = GetTexture(device, *normalTexHandle);
+                auto emissiveTex = GetTexture(device, *emissiveTexHandle);
+                auto roughMetTex = GetTexture(device, *roughMetHandle);
+                auto occlusionTex = GetTexture(device, *occlusionHandle);
 
                 matInfo.useColorTex = baseTex != nullptr;
                 matInfo.useEmissiveTex = emissiveTex != nullptr;

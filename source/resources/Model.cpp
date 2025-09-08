@@ -195,25 +195,45 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
     {
         out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
     }
+    else
+    {
+        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
+    }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
     {
         out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+    }
+    else
+    {
+        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.png"});
     }
 
     if (auto path = GetTexture(aiTextureType_LIGHTMAP))
     {
         out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
     }
+    else
+    {
+        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
+    }
 
     if (auto path = GetTexture(aiTextureType_METALNESS))
     {
         out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
     }
+    else
+    {
+        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
+    }
 
     if (auto path = GetTexture(aiTextureType_EMISSIVE))
     {
         out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+    }
+    else
+    {
+        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
     }
 
     return out;
