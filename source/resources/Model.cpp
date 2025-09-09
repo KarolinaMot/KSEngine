@@ -20,6 +20,7 @@ MeshData ProcessMesh(const aiMesh* mesh)
 
     // Build Mesh
     MeshData new_mesh {};
+    new_mesh.m_name = std::string(mesh->mName.C_Str());
 
     // Indices
     if (mesh->HasFaces())

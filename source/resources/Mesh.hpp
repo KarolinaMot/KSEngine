@@ -39,6 +39,7 @@ public:
 
     auto begin() const { return attribute_data.begin(); }
     auto end() const { return attribute_data.end(); }
+    std::string m_name;
 
 private:
     friend class ::cereal::access;
@@ -86,6 +87,7 @@ public:
 
 private:
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
+    std::string m_name;
 };
 }
 

@@ -111,8 +111,11 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 MeshData data{};
                 bin(data);
                 auto meshPtr = std::make_shared<Mesh>(device, data);
-
-                draw_queue[name] =
+                if (data.m_name == "")
+                {
+                    data.m_name = name + std::to_string(m_modelCount);
+                }
+                draw_queue[data.m_name] =
                     KS::DrawEntry(ptr->meshes[mesh], meshPtr, ptr->materials[material], m_modelCount, scene_transform);
 
                 auto mat = ptr->materials[material];

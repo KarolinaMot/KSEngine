@@ -74,6 +74,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     commandList.ResourceBarrier(*m_impl->m_resource->GetResource().Get(), m_impl->m_resource->GetState(),
                                 D3D12_RESOURCE_STATE_COPY_DEST);
     m_impl->m_resource->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList.TrackResource(m_impl->m_resource->GetResource());
 
     // Copy from arena into DEFAULT heap buffer
     commandList.GetCommandList()->CopyBufferRegion(m_impl->m_resource->GetResource().Get(), 0,

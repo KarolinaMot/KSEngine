@@ -87,6 +87,7 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     commandList.ResourceBarrier(*m_impl->mTextureBuffer->GetResource().Get(), m_impl->mTextureBuffer->GetState(),
                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    commandList.TrackResource(m_impl->mTextureBuffer->GetResource());
 
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     m_impl->AllocateAsSRV(descriptorHeap);

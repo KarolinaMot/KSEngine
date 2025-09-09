@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 
 #ifndef MAX_MESHES
-#define MAX_MESHES 512
+#define MAX_MESHES 2048
 #endif  // !MAX_MESHES
 
 namespace KS

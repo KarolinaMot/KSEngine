@@ -73,7 +73,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel.glb").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;

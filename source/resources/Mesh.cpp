@@ -20,6 +20,7 @@ const KS::ByteBuffer* KS::MeshData::GetAttribute(const std::string& name) const
 KS::Mesh::Mesh(const Device& device, const MeshData& data)
 {
     DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    m_name = data.m_name;
     for (const auto& [name, attributes] : data)
     {
         auto view = attributes.GetView<uint8_t>();
