@@ -18,8 +18,9 @@ class DXCommandList;
 namespace KS
 {
 
-    class ShaderInputCollection;
+class ShaderInputCollection;
 class Shader;
+class UploadArena;
 struct DeviceInitParams
 {
     std::string name = "KS Engine";
@@ -54,10 +55,11 @@ public:
     int GetWidth() const { return m_width; }
     int GetHeight() const { return m_height; }
     void TrackResource(::std::shared_ptr<void> buffer);
-    std::shared_ptr<RenderTarget> GetRenderTarget() { return m_swapchainRT; };
-    std::shared_ptr<Texture> GetRenderTargetTexture(int index) { return m_swapchainTex[index]; };
-    std::shared_ptr<DepthStencil> GetDepthStencil() { return m_swapchainDS; };
-    std::shared_ptr<Texture> GetDepthStencilTex() { return m_swapchainDepthTex; };
+    std::shared_ptr<RenderTarget> GetRenderTarget() const { return m_swapchainRT; };
+    std::shared_ptr<Texture> GetRenderTargetTexture(int index) const { return m_swapchainTex[index]; };
+    std::shared_ptr<DepthStencil> GetDepthStencil() const { return m_swapchainDS; };
+    std::shared_ptr<Texture> GetDepthStencilTex() const { return m_swapchainDepthTex; };
+    UploadArena* GetUploadArena() const;
     ShaderInputCollection* GetMipGenShaderInputs() const { return m_mipMapShaderInputs.get(); }
     Shader* GetMipGenShader() const { return m_mipMapShader.get(); }
     // Blocks until all rendering operations are finished

@@ -8,6 +8,7 @@
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandQueue.hpp>
+#include <renderer/UploadArena.h>
 #include <tools/Log.hpp>
 #include "DX12/DXFactory.hpp"
 
@@ -55,6 +56,8 @@ public:
     std::unique_ptr<DXCommandList> m_command_list[NUM_THREADS];
     std::shared_ptr<DXCommandAllocator> m_command_allocator[FRAME_BUFFER_COUNT][NUM_THREADS];
     DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
+    std::shared_ptr<UploadArena> m_uploadArena;
+
 
     std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
     const DXGI_FORMAT m_depth_format = DXGI_FORMAT_D32_FLOAT;
@@ -185,6 +188,8 @@ void KS::Device::FinishInitialization()
     m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
                                               std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
                                               std::initializer_list<Formats>{});
+    int size = 128 * 1024;
+    m_impl->m_uploadArena = std::make_shared<UploadArena>(size);
 
     for (int i = 0; i < NUM_THREADS; i++)
     {
@@ -225,8 +230,12 @@ void KS::Device::TrackResource(std::shared_ptr<void> buffer)
 {
 }
 
-void KS::Device::Flush()
-{
+KS::UploadArena* KS::Device::GetUploadArena() const
+{ 
+    return m_impl->m_uploadArena.get();
+}
+
+void KS::Device::Flush() {
     m_impl->m_command_queue->Flush();
 }
 
@@ -275,7 +284,8 @@ UINT KS::Device::Impl::GetFramebufferIndex()
 void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor)
 {
     // Wait until the current swapchain is available;
-    m_fence_values->Wait();
+    m_fence_values[cpuFrame].Wait();
+    m_uploadArena->Recycle(m_fence_values[cpuFrame].GetFutureValue());
 
     for (int i = 0; i < NUM_THREADS; i++)
     {
@@ -287,7 +297,6 @@ void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearC
 
 void KS::Device::Impl::EndFrame(int cpuFrame)
 {
-
     // CLOSE COMMAND LIST
     const DXCommandList* commandLists[NUM_THREADS];
 
@@ -303,9 +312,9 @@ void KS::Device::Impl::EndFrame(int cpuFrame)
     {
         LOG(Log::Severity::FATAL, "Failed to present");
     }
-
     
     m_fence_values[cpuFrame] = m_command_queue->ExecuteCommandLists(&commandLists[0], NUM_THREADS);
+    m_uploadArena->OnSubmit(m_fence_values[cpuFrame].GetFutureValue());
 }
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)

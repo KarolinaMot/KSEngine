@@ -11,6 +11,7 @@
 #include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXCommandList.hpp"
 #include "Helpers/DX12Conversion.hpp"
+#include <renderer/UploadArena.h>
 
 class KS::Texture::Impl
 {
@@ -20,6 +21,7 @@ public:
     DXHeapHandle mSRVHeapSlot {};
     DXHeapHandle mUAVHeapSlot {};
     DXHeapHandle mUAVMipslots[3]{};
+    UploadSlice m_slice;
 
     void AllocateAsUAV(DXDescHeap* descriptorHeap);
     void AllocateAsUAV(DXDescHeap* descriptorHeap, int slot);
@@ -63,12 +65,29 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     const int bitsPerPixel = 32;
     int bytesPerRow = (m_width * bitsPerPixel) / 8;
 
+
+    const UINT64 bytes = bytesPerRow * m_height;
+    auto upl = device.GetUploadArena();
+    m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
+
+    commandList.ResourceBarrier(*m_impl->mTextureBuffer->GetResource().Get(), m_impl->mTextureBuffer->GetState(),
+                                D3D12_RESOURCE_STATE_COPY_DEST);
+    m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
+
+    auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_impl->m_slice.m_pageID));
+    
     D3D12_SUBRESOURCE_DATA textureData = {};
     textureData.pData = image.GetData().GetView<uint8_t>().begin();
     textureData.RowPitch = bytesPerRow;
     textureData.SlicePitch = bytesPerRow * m_height;
-    m_impl->mTextureBuffer->CreateUploadBuffer(engineDevice, static_cast<int>(textureUploadBufferSize), 0, "Texture buffer resource upload buffer");
-    m_impl->mTextureBuffer->Update(commandList, textureData, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 0, 1);
+
+    UpdateSubresources(commandList.GetCommandList().Get(), m_impl->mTextureBuffer->GetResource().Get(),
+                       uploadSource->GetResource().Get(), static_cast<UINT64>(m_impl->m_slice.m_head), 0, 1, &textureData);
+
+    commandList.ResourceBarrier(*m_impl->mTextureBuffer->GetResource().Get(), m_impl->mTextureBuffer->GetState(),
+                                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     m_impl->AllocateAsSRV(descriptorHeap);
 

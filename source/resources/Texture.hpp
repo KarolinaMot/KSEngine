@@ -10,6 +10,8 @@ class Device;
 class Image;
 class RenderTarget;
 class DepthStencil;
+class UploadArena;
+
 class Texture : public ShaderInput
 {
     friend RenderTarget;

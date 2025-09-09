@@ -139,10 +139,31 @@
                         }
                     },
                     {
+                        "key": "BASE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets/textures/White.png"
+                        }
+                    },
+                    {
                         "key": "DOUBLE_SIDED",
                         "value": {
                             "index": 0,
                             "data": false
+                        }
+                    },
+                    {
+                        "key": "EMISSIVE_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets/textures/Black.png"
+                        }
+                    },
+                    {
+                        "key": "METALLIC_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets/textures/Black.png"
                         }
                     },
                     {
@@ -155,6 +176,20 @@
                                 "value2": 0.5,
                                 "value3": 0.0
                             }
+                        }
+                    },
+                    {
+                        "key": "NORMAL_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets/textures/Blue.png"
+                        }
+                    },
+                    {
+                        "key": "OCCLUSION_TEXTURE",
+                        "value": {
+                            "index": 4,
+                            "data": "assets/textures/White.png"
                         }
                     },
                     {

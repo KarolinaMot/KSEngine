@@ -6,11 +6,9 @@
 #include <renderer/ShaderInput.hpp>
 
 class DXCommandList;
-
-
 namespace KS
 {
-class Device;
+class UploadArena;
 class StorageBuffer : public ShaderInput
 {
 public:
@@ -26,14 +24,16 @@ public:
     ~StorageBuffer();
 
     template <typename T>
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const std::vector<T>& data,
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name,
+                  const std::vector<T>& data,
                   bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
         : StorageBuffer(device, commandList, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : data.size(),
                         readWriteEnabled, flags)
     {
     }
 
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, size_t stride,
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data,
+                  size_t stride,
                   size_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
     {
         m_read_write = readWriteEnabled;
@@ -44,7 +44,7 @@ public:
         m_flags = flags;
 
         CreateBuffer(device, name, stride, m_num_elements);
-        UploadDataBuffer(commandList, data, m_num_elements);
+        UploadDataBuffer(device, commandList, data, m_num_elements);
     }
 
     template <typename T>
@@ -58,8 +58,7 @@ public:
         }
 
         if (data.size() > m_num_elements) Resize(device, data.size());
-
-        UploadDataBuffer(commandList, data.data(), data.size());
+        UploadDataBuffer(device, commandList, data.data(), data.size());
     }
 
     template <typename T>
@@ -79,8 +78,7 @@ public:
         }
 
         if (numElements > m_num_elements) Resize(device, numElements);
-
-        UploadDataBuffer(commandList, data, numElements);
+        UploadDataBuffer(device, commandList, data, numElements);
     }
 
     void Resize(const Device& device, int newNumOfElements);
@@ -102,9 +100,8 @@ public:
 
 
 private:
-    void CreateBuffer(const Device& device, const std::string& name, size_t dataSize,
-                      int numOfElements);
-    void UploadDataBuffer(DXCommandList& commandList, const void* data, int numOfElements);
+    void CreateBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
+    void UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, int numOfElements);
 
     bool m_read_write = false;
     size_t m_total_buffer_size = 0;

@@ -73,6 +73,7 @@
     <ClCompile Include="source\resources\Mesh.cpp" />
     <ClCompile Include="source\resources\Model.cpp" />
     <ClCompile Include="source\scene\Scene.cpp" />
+    <ClCompile Include="source\renderer\DX12\UploadArenaDX12.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h" />
@@ -188,6 +189,7 @@
     <ClInclude Include="source\tools\Log.hpp" />
     <ClInclude Include="source\tools\Profiler.hpp" />
     <ClInclude Include="source\tools\Timer.hpp" />
+    <ClInclude Include="source\renderer\UploadArena.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

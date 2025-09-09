@@ -177,6 +177,9 @@
     <ClCompile Include="source\renderer\DX12\Helpers\DXShaderTable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\renderer\DX12\UploadArenaDX12.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\components\ComponentCamera.hpp">
@@ -516,6 +519,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\UploadArena.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
