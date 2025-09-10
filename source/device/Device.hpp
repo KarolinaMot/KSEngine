@@ -15,6 +15,7 @@
 #include <resources/Texture.hpp>
 
 class DXCommandList;
+struct DXCommandContext;
 namespace KS
 {
 
@@ -37,7 +38,8 @@ public:
     ~Device();
 
     void* GetDevice() const;
-    void* GetCommandList(int index = 0) const;
+    DXCommandContext GetCommandContext() const;
+    void CloseCommandContext(DXCommandContext&&) const;
     void* GetResourceHeap() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;

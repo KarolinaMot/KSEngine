@@ -5,7 +5,7 @@
 #include <vector>
 #include <renderer/ShaderInput.hpp>
 
-class DXCommandList;
+class DXCommandContext;
 namespace KS
 {
 class UploadArena;
@@ -43,7 +43,7 @@ public:
         m_name = name;
         m_flags = flags;
 
-        CreateBuffer(device, name, stride, m_num_elements);
+        CreateBuffer(device,commandList, name, stride, m_num_elements);
         UploadDataBuffer(device, commandList, data, m_num_elements);
     }
 
@@ -57,7 +57,8 @@ public:
             return;
         }
 
-        if (data.size() > m_num_elements) Resize(device, data.size());
+        if (data.size() > m_num_elements)
+            Resize(device, commandList, data.size());
         UploadDataBuffer(device, commandList, data.data(), data.size());
     }
 
@@ -77,11 +78,11 @@ public:
             return;
         }
 
-        if (numElements > m_num_elements) Resize(device, numElements);
+        if (numElements > m_num_elements) Resize(device, commandList, numElements);
         UploadDataBuffer(device, commandList, data, numElements);
     }
 
-    void Resize(const Device& device, int newNumOfElements);
+    void Resize(const Device& device, DXCommandList& commandList, int newNumOfElements);
     virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
                       uint32_t offsetIndex = 0) override;
     void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0);
@@ -100,7 +101,8 @@ public:
 
 
 private:
-    void CreateBuffer(const Device& device, const std::string& name, size_t dataSize, int numOfElements);
+    void CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name, size_t dataSize,
+                      int numOfElements);
     void UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, int numOfElements);
 
     bool m_read_write = false;

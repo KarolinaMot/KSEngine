@@ -7,6 +7,7 @@
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
 #include <renderer/UniformBuffer.hpp>
 #include <renderer/Shader.hpp>
@@ -86,12 +87,12 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
 
 KS::RTRenderer::~RTRenderer() {}
 
-void KS::RTRenderer::Render(Device& device, int commandListID, Scene& scene,
+void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
                             std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
     int i = 0;
     int cpuFrameIndex = device.GetFrameIndex();
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    auto& commandList = commandContext->m_commandList;
     auto& sbtInfo = m_impl->m_SBTinfo[cpuFrameIndex];
 
     m_frameIndex->Update(device, cpuFrameIndex);

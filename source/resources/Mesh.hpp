@@ -82,7 +82,7 @@ inline void MeshData::load(A& ar, const uint32_t v)
 class Mesh
 {
 public:
-    Mesh(const Device& device, const MeshData& data);
+    Mesh(const Device& device, DXCommandList& commandList, const MeshData& data);
     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
 
 private:

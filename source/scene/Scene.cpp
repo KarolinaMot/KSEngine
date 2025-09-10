@@ -4,6 +4,7 @@
 #include <renderer/ShaderInputCollection.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DX12Conversion.hpp>
 
 #include <DXR/DXRHelper.h>
@@ -52,15 +53,17 @@ public:
 
 KS::Scene::Scene(const Device& device)
 {
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+
     m_impl = std::make_unique<Impl>();
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), MAX_MESHES, false);
+        device, *commandList.get(), "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), MAX_MESHES, false);
+        device, *commandList.get(), "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
 
@@ -76,15 +79,20 @@ KS::Scene::Scene(const Device& device)
         std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1, false);
     mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1, false);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
+        std::make_unique<StorageBuffer>(device, *commandList.get(), "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
+        std::make_unique<StorageBuffer>(device, *commandList.get(), "POINT LIGHT BUFFER", m_pointLights, false);
+
+    device.CloseCommandContext(std::move(commandContext));
 }
 
 KS::Scene::~Scene() {}
 
 void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name)
 {
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+
     if (auto* ptr = GetModel(model))
     {
         for (auto node : ptr->nodes)
@@ -110,7 +118,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 BinaryLoader bin{fileRead.value()};
                 MeshData data{};
                 bin(data);
-                auto meshPtr = std::make_shared<Mesh>(device, data);
+                auto meshPtr = std::make_shared<Mesh>(device, *commandList, data);
                 if (data.m_name == "")
                 {
                     data.m_name = name + std::to_string(m_modelCount);
@@ -133,11 +141,11 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 auto occlusionHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME);
 
                 MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
-                auto baseTex = GetTexture(device, *baseTexHandle);
-                auto normalTex = GetTexture(device, *normalTexHandle);
-                auto emissiveTex = GetTexture(device, *emissiveTexHandle);
-                auto roughMetTex = GetTexture(device, *roughMetHandle);
-                auto occlusionTex = GetTexture(device, *occlusionHandle);
+                auto baseTex = GetTexture(device, commandList.get(), *baseTexHandle);
+                auto normalTex = GetTexture(device, commandList.get(), *normalTexHandle);
+                auto emissiveTex = GetTexture(device, commandList.get(), *emissiveTexHandle);
+                auto roughMetTex = GetTexture(device, commandList.get(), *roughMetHandle);
+                auto occlusionTex = GetTexture(device, commandList.get(), *occlusionHandle);
 
                 matInfo.useColorTex = baseTex != nullptr;
                 matInfo.useEmissiveTex = emissiveTex != nullptr;
@@ -153,12 +161,12 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
         }
     }
 
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, &m_materialInstances[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
+    device.CloseCommandContext(std::move(commandContext));
 }
 
 void KS::Scene::ApplyModelTransform(Device& device, std::string name, const glm::mat4& transfrom)
@@ -206,7 +214,8 @@ void KS::Scene::Tick(Device& device)
     //     memset(m_impl->m_BLBuffers, 0, 200 * sizeof(Impl::ASBuffers));
     //     m_impl->m_BLCount = 0;
     // }
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
 
     // int i =0;
     // auto cpuFrameIndex = device.GetCPUFrameIndex();
@@ -224,6 +233,7 @@ void KS::Scene::Tick(Device& device)
     // CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, cpuFrameIndex);
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
+    device.CloseCommandContext(std::move(commandContext));
 }
 
 const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
@@ -248,10 +258,8 @@ const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
     return nullptr;
 }
 
-std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, ResourceHandle<Texture> imgPath)
+std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath)
 {
-    auto commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
-
     // Cached result
     if (auto it = tex_cache.find(imgPath); it != tex_cache.end())
     {
@@ -294,22 +302,24 @@ KS::MaterialInfo KS::Scene::GetMaterialInfo(const Material& material) const
     return info;
 }
 
-KS::MeshSet KS::Scene::GetMeshSet(Device& device, int index)
+KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, int index)
 {
     auto draw_entry = (*std::next(draw_queue.begin(), index)).second;
 
     MeshSet meshSet;
     meshSet.mesh = draw_entry.mesh.get();
     meshSet.baseTex =
-        GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
     meshSet.normalTex =
-        GetTexture(device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-    meshSet.emissiveTex = GetTexture(
-        device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
-    meshSet.roughMetTex = GetTexture(
-        device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-    meshSet.occlusionTex = GetTexture(
-        device, *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
+    meshSet.emissiveTex = GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
+    meshSet.roughMetTex = GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
+    meshSet.occlusionTex = GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
     meshSet.modelIndex = draw_entry.modelIndex;
 
     return meshSet;

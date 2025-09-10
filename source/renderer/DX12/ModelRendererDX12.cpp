@@ -2,6 +2,7 @@
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputCollection.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 
 #include <device/Device.hpp>
 #include <resources/Texture.hpp>
@@ -19,12 +20,12 @@ KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc) : 
 
 KS::ModelRenderer::~ModelRenderer() {}
 
-void KS::ModelRenderer::Render(Device& device, int commandListID, Scene& scene,
+void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
                                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
     auto pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto mainCommandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(commandListID));
+    auto& mainCommandList = commandContext->m_commandList;
 
     m_renderTarget->PrepareToRenderTo(device, *mainCommandList);
     m_depthStencil->PrepareToUse(device, *mainCommandList);
@@ -50,7 +51,7 @@ void KS::ModelRenderer::Render(Device& device, int commandListID, Scene& scene,
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
 
-    BindDrawResources(mainCommandList);
+    BindDrawResources(mainCommandList.get());
 
     int drawQueueSize = scene.GetDrawQueueSize();
 
@@ -97,7 +98,7 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
 {
     if (index >= scene.GetDrawQueueSize()) return;
 
-    MeshSet meshSet = scene.GetMeshSet(device, index);
+    MeshSet meshSet = scene.GetMeshSet(device, &commandList, index);
     if (meshSet.mesh == nullptr || meshSet.baseTex == nullptr) return;
 
     using namespace MeshConstants;

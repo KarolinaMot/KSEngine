@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\renderer\DX12\Helpers\DXCommandContextPool.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXShaderTable.cpp" />
     <ClCompile Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.cpp" />
     <ClCompile Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.cpp" />
@@ -76,6 +77,7 @@
     <ClCompile Include="source\renderer\DX12\UploadArenaDX12.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\renderer\DX12\Helpers\DXCommandContextPool.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h" />
     <ClInclude Include="external\DXR\DXRHelper.h" />
     <ClInclude Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.h" />

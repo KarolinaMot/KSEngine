@@ -53,7 +53,7 @@ public:
 
     int32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
-    MeshSet GetMeshSet(Device& device, int index);
+    MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) { return mUniformBuffers[buffer].get(); }
@@ -68,7 +68,7 @@ private:
     void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
 
     const Model* GetModel(ResourceHandle<Model> model);
-    std::shared_ptr<Texture> GetTexture(Device& device, ResourceHandle<Texture> imgPath);
+    std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
 
     struct Impl;
     std::unique_ptr<Impl> m_impl;

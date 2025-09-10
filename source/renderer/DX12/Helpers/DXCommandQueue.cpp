@@ -1,5 +1,6 @@
 #include "DXCommandQueue.hpp"
 #include "DXCommandList.hpp"
+#include "DXCommandContextPool.hpp"
 
 DXCommandQueue::DXCommandQueue(const ComPtr<ID3D12Device5>& device, const std::wstring& name)
 {
@@ -13,24 +14,21 @@ DXCommandQueue::DXCommandQueue(const ComPtr<ID3D12Device5>& device, const std::w
 
 DXCommandQueue::~DXCommandQueue()
 {
-    Flush();
-}
-
-void DXCommandQueue::Flush()
-{
     m_fence->Signal(m_command_queue, ++m_next_fence_value);
     m_fence->WaitFor(m_next_fence_value);
 }
 
-DXGPUFuture DXCommandQueue::ExecuteCommandLists(const DXCommandList** ppCommandLists, uint32_t commandListCount)
+DXGPUFuture DXCommandQueue::ExecuteCommandLists(ID3D12CommandList* const* ppCommandContexts,
+                                                uint32_t commandContextsCount)
 {
+    std::lock_guard<std::mutex> lock(m_submitMutex);
     ID3D12CommandList* commandLists[20];
-    for (int i = 0; i < commandListCount; i++)
-    {
-        commandLists[i] = ppCommandLists[i]->GetCommandList().Get();
-    }
+    //for (int i = 0; i < commandContextsCount; i++)
+    //{
+    //    commandLists[i] = ppCommandContexts[i].m_commandList->GetCommandList().Get();
+    //}
 
-    m_command_queue->ExecuteCommandLists(commandListCount, commandLists);
+    m_command_queue->ExecuteCommandLists(commandContextsCount, ppCommandContexts);
     m_fence->Signal(m_command_queue, ++m_next_fence_value);
 
     return DXGPUFuture(m_fence, m_next_fence_value);

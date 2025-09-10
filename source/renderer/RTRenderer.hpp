@@ -23,8 +23,8 @@ class RTRenderer : public SubRenderer
 public:
     RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer* cameraBuffer);
     ~RTRenderer();
-    void Render(Device& device, int commandListID, Scene& scene, std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs,
-                bool clearRT) override;
+    void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
+                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT) override;
 
 private:
     class Impl;

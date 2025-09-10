@@ -17,9 +17,8 @@ const KS::ByteBuffer* KS::MeshData::GetAttribute(const std::string& name) const
     return nullptr;
 }
 
-KS::Mesh::Mesh(const Device& device, const MeshData& data)
+KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData& data)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
     m_name = data.m_name;
     for (const auto& [name, attributes] : data)
     {
@@ -37,7 +36,7 @@ KS::Mesh::Mesh(const Device& device, const MeshData& data)
 
 
         auto buffer =
-            std::make_shared<KS::StorageBuffer>(device, *commandList, name, start, stride, size / stride, false, flag);
+            std::make_shared<KS::StorageBuffer>(device, commandList, name, start, stride, size / stride, false, flag);
 
         m_data.emplace(name, buffer);
     }

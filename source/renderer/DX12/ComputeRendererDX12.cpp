@@ -2,6 +2,7 @@
 #include <renderer/RenderTarget.hpp>
 #include <resources/Texture.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputCollection.hpp>
 #include <device/Device.hpp>
@@ -10,10 +11,10 @@ KS::ComputeRenderer::ComputeRenderer(const Device& device, SubRendererDesc& desc
 
 KS::ComputeRenderer::~ComputeRenderer() {}
 
-void KS::ComputeRenderer::Render(Device& device, int commandListID, Scene& scene,
+void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
                                  std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList(commandListID));
+    auto& commandList = commandContext->m_commandList;
     ID3D12PipelineState* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
 
     commandList->BindPipeline(pipeline);

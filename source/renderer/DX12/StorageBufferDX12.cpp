@@ -25,12 +25,11 @@ KS::StorageBuffer::~StorageBuffer() {
     delete m_impl;
 }
 
-void KS::StorageBuffer::CreateBuffer(const Device& device, const std::string& name, size_t dataSize,
+void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name, size_t dataSize,
                                      int numOfElements)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     if (m_read_write)
         m_impl->m_flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -49,7 +48,7 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, const std::string& na
    
    const UINT64 bytes = UINT64(m_buffer_stride) * UINT64(numOfElements);
    auto upl = device.GetUploadArena();
-   m_impl->m_slice = upl->Allocate(device, *commandList, bytes, 255);
+   m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, int numOfElements)
@@ -85,10 +84,9 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     m_impl->m_resource->ChangeState(destState);
 }
 
-void KS::StorageBuffer::Resize(const Device& device, int newNumOfElements)
+void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, int newNumOfElements)
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    DXCommandList* commandList = reinterpret_cast<DXCommandList*>(device.GetCommandList());
 
     m_num_elements = newNumOfElements;
 
@@ -106,7 +104,7 @@ void KS::StorageBuffer::Resize(const Device& device, int newNumOfElements)
     m_impl->m_resource = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, m_name.c_str());
     const UINT64 bytes = UINT64(m_buffer_stride) * UINT64(m_num_elements);
     auto upl = device.GetUploadArena();
-    m_impl->m_slice = upl->Allocate(device, *commandList, bytes, 255);
+    m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
 }
 
 void KS::StorageBuffer::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex)

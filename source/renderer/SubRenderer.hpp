@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+struct DXCommandContext;
 namespace KS
 {
 class Device;
@@ -29,7 +30,7 @@ public:
     SubRenderer(const Device& device, SubRendererDesc& desc)
         : m_shader(desc.shader), m_renderTarget(desc.renderTarget), m_depthStencil(desc.depthStencil){};
     virtual ~SubRenderer() = default;
-    virtual void Render(Device& device, int commandListID, Scene& scene,
+    virtual void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
                         std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT) = 0;
     const Shader* GetShader() const { return m_shader.get(); }
 
