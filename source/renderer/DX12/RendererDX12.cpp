@@ -320,8 +320,5 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     auto& boundRT = raytraced ? m_renderTargets[RT_RENDER] : m_renderTargets[PBR_RENDER];
     device.GetRenderTarget()->CopyTo(device, *commandList, boundRT, 0, 0);
 
-    device.GetRenderTarget()->PrepareToRenderTo(device, *commandList);
-    device.GetRenderTarget()->Bind(device, *commandList, device.GetDepthStencil().get());
-
     device.CloseCommandContext(std::move(commandContext));
 }

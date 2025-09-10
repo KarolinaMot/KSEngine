@@ -148,6 +148,8 @@ void KS::Device::EndFrame()
 
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP].get();
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+    GetRenderTarget()->PrepareToRenderTo(*this, *commandList);
+    GetRenderTarget()->Bind(*this, *commandList, GetDepthStencil().get());
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
     glfwSwapBuffers(m_impl->m_window);
