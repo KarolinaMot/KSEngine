@@ -19,6 +19,8 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
 
     commandList->BindPipeline(pipeline);
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), true);
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
     if (clearRT)
     {

@@ -20,9 +20,29 @@ KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc) : 
 
 KS::ModelRenderer::~ModelRenderer() {}
 
+bool SplitEven(int total, int parts, int i, int& start, int& end)
+{
+    const int used = std::min(parts, total);
+    const int base = used ? total / used : 0;
+    const int rem = used ? total % used : 0;
+    if (i >= used)
+    {
+        start = end = 0;
+        return true;
+    }
+    start = i * base + std::min(i, rem);
+    const int count = base + (i < rem ? 1 : 0);
+    end = start + count;  // end is exclusive
+
+    return count != 0;
+}
+
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
                                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
+    int drawQueueSize = scene.GetDrawQueueSize();
+    if (drawQueueSize == 0) return;
+
     auto pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     auto& mainCommandList = commandContext->m_commandList;
@@ -34,8 +54,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         m_renderTarget->Clear(device, *mainCommandList);
     }
     m_depthStencil->Clear(device, *mainCommandList);
-
-
+    
     auto BindDrawResources = [&](DXCommandList* cmdList)
     {
         cmdList->BindPipeline(pipeline);
@@ -51,47 +70,39 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
 
-    BindDrawResources(mainCommandList.get());
+    device.CloseCommandContext(std::move(*commandContext));
 
-    int drawQueueSize = scene.GetDrawQueueSize();
-
-    for (int i = 0; i < drawQueueSize; i++)
+    auto RecordDrawCommandList = [&](int threadIndex, int startMeshIndex, int endMeshIndex, Device& device)
     {
-        DrawMesh(device, scene, *mainCommandList, i);
+        // Reuse the existing lambda
+        auto context = device.GetCommandContext();
+        BindDrawResources(context.m_commandList.get());
+
+        for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
+        {
+            DrawMesh(device, scene, *context.m_commandList.get(), meshIndex);
+        }
+        device.CloseCommandContext(std::move(context));
+    };
+
+    int drawObjectsPerThread = drawQueueSize / NUM_DRAW_THREAD;
+    int leftOverObjects = drawQueueSize % NUM_DRAW_THREAD;
+    std::vector<std::thread> workerThreads;
+    auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
+
+    for (int i = 0; i < NUM_DRAW_THREAD; ++i)
+    {
+        int start, end = 0;
+        bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
+        if (!enoughMeshes) break;
+
+        workerThreads.emplace_back(RecordDrawCommandList, i, start, end, std::ref(device));
     }
 
-
-    //auto RecordDrawCommandList = [&](int threadIndex, int startMeshIndex, int endMeshIndex, DXCommandList& drawCmdList)
-    //{
-    //    // Reuse the existing lambda
-    //    BindDrawResources(&drawCmdList);
-
-    //    for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
-    //    {
-    //        DrawMesh(device, scene, drawCmdList, meshIndex);
-    //    }
-    //};
-
-    //int drawQueueSize = scene.GetDrawQueueSize();
-    //int drawObjectsPerThread = drawQueueSize / NUM_DRAW_THREAD;
-    //int leftOverObjects = drawQueueSize % NUM_DRAW_THREAD;
-    //std::vector<std::thread> workerThreads;
-    //auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-
-    //for (int i = FIRST_DRAW_THREAD; i <= LAST_DRAW_THREAD; ++i)
-    //{
-    //    int start = (i - FIRST_DRAW_THREAD) * drawObjectsPerThread;
-    //    int count = (i == LAST_DRAW_THREAD) ? drawObjectsPerThread + leftOverObjects : drawObjectsPerThread;
-    //    int end = start + count - 1;
-
-    //    auto& drawList = *reinterpret_cast<DXCommandList*>(device.GetCommandList(i));
-    //    workerThreads.emplace_back(RecordDrawCommandList, i, start, end, std::ref(drawList));
-    //}
-
-    //for (auto& t : workerThreads)
-    //{
-    //    t.join();
-    //}
+    for (auto& t : workerThreads)
+    {
+        t.join();
+    }
 }
 
 void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index)

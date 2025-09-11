@@ -270,6 +270,8 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     m_inputs[DEFERRED_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), rootSignature->GetInput("material_info"));
     m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, scene, m_inputs[DEFERRED_RENDER], true);
 
+    commandContext = device.GetCommandContext();
+    commandList = commandContext.m_commandList;
 
     //RENDERING LIGHTS
     m_inputs[LIGHT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
@@ -282,6 +284,9 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     m_inputs[OCCLUDER_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
     m_inputs[OCCLUDER_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER), rootSignature->GetInput("model_matrix"));
     m_subrenderers[OCCLUDER_RENDER]->Render(device, &commandContext, scene, m_inputs[OCCLUDER_RENDER], false);
+
+    commandContext = device.GetCommandContext();
+    commandList = commandContext.m_commandList;
 
     //GENERATE LIGHT SCATTERING RENDER TARGET MIPS
     auto lightRenderTex = m_renderTargets[LIGHT_RENDER]->GetTexture(device, 0);
