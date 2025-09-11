@@ -240,7 +240,6 @@ KS::Renderer::~Renderer() {}
 
 void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced)
 {
-
     CameraMats cam{};
     cam.m_proj = params.projectionMatrix;
     cam.m_invProj = glm::inverse(params.projectionMatrix);
@@ -251,78 +250,109 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_cameraRight = glm::vec4(params.cameraRight, 1.f);
     m_camera_buffer->Update(device, cam, 0);
 
+    GodRays(device, scene, params);
+    Main(device, scene, params);
+}
+
+void KS::Renderer::GodRays(Device& device, Scene& scene, const RenderTickParams& params)
+{
+    if (scene.GetLightInfo().numPointLights == 0) return;
+
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
-
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
-
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
-    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()));
-    device.TrackResource(m_camera_buffer);
-    
-    //DEFERRED RENDERER
-    m_inputs[DEFERRED_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), rootSignature->GetInput("dir_lights"));
-    m_inputs[DEFERRED_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
-    m_inputs[DEFERRED_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),rootSignature->GetInput("light_info"));
-    m_inputs[DEFERRED_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
-    m_inputs[DEFERRED_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER), rootSignature->GetInput("model_matrix"));
-    m_inputs[DEFERRED_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), rootSignature->GetInput("material_info"));
-    m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, scene, m_inputs[DEFERRED_RENDER], true);
 
-    commandContext = device.GetCommandContext();
-    commandList = commandContext.m_commandList;
-
-    //RENDERING LIGHTS
-    m_inputs[LIGHT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
-    m_inputs[LIGHT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
-    m_inputs[LIGHT_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER),  rootSignature->GetInput("fog_info"));
-    m_inputs[LIGHT_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
+        // RENDERING LIGHTS
+    m_inputs[LIGHT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER),
+                                                                         rootSignature->GetInput("point_lights"));
+    m_inputs[LIGHT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),
+                                                                         rootSignature->GetInput("light_info"));
+    m_inputs[LIGHT_RENDER][2] =
+        std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER), rootSignature->GetInput("fog_info"));
+    m_inputs[LIGHT_RENDER][3] =
+        std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
     m_subrenderers[LIGHT_RENDER]->Render(device, &commandContext, scene, m_inputs[LIGHT_RENDER], true);
 
-    //RENDERING OCCLUDER MESHES
-    m_inputs[OCCLUDER_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
-    m_inputs[OCCLUDER_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER), rootSignature->GetInput("model_matrix"));
+    // RENDERING OCCLUDER MESHES
+    m_inputs[OCCLUDER_RENDER][0] =
+        std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
+    m_inputs[OCCLUDER_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER),
+                                                                            rootSignature->GetInput("model_matrix"));
     m_subrenderers[OCCLUDER_RENDER]->Render(device, &commandContext, scene, m_inputs[OCCLUDER_RENDER], false);
 
     commandContext = device.GetCommandContext();
     commandList = commandContext.m_commandList;
 
-    //GENERATE LIGHT SCATTERING RENDER TARGET MIPS
+    // GENERATE LIGHT SCATTERING RENDER TARGET MIPS
     auto lightRenderTex = m_renderTargets[LIGHT_RENDER]->GetTexture(device, 0);
     lightRenderTex->GenerateMipmaps(device, *commandList);
 
-    //LIGHT SHAFT RENDER
-    m_inputs[LIGHT_SHAFT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
-    m_inputs[LIGHT_SHAFT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
-    m_inputs[LIGHT_SHAFT_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER),  rootSignature->GetInput("fog_info"));
-    m_inputs[LIGHT_SHAFT_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
-    m_inputs[LIGHT_SHAFT_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(lightRenderTex.get(), rootSignature->GetInput("base_tex"));
+    // LIGHT SHAFT RENDER
+    m_inputs[LIGHT_SHAFT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER),
+                                                                               rootSignature->GetInput("point_lights"));
+    m_inputs[LIGHT_SHAFT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),
+                                                                               rootSignature->GetInput("light_info"));
+    m_inputs[LIGHT_SHAFT_RENDER][2] =
+        std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER), rootSignature->GetInput("fog_info"));
+    m_inputs[LIGHT_SHAFT_RENDER][3] =
+        std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
+    m_inputs[LIGHT_SHAFT_RENDER][4] =
+        std::pair<ShaderInput*, ShaderInputDesc>(lightRenderTex.get(), rootSignature->GetInput("base_tex"));
     m_subrenderers[LIGHT_SHAFT_RENDER]->Render(device, &commandContext, scene, m_inputs[LIGHT_SHAFT_RENDER], true);
 
-    //LIGHT SHAFT UPSCALE
+    // LIGHT SHAFT UPSCALE
     auto lightShaftTex = m_renderTargets[LIGHT_SHAFT_RENDER]->GetTexture(device, 0);
-    m_inputs[UPSCALING_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(lightShaftTex.get(), rootSignature->GetInput("base_tex"));
+    m_inputs[UPSCALING_RENDER][0] =
+        std::pair<ShaderInput*, ShaderInputDesc>(lightShaftTex.get(), rootSignature->GetInput("base_tex"));
     m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, scene, m_inputs[UPSCALING_RENDER], true);
 
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
-    commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
+    device.CloseCommandContext(std::move(commandContext));
+}
 
-    //PBR RENDER
+void KS::Renderer::Main(Device& device, Scene& scene, const RenderTickParams& params)
+{
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+    auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
+
+    // DEFERRED RENDERER
+    m_inputs[DEFERRED_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER),
+                                                                            rootSignature->GetInput("dir_lights"));
+    m_inputs[DEFERRED_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER),
+                                                                            rootSignature->GetInput("point_lights"));
+    m_inputs[DEFERRED_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),
+                                                                            rootSignature->GetInput("light_info"));
+    m_inputs[DEFERRED_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), 
+                                                                            rootSignature->GetInput("camera_matrix"));
+    m_inputs[DEFERRED_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER),
+                                                                            rootSignature->GetInput("model_matrix"));
+    m_inputs[DEFERRED_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER),
+                                                                            rootSignature->GetInput("material_info"));
+    m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, scene, m_inputs[DEFERRED_RENDER], true);
+
+    commandContext = device.GetCommandContext();
+    commandList = commandContext.m_commandList;
+
+    // PBR RENDER
     auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(device, 0);
     for (int i = 0; i < 4; i++)
     {
         auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(device, i);
-        m_inputs[PBR_RENDER][i] = std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
+        m_inputs[PBR_RENDER][i] =
+            std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
     }
+
     m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("base_tex"));
-    m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), rootSignature->GetInput("point_lights"));
-    m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),  rootSignature->GetInput("light_info"));
-    m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), rootSignature->GetInput("dir_lights"));
-    m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(),rootSignature->GetInput("camera_matrix"));
+    m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER),
+                                                                       rootSignature->GetInput("point_lights"));
+    m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER),
+                                                                       rootSignature->GetInput("light_info"));
+    m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER),
+                                                                       rootSignature->GetInput("dir_lights"));
+    m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
     m_subrenderers[PBR_RENDER]->Render(device, &commandContext, scene, m_inputs[PBR_RENDER], true);
 
-    auto& boundRT = raytraced ? m_renderTargets[RT_RENDER] : m_renderTargets[PBR_RENDER];
+    auto& boundRT =  m_renderTargets[PBR_RENDER];
     device.GetRenderTarget()->CopyTo(device, *commandList, boundRT, 0, 0);
 
     device.CloseCommandContext(std::move(commandContext));

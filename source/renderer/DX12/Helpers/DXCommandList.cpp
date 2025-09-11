@@ -332,7 +332,7 @@ void DXCommandList::Open(std::shared_ptr<DXCommandAllocator> allocator)
 {
     if (m_isOpen)
     {
-        LOG(Log::Severity::WARN, "Command list cannot be opened because it is already open. Command will be ignored.");
+        //LOG(Log::Severity::WARN, "Command list cannot be opened because it is already open. Command will be ignored.");
         return;
     }
 

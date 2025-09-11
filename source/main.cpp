@@ -107,20 +107,20 @@ int main()
     KS::Timer frametimer {};
     bool raytraced = false;
 
-    glm::vec3 lightPosition1 = glm::vec3(0.f, 0.f, 7.f);
+    glm::vec3 lightPosition1 = glm::normalize(glm::vec3(0.5f, 0.5f, 0.f));
     glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
 
-    scene.QueuePointLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f, 10.f);
+    scene.QueueDirectionalLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f);
     //scene.QueueModel(*device, model, glm::mat4x4(1.f), "SanMiguel");
 
     float spacing = 2.f;
     int count = 1;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 10; i++)
     {
-         for (int j = 0; j < 2; j++)
+         for (int j = 0; j <10; j++)
          {
-             for (int k = 0; k < 2; k++)
+             for (int k = 0; k < 10; k++)
              {
                 glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(i, j, k)*spacing);
                 transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(1.f, 0.f, 0.f));

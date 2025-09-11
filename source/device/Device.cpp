@@ -253,10 +253,6 @@ void KS::Device::InitializeImGUI()
     ImGui_ImplGlfw_SetCallbacksChainForAllWindows(true);
 }
 
-void KS::Device::TrackResource(std::shared_ptr<void> buffer)
-{
-}
-
 KS::UploadArena* KS::Device::GetUploadArena() const
 { 
     return m_impl->m_uploadArena.get();

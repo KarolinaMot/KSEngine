@@ -58,6 +58,7 @@ public:
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) { return mUniformBuffers[buffer].get(); }
     size_t GetDrawQueueSize() { return draw_queue.size(); }
+    LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
 
 private:

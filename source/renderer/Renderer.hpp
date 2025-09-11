@@ -34,6 +34,10 @@ public:
     void Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced = false);
 
 private:
+
+    void GodRays(Device& device, Scene& scene, const RenderTickParams& params);
+    void Main(Device& device, Scene& scene, const RenderTickParams& params);
+
     std::shared_ptr<ShaderInputCollection> m_mainInputs;
     std::shared_ptr<ShaderInputCollection> m_rtInputs;
     std::unique_ptr<SubRenderer> m_subrenderers[NUM_SUBRENDER];
@@ -41,6 +45,7 @@ private:
     std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_inputs[NUM_SUBRENDER];
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
     std::shared_ptr<UniformBuffer> m_camera_buffer;
+
 
     // std::shared_ptr<Texture> m_deferredRendererTex[2][4];E
     // std::shared_ptr<Texture> m_deferredRendererDepthTex;
