@@ -17,6 +17,7 @@
 #include <device/Device.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
+#include <renderer/TLAS.hpp>
 #include <resources/Model.hpp>
 #include <resources/Texture.hpp>
 #include <resources/Image.hpp>
@@ -82,6 +83,8 @@ KS::Scene::Scene(const Device& device)
         std::make_unique<StorageBuffer>(device, *commandList.get(), "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
         std::make_unique<StorageBuffer>(device, *commandList.get(), "POINT LIGHT BUFFER", m_pointLights, false);
+
+    m_BVH = std::make_unique<TLAS>();
 
     device.CloseCommandContext(std::move(commandContext));
 }
@@ -157,6 +160,8 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
                 m_materialInstances[m_modelCount] = matInfo;
                 m_modelCount++;
+
+                m_BVH->AddInstance(device, *commandList, meshPtr, modelMat.mModel);
             }
         }
     }
@@ -209,30 +214,13 @@ void KS::Scene::SetFogValues(Device& device, const FogInfo& newFogInfo)
 
 void KS::Scene::Tick(Device& device)
 {
-    // if (!m_impl->m_updateBVH)
-    //{
-    //     memset(m_impl->m_BLBuffers, 0, 200 * sizeof(Impl::ASBuffers));
-    //     m_impl->m_BLCount = 0;
-    // }
+
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
-    //int i =0;
-    //auto cpuFrameIndex = device.GetCPUFrameIndex();
-    //for (const auto& draw_entry : draw_queue)
-    //{
-    //    const Mesh* mesh = draw_entry.second.mesh.get();
-    //    auto baseTex = GetTexture(device, commandList.get(), *draw_entry.second.material.GetParameter<ResourceHandle<Texture>>(
-    //                                                        MaterialConstants::BASE_TEXTURE_NAME));
-
-    //    if (mesh == nullptr || baseTex == nullptr) continue;
-
-    //    CreateBVHBotomLevelInstance(device, *commandList, draw_entry.second, m_impl->m_updateBVH, i, cpuFrameIndex);
-    //    i++;
-    //}
-    //CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, cpuFrameIndex);
-
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
+    m_BVH->Build(device, *commandList);
+
     device.CloseCommandContext(std::move(commandContext));
 }
 

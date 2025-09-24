@@ -13,6 +13,7 @@ class Model;
 class CommandList;
 class Mesh;
 class Image;
+class TLAS;
 
 struct SBTInfo
 {
@@ -81,6 +82,7 @@ private:
     std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
+    std::unique_ptr<TLAS> m_BVH;
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);
