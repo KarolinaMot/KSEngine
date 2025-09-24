@@ -123,17 +123,17 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
         mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
     }
 
-    if (matInfos[meshIndex].useNormalTex)
-    {
-        mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
-        mat.normalColor = mat.normalColor * 2.0 - 1.0;
-        mat.normalColor = mul(mat.normalColor, input.tangentBasis);
-        mat.normalColor = (mat.normalColor + 1) * 0.5f;
-    }
-    else
-    {
-        mat.normalColor = input.normals.xyz;
-    }
+    //if (matInfos[meshIndex].useNormalTex)
+    //{
+    //    mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
+    //    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    //    mat.normalColor = mul(mat.normalColor, input.tangentBasis);
+    //    mat.normalColor = (mat.normalColor + 1) * 0.5f;
+    //}
+    //else
+    //{
+    mat.normalColor = (input.normals.xyz + 1)*0.5f;
+   // }
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);

@@ -37,7 +37,7 @@ float Attenuation(float distance, float range);
     mat.occlusionColor = GBufferD.Load(DispatchThreadID.xy).a;
 
     float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
-    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
     
     float2 screenSize;
     FinalRes.GetDimensions(screenSize.x, screenSize.y);
@@ -58,7 +58,7 @@ float Attenuation(float distance, float range);
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
-            GetBRDF(mat, viewDirection, light.mDir.xyz, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
+            GetBRDF(mat, viewDirection, light.mDir.xyz * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
         }
 
         for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -82,6 +82,7 @@ float Attenuation(float distance, float range);
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;
     FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
+
 }
 
 // linear to sRGB approximation

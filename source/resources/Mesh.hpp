@@ -83,11 +83,24 @@ class Mesh
 {
 public:
     Mesh(const Device& device, DXCommandList& commandList, const MeshData& data);
+    ~Mesh();
+
+    void SetTLASHandle(uint32_t handle) { m_TLASHandle = handle; }
+
     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
+    size_t BLASAddress() const; 
+    uint32_t GetTLASHandle() const { return m_TLASHandle; }
+    std::shared_ptr<void> GetBLASResource() const;
 
 private:
+    void BuildBLAS(const Device& device, DXCommandList& cmd);
+
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
+    uint32_t m_TLASHandle = 0;
+
+    class Impl;
+    Impl* m_impl;
 };
 }
 
