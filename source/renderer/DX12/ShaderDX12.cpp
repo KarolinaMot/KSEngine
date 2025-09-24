@@ -174,41 +174,6 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
                                         nullptr, IID_PPV_ARGS(&rtPipeline->m_shaderIDs));
 
         rtPipeline->m_pipeline->QueryInterface(IID_PPV_ARGS(&rtPipeline->m_stateObjectProps));
-
-        void* data;
-        auto writeId = [&](const wchar_t* name)
-        {
-            void* id = rtPipeline->m_stateObjectProps->GetShaderIdentifier(name);
-            memcpy(data, id, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-            data = static_cast<char*>(data) + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
-        };
-
-        rtPipeline->m_shaderIDs->Map(0, nullptr, &data);
-        writeId(L"RayGen");
-        writeId(L"Miss");
-        writeId(L"HitGroup");
-        rtPipeline->m_shaderIDs->Unmap(0, nullptr);
-
-        //nv_helpers_dx12::RayTracingPipelineGenerator pipeline(engineDevice);
-        //pipeline.AddLibrary(rayGenLibrary.Get(), {L"RayGen"});
-        //pipeline.AddLibrary(missLibrary.Get(), {L"Miss"});
-        //pipeline.AddLibrary(hitLibrary.Get(), {L"ClosestHit"});
-
-        //pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
-        //pipeline.AddRootSignatureAssociation(signature,
-        //                                     {L"RayGen"});
-        //pipeline.AddRootSignatureAssociation(signature, {L"Miss"});
-        //pipeline.AddRootSignatureAssociation(signature,
-        //                                     {L"HitGroup"});
-
-        //pipeline.SetMaxPayloadSize(4 * sizeof(float));    // RGB + distance
-        //pipeline.SetMaxAttributeSize(2 * sizeof(float));  // barycentric coordinates
-        //pipeline.SetMaxRecursionDepth(1);
-
-        //m_impl->m_pipelineSet.m_RTPipeline->m_pipeline = pipeline.Generate();
-
-        //m_impl->m_pipelineSet.m_RTPipeline->m_pipeline->QueryInterface(
-        //    IID_PPV_ARGS(&m_impl->m_pipelineSet.m_RTPipeline->m_stateObjectProps));
     }
 
     m_flags = flags;

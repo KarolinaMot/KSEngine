@@ -3,3 +3,7 @@ build
 x64
 .vs
 *.glb
+/assets/models/SibenikCathedral
+/assets/models/OldSponza
+/assets/models/NewSponza
+/assets/models/NewSponza

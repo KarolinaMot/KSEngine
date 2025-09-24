@@ -217,20 +217,20 @@ void KS::Scene::Tick(Device& device)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
-    // int i =0;
-    // auto cpuFrameIndex = device.GetCPUFrameIndex();
-    // for (const auto& draw_entry : draw_queue)
+    //int i =0;
+    //auto cpuFrameIndex = device.GetCPUFrameIndex();
+    //for (const auto& draw_entry : draw_queue)
     //{
-    //     const Mesh* mesh = GetMesh(device, draw_entry.second.mesh);
-    //     auto baseTex = GetTexture(
-    //         device, *draw_entry.second.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+    //    const Mesh* mesh = draw_entry.second.mesh.get();
+    //    auto baseTex = GetTexture(device, commandList.get(), *draw_entry.second.material.GetParameter<ResourceHandle<Texture>>(
+    //                                                        MaterialConstants::BASE_TEXTURE_NAME));
 
     //    if (mesh == nullptr || baseTex == nullptr) continue;
 
     //    CreateBVHBotomLevelInstance(device, *commandList, draw_entry.second, m_impl->m_updateBVH, i, cpuFrameIndex);
     //    i++;
     //}
-    // CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, cpuFrameIndex);
+    //CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, cpuFrameIndex);
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     device.CloseCommandContext(std::move(commandContext));

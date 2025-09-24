@@ -198,7 +198,7 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
     }
     else
     {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
+        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/models/SanMiguel/textures/White.png"});
     }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
@@ -207,7 +207,7 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
     }
     else
     {
-        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.png"});
+        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.jpg"});
     }
 
     if (auto path = GetTexture(aiTextureType_LIGHTMAP))

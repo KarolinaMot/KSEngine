@@ -51,13 +51,6 @@ KS::Renderer::Renderer(Device& device)
                      .AddStaticSampler(ShaderInputVisibility::COMPUTE, clampSampler)
                      .Build(device, "MAIN SIGNATURE");
 
-    m_rtInputs = ShaderInputCollectionBuilder()
-                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
-                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
-                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 2, "bvh")
-                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output", ShaderInputMod::READ_WRITE)
-                     .Build(device, "RAYTRACE SIGNATURE");
-
     std::shared_ptr<Texture> deferredRendererTex[2][4];
     std::shared_ptr<Texture> deferredRendererDepthTex;
     std::shared_ptr<Texture> pbrResTex[2];
@@ -151,8 +144,16 @@ KS::Renderer::Renderer(Device& device)
         device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Upscaling.hlsl"},
                                  std::initializer_list<Formats>{});
 
+     m_rtInputs = ShaderInputCollectionBuilder()
+                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
+                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 2, "bvh")
+                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output", ShaderInputMod::READ_WRITE)
+                     .Build(device, "RAYTRACE SIGNATURE");
+
      std::shared_ptr<Shader> rtShader = std::make_shared<Shader>(
-        device, ShaderType::ST_RAYTRACER, m_rtInputs,
+        device, ShaderType::ST_RAYTRACER,
+        m_rtInputs,
         std::initializer_list<std::string>{"assets/shaders/Hit.hlsl", "assets/shaders/Miss.hlsl", "assets/shaders/RayGen.hlsl"},
         std::initializer_list<Formats>{});
 

@@ -43,7 +43,9 @@ float Attenuation(float distance, float range);
     FinalRes.GetDimensions(screenSize.x, screenSize.y);
     float2 UV = DispatchThreadID.xy / screenSize;
     float3 result = float4(0.25f, 0.25f, 0.25f, 1.f);
-    
+    float3 diffuse = 0.f;
+    float3 specular = 0.f;
+
     
     if (scalar != 0)
     {
@@ -51,8 +53,6 @@ float Attenuation(float distance, float range);
         mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
         mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
 
-        float3 diffuse = 0.f;
-        float3 specular = 0.f;
         float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - vertexPos.xyz);
 
         for (uint i = 0; i < lightInfo.numDirLight; i++)
@@ -81,7 +81,7 @@ float Attenuation(float distance, float range);
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;
-    FinalRes[DispatchThreadID.xy] = float4(result.rgb, 1.f);
+    FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
 }
 
 // linear to sRGB approximation

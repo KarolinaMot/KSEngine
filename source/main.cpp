@@ -73,7 +73,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
 
 int main()
 {
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel.glb").value();
 
     KS::DeviceInitParams params {};
     params.window_width = 1280;
@@ -110,27 +110,29 @@ int main()
     glm::vec3 lightPosition1 = glm::normalize(glm::vec3(0.5f, 0.5f, 0.f));
     glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
 
+    glm::mat4x4 transform = glm::rotate(glm::mat4x4(1.f), glm::radians(-180.f), glm::vec3(1.f, 0.f, 0.f));
+    //transform = glm::scale(transform, glm::vec3(0.5f));
     scene.QueueDirectionalLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f);
-    //scene.QueueModel(*device, model, glm::mat4x4(1.f), "SanMiguel");
+    scene.QueueModel(*device, model, transform, "SanMiguel");
 
-    float spacing = 2.f;
-    int count = 1;
+    //float spacing = 2.f;
+    //int count = 1;
 
-    for (int i = 0; i < 10; i++)
-    {
-         for (int j = 0; j <10; j++)
-         {
-             for (int k = 0; k < 10; k++)
-             {
-                glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(i, j, k)*spacing);
-                transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(1.f, 0.f, 0.f));
-                transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
-                scene.QueueModel(*device, model, transform, "Helmet " + std::to_string(count));
-                count++;
+    //for (int i = 0; i < 10; i++)
+    //{
+    //     for (int j = 0; j <10; j++)
+    //     {
+    //         for (int k = 0; k < 10; k++)
+    //         {
+    //            glm::mat4x4 transform = glm::translate(glm::mat4x4(1.f), glm::vec3(i, j, k)*spacing);
+    //            transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(1.f, 0.f, 0.f));
+    //            transform = glm::rotate(transform, glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
+    //            scene.QueueModel(*device, model, transform, "Helmet " + std::to_string(count));
+    //            count++;
 
-             }
-         }
-    }
+    //         }
+    //     }
+    //}
 
     device->EndFrame();
 

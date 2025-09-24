@@ -65,10 +65,12 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     const int bitsPerPixel = 32;
     int bytesPerRow = (m_width * bitsPerPixel) / 8;
 
-
-    const UINT64 bytes = bytesPerRow * m_height;
     auto upl = device.GetUploadArena();
-    m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
+
+    UINT64 requiredSize = 0;
+    engineDevice->GetCopyableFootprints(&resourceDesc, 0, 1, 0, nullptr, nullptr, nullptr, &requiredSize);
+    constexpr UINT64 kPlacementAlign = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;  // 512
+    m_impl->m_slice = upl->Allocate(device, commandList, requiredSize, kPlacementAlign);
 
     commandList.ResourceBarrier(*m_impl->mTextureBuffer->GetResource().Get(), m_impl->mTextureBuffer->GetState(),
                                 D3D12_RESOURCE_STATE_COPY_DEST);
@@ -78,8 +80,8 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     
     D3D12_SUBRESOURCE_DATA textureData = {};
     textureData.pData = image.GetData().GetView<uint8_t>().begin();
-    textureData.RowPitch = bytesPerRow;
-    textureData.SlicePitch = bytesPerRow * m_height;
+    textureData.RowPitch = static_cast<LONG_PTR>(m_width * 4);
+    textureData.SlicePitch = static_cast<LONG_PTR>(m_width * 4 * m_height);
 
     UpdateSubresources(commandList.GetCommandList().Get(), m_impl->mTextureBuffer->GetResource().Get(),
                        uploadSource->GetResource().Get(), static_cast<UINT64>(m_impl->m_slice.m_head), 0, 1, &textureData);
