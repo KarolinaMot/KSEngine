@@ -35,11 +35,8 @@ KS::UploadPage* KS::UploadArena::CreatePage(const Device& device, DXCommandList&
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     p->m_impl->m_resource = std::make_unique<DXResource>(engineDevice, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
                                                       CD3DX12_RESOURCE_DESC::Buffer(bytes), nullptr, "Upload heap page");
-    commandList.ResourceBarrier(*p->m_impl->m_resource->GetResource().Get(), p->m_impl->m_resource->GetState(),
-                                D3D12_RESOURCE_STATE_COPY_SOURCE);
-    p->m_impl->m_resource->ChangeState(D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList.ResourceBarrier(*p->m_impl->m_resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
     p->m_index = m_pages.size();
-
 
     HRESULT hr = p->m_impl->m_resource->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&p->m_cpu));
     UploadPage* raw = p.get();

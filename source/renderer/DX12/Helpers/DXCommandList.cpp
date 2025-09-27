@@ -313,7 +313,7 @@ void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY
     m_command_list->Dispatch(threadGroupX, threadgGroupY, threadGroupZ);
 }
 
-void DXCommandList::ResourceBarrier(ID3D12Resource& resource, D3D12_RESOURCE_STATES srcState, D3D12_RESOURCE_STATES dstState)
+void DXCommandList::ResourceBarrier(DXResource& buffer, D3D12_RESOURCE_STATES dstState)
 {
     if (!m_isOpen)
     {
@@ -321,11 +321,13 @@ void DXCommandList::ResourceBarrier(ID3D12Resource& resource, D3D12_RESOURCE_STA
         return;
     }
 
-    if (dstState == srcState)
+    if (dstState == buffer.GetState())
         return;
 
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(&resource, srcState, dstState);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.GetResource().Get(), buffer.GetState(), dstState);
     m_command_list->ResourceBarrier(1, &barrier);
+    buffer.ChangeState(dstState);
+    m_allocator->TrackResource(buffer.GetResource());
 }
 
 void DXCommandList::Open(std::shared_ptr<DXCommandAllocator> allocator)

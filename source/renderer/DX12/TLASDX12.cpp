@@ -165,11 +165,8 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     auto& dst = m_Impl->m_defaultPerFrame[device.GetCPUFrameIndex()];
     const UINT64 bytes = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * UINT64(count);
 
-    cmd.ResourceBarrier(*dst->GetResource().Get(), dst->GetState(),
-                                D3D12_RESOURCE_STATE_COPY_DEST);
-    dst->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
+    cmd.ResourceBarrier(*dst, D3D12_RESOURCE_STATE_COPY_DEST);
 
-    cmd.TrackResource(dst->GetResource());
     auto upl = device.GetUploadArena();
     auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_slice.m_pageID));
 
@@ -177,8 +174,7 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
                                            m_slice.m_head,
                                            bytes);
 
-    cmd.ResourceBarrier(*dst->GetResource().Get(), dst->GetState(), D3D12_RESOURCE_STATE_GENERIC_READ);
-    dst->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
+    cmd.ResourceBarrier(*dst, D3D12_RESOURCE_STATE_GENERIC_READ);
 
     instanceVA = dst->GetResource()->GetGPUVirtualAddress();
 
@@ -202,13 +198,7 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     EnsureTLAS(device, pre.ResultDataMaxSizeInBytes, /*forceRecreate=*/!doUpdate);
     EnsureScratch(device, pre.ScratchDataSizeInBytes);
 
-    cmd.ResourceBarrier(*m_Impl->m_scratch->GetResource().Get(), m_Impl->m_scratch->GetState(),
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    m_Impl->m_scratch->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
-
-    cmd.TrackResource(m_Impl->m_scratch->GetResource());
-    cmd.TrackResource(m_Impl->m_defaultPerFrame[device.GetCPUFrameIndex()]->GetResource());
-    cmd.TrackResource(m_Impl->m_tlas->GetResource());
+    cmd.ResourceBarrier(*m_Impl->m_scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     //Build / Refit
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};
@@ -217,6 +207,8 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     build.ScratchAccelerationStructureData = m_Impl->m_scratch->GetResource()->GetGPUVirtualAddress();
     build.SourceAccelerationStructureData = doUpdate ? m_Impl->m_tlas->GetResource()->GetGPUVirtualAddress() : 0;
     cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
+
+    cmd.TrackResource(m_Impl->m_tlas->GetResource());
 }
 
 

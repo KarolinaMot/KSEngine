@@ -313,177 +313,177 @@ KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, in
     return meshSet;
 }
 
-void KS::Scene::CreateBottomLevelAS(const Device& device, DXCommandList& commandList, const Mesh* mesh, int cpuFrame)
-{
-    nv_helpers_dx12::BottomLevelASGenerator bottomLevelASGen;
-    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
-
-    using namespace MeshConstants;
-    auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-    auto positionsResource = reinterpret_cast<DXResource*>(positions->GetRawResource());
-    auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
-    auto indicesResource = reinterpret_cast<DXResource*>(indices->GetRawResource());
-
-    commandList.ResourceBarrier(*positionsResource->Get(), positionsResource->GetState(),
-                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    positionsResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    commandList.ResourceBarrier(*indicesResource->Get(), indicesResource->GetState(),
-                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    indicesResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-    DXGI_FORMAT indexFormat;
-    switch (indices->GetBufferStride())
-    {
-        case sizeof(unsigned char):
-            indexFormat = DXGI_FORMAT_R8_UINT;
-            break;
-        case sizeof(unsigned short):
-            indexFormat = DXGI_FORMAT_R16_UINT;
-            break;
-        case sizeof(unsigned int):
-            indexFormat = DXGI_FORMAT_R32_UINT;
-            break;
-        default:
-            indexFormat = DXGI_FORMAT_R16_UINT;
-            break;
-    }
-
-    bottomLevelASGen.AddVertexBuffer(positionsResource->Get(), 0, static_cast<uint32_t>(positions->GetElementCount()),
-                                     sizeof(glm::vec3), indicesResource->Get(), 0,
-                                     static_cast<uint32_t>(indices->GetElementCount()), indexFormat, nullptr, 0, true);
-
-    // The AS build requires some scratch space to store temporary information.
-    // The amount of scratch memory is dependent on the scene complexity.
-    UINT64 scratchSizeInBytes = 0;
-    // The final AS also needs to be stored in addition to the existing vertex
-    // buffers. It size is also dependent on the scene complexity.
-    UINT64 resultSizeInBytes = 0;
-
-    bottomLevelASGen.ComputeASBufferSizes(engineDevice, false, &scratchSizeInBytes, &resultSizeInBytes);
-
-    auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    heapProps.CreationNodeMask = 0;
-    heapProps.VisibleNodeMask = 0;
-
-    m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame] =
-        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "SCRATCH  BUFFER");
-
-    bufDesc.Width = resultSizeInBytes;
-    m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame] = std::make_shared<DXResource>(
-        engineDevice, heapProps, bufDesc, nullptr, "RESULT  BUFFER", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
-
-    bottomLevelASGen.Generate(commandList.GetCommandList().Get(),
-                              m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame]->Get(),
-                              m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->Get(), false, nullptr);
-
-    commandList.TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame]->GetResource());
-    commandList.TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->GetResource());
-}
-
-void KS::Scene::CreateBVHBotomLevelInstance(const Device& device, DXCommandList& commandList, const DrawEntry& draw_entry,
-                                            bool updateOnly, int entryIndex, int cpuFrame)
-{
-    if (!updateOnly)
-    {
-        const Mesh* mesh = draw_entry.mesh.get();
-        if (!mesh) return;
-
-        CreateBottomLevelAS(device, commandList, mesh, cpuFrame);
-
-        m_impl->m_instances[m_impl->m_BLCount].first = m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame];
-        m_impl->m_instances[m_impl->m_BLCount].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
-
-        m_impl->m_topLevelASGenerator.AddInstance(m_impl->m_instances[m_impl->m_BLCount].first->Get(),
-                                                  m_impl->m_instances[m_impl->m_BLCount].second,
-                                                  static_cast<uint32_t>(m_impl->m_BLCount), static_cast<uint32_t>(0));
-
-        m_impl->m_BLCount++;
-    }
-    else
-    {
-        m_impl->m_instances[entryIndex].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
-    }
-}
-
-void KS::Scene::CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame)
-{
-    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
-
-    if (!updateOnly)
-    {
-        // As for the bottom-level AS, the building the AS requires some scratch space
-        // to store temporary data in addition to the actual AS. In the case of the
-        // top-level AS, the instance descriptors also need to be stored in GPU
-        // memory. This call outputs the memory requirements for each (scratch,
-        // results, instance descriptors) so that the application can allocate the
-        // corresponding memory
-        UINT64 scratchSize, resultSize, instanceDescsSize;
-
-        m_impl->m_topLevelASGenerator.ComputeASBufferSizes(engineDevice, true, &scratchSize, &resultSize, &instanceDescsSize);
-
-        //// Create the scratch and result buffers. Since the build is all done on GPU,
-        //// those can be allocated on the default heap
-
-        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        heapProps.CreationNodeMask = 0;
-        heapProps.VisibleNodeMask = 0;
-
-        m_impl->m_topLevelASBuffers.pScratch[cpuFrame] =
-            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
-        bufDesc.Width = resultSize;
-        m_impl->m_topLevelASBuffers.pResult[cpuFrame] =
-            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT",
-                                         D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
-
-        // The buffer describing the instances: ID, shader binding information,
-        // matrices ... Those will be copied into the buffer by the helper through
-        // mapping, so the buffer has to be allocated on the upload heap.
-        bufDesc.Width = instanceDescsSize;
-        bufDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-        heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        heapProps.CreationNodeMask = 0;
-        heapProps.VisibleNodeMask = 0;
-        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame] =
-            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
-
-        commandList.ResourceBarrier(*m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
-                                    m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetState(),
-                                    D3D12_RESOURCE_STATE_GENERIC_READ);
-        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
-    }
-
-    // After all the buffers are allocated, or if only an update is required, we
-    // can build the acceleration structure. Note that in the case of the update
-    // we also pass the existing AS as the 'previous' AS, so that it can be
-    // refitted in place.
-    m_impl->m_topLevelASGenerator.Generate(
-        commandList.GetCommandList().Get(), m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->Get(),
-        m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
-        updateOnly, m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get());
-
-    if (!updateOnly)
-    {
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.RaytracingAccelerationStructure.Location =
-            m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get()->GetGPUVirtualAddress();
-
-        m_impl->m_BHVHandle[cpuFrame] =
-            reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())
-                ->AllocateResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame].get(), &srvDesc, BVH_SLOT + cpuFrame);
-    }
-
-    commandList.TrackResource(m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->GetResource());
-    commandList.TrackResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame]->GetResource());
-    commandList.TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetResource());
-}
+//void KS::Scene::CreateBottomLevelAS(const Device& device, DXCommandList& commandList, const Mesh* mesh, int cpuFrame)
+//{
+//    nv_helpers_dx12::BottomLevelASGenerator bottomLevelASGen;
+//    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+//
+//    using namespace MeshConstants;
+//    auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+//    auto positionsResource = reinterpret_cast<DXResource*>(positions->GetRawResource());
+//    auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+//    auto indicesResource = reinterpret_cast<DXResource*>(indices->GetRawResource());
+//
+//    commandList.ResourceBarrier(*positionsResource->Get(), positionsResource->GetState(),
+//                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//    positionsResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//    commandList.ResourceBarrier(*indicesResource->Get(), indicesResource->GetState(),
+//                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//    indicesResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//
+//    DXGI_FORMAT indexFormat;
+//    switch (indices->GetBufferStride())
+//    {
+//        case sizeof(unsigned char):
+//            indexFormat = DXGI_FORMAT_R8_UINT;
+//            break;
+//        case sizeof(unsigned short):
+//            indexFormat = DXGI_FORMAT_R16_UINT;
+//            break;
+//        case sizeof(unsigned int):
+//            indexFormat = DXGI_FORMAT_R32_UINT;
+//            break;
+//        default:
+//            indexFormat = DXGI_FORMAT_R16_UINT;
+//            break;
+//    }
+//
+//    bottomLevelASGen.AddVertexBuffer(positionsResource->Get(), 0, static_cast<uint32_t>(positions->GetElementCount()),
+//                                     sizeof(glm::vec3), indicesResource->Get(), 0,
+//                                     static_cast<uint32_t>(indices->GetElementCount()), indexFormat, nullptr, 0, true);
+//
+//    // The AS build requires some scratch space to store temporary information.
+//    // The amount of scratch memory is dependent on the scene complexity.
+//    UINT64 scratchSizeInBytes = 0;
+//    // The final AS also needs to be stored in addition to the existing vertex
+//    // buffers. It size is also dependent on the scene complexity.
+//    UINT64 resultSizeInBytes = 0;
+//
+//    bottomLevelASGen.ComputeASBufferSizes(engineDevice, false, &scratchSizeInBytes, &resultSizeInBytes);
+//
+//    auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+//
+//    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+//    heapProps.CreationNodeMask = 0;
+//    heapProps.VisibleNodeMask = 0;
+//
+//    m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame] =
+//        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "SCRATCH  BUFFER");
+//
+//    bufDesc.Width = resultSizeInBytes;
+//    m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame] = std::make_shared<DXResource>(
+//        engineDevice, heapProps, bufDesc, nullptr, "RESULT  BUFFER", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+//
+//    bottomLevelASGen.Generate(commandList.GetCommandList().Get(),
+//                              m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame]->Get(),
+//                              m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->Get(), false, nullptr);
+//
+//    commandList.TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pScratch[cpuFrame]->GetResource());
+//    commandList.TrackResource(m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->GetResource());
+//}
+//
+//void KS::Scene::CreateBVHBotomLevelInstance(const Device& device, DXCommandList& commandList, const DrawEntry& draw_entry,
+//                                            bool updateOnly, int entryIndex, int cpuFrame)
+//{
+//    if (!updateOnly)
+//    {
+//        const Mesh* mesh = draw_entry.mesh.get();
+//        if (!mesh) return;
+//
+//        CreateBottomLevelAS(device, commandList, mesh, cpuFrame);
+//
+//        m_impl->m_instances[m_impl->m_BLCount].first = m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame];
+//        m_impl->m_instances[m_impl->m_BLCount].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
+//
+//        m_impl->m_topLevelASGenerator.AddInstance(m_impl->m_instances[m_impl->m_BLCount].first->Get(),
+//                                                  m_impl->m_instances[m_impl->m_BLCount].second,
+//                                                  static_cast<uint32_t>(m_impl->m_BLCount), static_cast<uint32_t>(0));
+//
+//        m_impl->m_BLCount++;
+//    }
+//    else
+//    {
+//        m_impl->m_instances[entryIndex].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
+//    }
+//}
+//
+//void KS::Scene::CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame)
+//{
+//    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+//
+//    if (!updateOnly)
+//    {
+//        // As for the bottom-level AS, the building the AS requires some scratch space
+//        // to store temporary data in addition to the actual AS. In the case of the
+//        // top-level AS, the instance descriptors also need to be stored in GPU
+//        // memory. This call outputs the memory requirements for each (scratch,
+//        // results, instance descriptors) so that the application can allocate the
+//        // corresponding memory
+//        UINT64 scratchSize, resultSize, instanceDescsSize;
+//
+//        m_impl->m_topLevelASGenerator.ComputeASBufferSizes(engineDevice, true, &scratchSize, &resultSize, &instanceDescsSize);
+//
+//        //// Create the scratch and result buffers. Since the build is all done on GPU,
+//        //// those can be allocated on the default heap
+//
+//        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+//
+//        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+//        heapProps.CreationNodeMask = 0;
+//        heapProps.VisibleNodeMask = 0;
+//
+//        m_impl->m_topLevelASBuffers.pScratch[cpuFrame] =
+//            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
+//        bufDesc.Width = resultSize;
+//        m_impl->m_topLevelASBuffers.pResult[cpuFrame] =
+//            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT",
+//                                         D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+//
+//        // The buffer describing the instances: ID, shader binding information,
+//        // matrices ... Those will be copied into the buffer by the helper through
+//        // mapping, so the buffer has to be allocated on the upload heap.
+//        bufDesc.Width = instanceDescsSize;
+//        bufDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+//
+//        heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+//        heapProps.CreationNodeMask = 0;
+//        heapProps.VisibleNodeMask = 0;
+//        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame] =
+//            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
+//
+//        commandList.ResourceBarrier(*m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
+//                                    m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetState(),
+//                                    D3D12_RESOURCE_STATE_GENERIC_READ);
+//        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
+//    }
+//
+//    // After all the buffers are allocated, or if only an update is required, we
+//    // can build the acceleration structure. Note that in the case of the update
+//    // we also pass the existing AS as the 'previous' AS, so that it can be
+//    // refitted in place.
+//    m_impl->m_topLevelASGenerator.Generate(
+//        commandList.GetCommandList().Get(), m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->Get(),
+//        m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
+//        updateOnly, m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get());
+//
+//    if (!updateOnly)
+//    {
+//        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+//        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+//        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+//        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+//        srvDesc.RaytracingAccelerationStructure.Location =
+//            m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get()->GetGPUVirtualAddress();
+//
+//        m_impl->m_BHVHandle[cpuFrame] =
+//            reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())
+//                ->AllocateResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame].get(), &srvDesc, BVH_SLOT + cpuFrame);
+//    }
+//
+//    commandList.TrackResource(m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->GetResource());
+//    commandList.TrackResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame]->GetResource());
+//    commandList.TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetResource());
+//}
 
 KS::Scene::Impl::Impl() {}
 
