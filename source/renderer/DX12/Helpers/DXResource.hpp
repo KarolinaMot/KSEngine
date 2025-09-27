@@ -12,7 +12,7 @@ public:
     DXResource(const ComPtr<ID3D12Device5>& device, ComPtr<ID3D12Resource> res, D3D12_RESOURCE_STATES resState);
     ~DXResource();
 
-    ComPtr<ID3D12Resource> GetResource() { return mResource; }
+    ComPtr<ID3D12Resource> GetResource() const { return mResource; }
     //ComPtr<ID3D12Resource> GetUploadResource(int subresource) { return mUploadBuffers[subresource]->GetResource(); }
     ID3D12Resource* Get() const { return mResource.Get(); }
     void SetResource(ComPtr<ID3D12Resource> res) { mResource = res; }

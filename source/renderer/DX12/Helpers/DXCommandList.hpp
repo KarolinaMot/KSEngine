@@ -29,16 +29,17 @@ public:
     void BindPipeline(ComPtr<ID3D12PipelineState> pipeline);
     void BindRootSignature(ComPtr<ID3D12RootSignature> signature, bool computePipeline = false);
     void BindDescriptorHeaps(DXDescHeap* rscHeap, DXDescHeap* rtHeap, DXDescHeap* depthHeap);
-    void BindHeapResource(std::unique_ptr<DXResource>& resource, const DXHeapHandle& handle, int rootSlot);
-    void BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles, std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle, unsigned int numRtv = 1);
-    void BindRenderTargets(std::unique_ptr<DXResource>& resource, const DXHeapHandle& rtvHeapSlot);
-    void BindBuffer(const std::unique_ptr<DXResource>& resource, int rootParameter, size_t elementSize = 0, int offsetElement = 0);
-    void ClearRenderTargets(std::unique_ptr<DXResource>& rtResource, const DXHeapHandle& handle, const float* clearData);
-    void ClearDepthStencils(std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& handle);
-    void BindVertexData(const std::unique_ptr<DXResource>& buffer, size_t bufferStride, int inputSlot, int elementOffset);
-    void BindIndexData(const std::unique_ptr<DXResource>& buffer, size_t bufferStride, int elementOffset);
+    void BindHeapResource(const DXResource& resource, const DXHeapHandle& handle, int rootSlot);
+    void BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles, const DXResource& depthResource,
+                           const DXHeapHandle& dsvHandle, unsigned int numRtv = 1);
+    void BindRenderTargets(const DXResource& resource, const DXHeapHandle& rtvHeapSlot);
+    void BindBuffer(const DXResource& resource, int rootParameter, size_t elementSize = 0, int offsetElement = 0);
+    void ClearRenderTargets(DXResource& rtResource, const DXHeapHandle& handle, const float* clearData);
+    void ClearDepthStencils(DXResource& depthResource, const DXHeapHandle& handle);
+    void BindVertexData(const DXResource& buffer, size_t bufferStride, int inputSlot, int elementOffset);
+    void BindIndexData(const DXResource& buffer, size_t bufferStride, int elementOffset);
     void DrawIndexed(int indexCount, int instancesCount = 1);
-    void CopyResource(std::unique_ptr<DXResource>& source, std::unique_ptr<DXResource>& dest);
+    void CopyResource(DXResource& source, DXResource& dest);
     void DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ);
     void ResourceBarrier(DXResource& buffer, D3D12_RESOURCE_STATES dstState);
     void Open(std::shared_ptr<DXCommandAllocator> allocator);

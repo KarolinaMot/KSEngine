@@ -193,13 +193,13 @@ void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const S
     {
         TransitionToRO(device, commandList);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
-        commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
     }
     else
     {
         TransitionToRW(device, commandList);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVHeapSlot, desc.rootIndex);
     }
 }
 
@@ -288,10 +288,10 @@ void KS::Texture::GenerateMipmaps(const Device& device, DXCommandList& commandLi
     commandList.BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
     m_impl->mMipmapUB->Bind(device, commandList, rootSignature->GetInput("mipmap_info"));
-    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[0], rootSignature->GetInput("mip_1").rootIndex);
-    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[1], rootSignature->GetInput("mip_2").rootIndex);
-    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVMipslots[2], rootSignature->GetInput("mip_3").rootIndex);
-    commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootSignature->GetInput("mip_0").rootIndex);
+    commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVMipslots[0], rootSignature->GetInput("mip_1").rootIndex);
+    commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVMipslots[1], rootSignature->GetInput("mip_2").rootIndex);
+    commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVMipslots[2], rootSignature->GetInput("mip_3").rootIndex);
+    commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, rootSignature->GetInput("mip_0").rootIndex);
 
     commandList.DispatchShader(dstWidth / 8, dstHeight / 8, 1);
 }
@@ -501,7 +501,7 @@ void KS::RenderTarget::Bind(Device& device, DXCommandList& commandList, const De
         return;
     }
 
-    if (depth == nullptr && depth->IsValid())
+    if (depth == nullptr || !depth->IsValid())
     {
         LOG(Log::Severity::WARN, "Trying to bind a render target with no depth stencil. Command ignored.");
         return;
@@ -513,7 +513,7 @@ void KS::RenderTarget::Bind(Device& device, DXCommandList& commandList, const De
         m_resources[i] = m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer.get();
     }
 
-    commandList.BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
+    commandList.BindRenderTargets(&m_resources[0], &m_impl->m_RT[device.GetCPUFrameIndex()][0], *depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
 
     commandList.GetCommandList()->RSSetViewports(1, &m_impl->m_viewport);
     commandList.GetCommandList()->RSSetScissorRects(1, &m_impl->m_scissor_rect);
@@ -530,7 +530,7 @@ void KS::RenderTarget::Clear(const Device& device, DXCommandList& commandList)
     for (int i = 0; i < m_textureCount; i++)
     {
         glm::vec4 clearColor = m_textures[device.GetCPUFrameIndex()][i]->m_clearColor;
-        commandList.ClearRenderTargets(m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &clearColor[0]);
+        commandList.ClearRenderTargets(*m_textures[device.GetCPUFrameIndex()][i]->m_impl->mTextureBuffer, m_impl->m_RT[device.GetCPUFrameIndex()][i], &clearColor[0]);
     }
 }
 
@@ -544,7 +544,7 @@ void KS::RenderTarget::CopyTo(Device& device, DXCommandList& commandList, std::s
 
     sourceRT->SetCopyFrom(device, commandList, sourceRtIndex);
 
-    commandList.CopyResource(copySrcRsc, copyDestRsc);
+    commandList.CopyResource(*copySrcRsc, *copyDestRsc);
 }
 
 void KS::RenderTarget::SetCopyFrom(const Device& device, DXCommandList& commandList, int rtIndex)
@@ -615,5 +615,5 @@ void KS::DepthStencil::PrepareToUse(Device& device, DXCommandList& commandList)
 
 void KS::DepthStencil::Clear(Device& device, DXCommandList& commandList)
 {
-    commandList.ClearDepthStencils(m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
+    commandList.ClearDepthStencils(*m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
 }

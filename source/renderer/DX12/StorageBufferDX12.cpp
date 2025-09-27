@@ -13,10 +13,10 @@ class KS::StorageBuffer::Impl
 {
 public:
     std::unique_ptr<DXResource> m_resource;
-    D3D12_RESOURCE_FLAGS m_flags;
-    DXHeapHandle m_UAV_handle;
-    DXHeapHandle m_SRV_handle;
-    UploadSlice m_slice;
+    D3D12_RESOURCE_FLAGS m_flags{};
+    DXHeapHandle m_UAV_handle{};
+    DXHeapHandle m_SRV_handle{};
+    UploadSlice m_slice{};
 };
 
 KS::StorageBuffer::StorageBuffer() { m_impl = new Impl(); }
@@ -43,7 +43,7 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& comman
     m_impl->m_resource = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
 
     AllocateAsReadOnly(device);
-    if (m_impl->m_flags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+    if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
         AllocateAsReadWrite(device);
    
    const UINT64 bytes = UINT64(m_buffer_stride) * UINT64(numOfElements);
@@ -107,23 +107,23 @@ void KS::StorageBuffer::Bind(const Device& device, DXCommandList& commandList, c
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
-        commandList.BindHeapResource(m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
     }
     else
     {
-        commandList.BindHeapResource(m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
     }
 }
 
 void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot,
                                          uint32_t elementOffset)
 {
-    commandList.BindVertexData(m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
+    commandList.BindVertexData(*m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
 }
 
 void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset)
 {
-    commandList.BindIndexData(m_impl->m_resource, m_buffer_stride, elementOffset);
+    commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset);
 }
 
 void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)
