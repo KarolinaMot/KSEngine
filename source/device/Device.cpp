@@ -116,12 +116,16 @@ void* KS::Device::GetWindowHandle() const
     return m_impl->m_window;
 }
 
+bool KS::Device::IsWindowOpen() const 
+{
+    return !glfwWindowShouldClose(m_impl->m_window);
+}
+
 void KS::Device::NewFrame()
 {
     auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
     auto& commandList = commandContext.m_commandList;
 
-    m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
     m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
@@ -198,15 +202,14 @@ void KS::Device::FinishInitialization()
     desc.borderColor = SamplerBorderColor::SBC_TRANSPARENT_BLACK;
     desc.filter = SamplerFilter::SF_LINEAR;
 
-    m_mipMapShaderInputs =  KS::ShaderInputCollectionBuilder()
-        .AddUniform(KS::ShaderInputVisibility::COMPUTE, 
-            {"mipmap_info"})
-        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
-        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
-        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_3", KS::ShaderInputMod::READ_WRITE)
-        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_0", KS::ShaderInputMod::READ_ONLY)
-        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
-        .Build(*this, "MIPMAP SIGNATURE");
+    m_mipMapShaderInputs = KS::ShaderInputCollectionBuilder()
+                               .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"mipmap_info"})
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_3", KS::ShaderInputMod::READ_WRITE)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_0", KS::ShaderInputMod::READ_ONLY)
+                               .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
+                               .Build(*this, "MIPMAP SIGNATURE");
 
     m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
                                               std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
@@ -214,18 +217,9 @@ void KS::Device::FinishInitialization()
     int size = 128 * 1024;
     m_impl->m_uploadArena = std::make_shared<UploadArena>(size);
 
-    //for (int i = 0; i < NUM_THREADS; i++)
-    //{
-    //    m_impl->m_command_list[i]->Close();
-    //}
-
     auto frame_setup = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
     frame_setup.Wait();
     m_impl->m_commandPool->RetireCompleted();
-
-    //const DXCommandList* commandLists[] = {m_impl->m_command_list[FIRST_THREAD].get()};
-    //auto frame_setup = m_impl->m_command_queue->ExecuteCommandLists(commandLists, 1);
-    //frame_setup.Wait();
 }
 
 void KS::Device::InitializeImGUI()
@@ -310,14 +304,6 @@ void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearC
     m_fence_values[cpuFrame].Wait();
     m_commandPool->RetireCompleted();
     m_uploadArena->Recycle(m_fence_values[cpuFrame].GetFutureValue());
-
-    //for (int i = 0; i < NUM_THREADS; i++)
-    //{
-
-    //    m_command_allocator[cpuFrame][i]->Reset();
-    //    m_command_list[i]->Open(m_command_allocator[cpuFrame][i]);
-    //    m_command_list[i]->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    //}
 }
 
 void KS::Device::Impl::EndFrame(int cpuFrame)

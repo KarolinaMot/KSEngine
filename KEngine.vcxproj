@@ -255,6 +255,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -273,6 +274,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -291,6 +293,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -315,6 +318,7 @@ xcopy /Y /D "$(SolutionDir)external\assimp\Lib\Debug\assimp-vc143-mtd.dll" "$(Ta
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

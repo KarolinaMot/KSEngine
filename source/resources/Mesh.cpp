@@ -129,7 +129,49 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
                                     "Mesh BLAS",
                                     D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
+    const UINT64 scratchSize = Align256(pre.ScratchDataSizeInBytes);
+    std::shared_ptr<DXResource> scratch;
+    scratch =
+        std::make_shared<DXResource>(engineDevice, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                      CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+                                      nullptr, "Mesh BLAS scratch", D3D12_RESOURCE_STATE_COMMON);
+
+   cmd.ResourceBarrier(*scratch->Get(), scratch->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+   scratch->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+
     m_impl->m_BLASSize = need;
+
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};
+    build.Inputs = inputs;
+    build.DestAccelerationStructureData = m_impl->m_BLAS->Get()->GetGPUVirtualAddress();
+    build.ScratchAccelerationStructureData = scratch->Get()->GetGPUVirtualAddress(); 
+    build.SourceAccelerationStructureData = 0;
+
+    auto vbResource = reinterpret_cast<DXResource*>(vb->GetRawResource());
+    auto ibResource = reinterpret_cast<DXResource*>(ib->GetRawResource());
+    cmd.ResourceBarrier(*vbResource->GetResource().Get(), vbResource->GetState(),
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    vbResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    cmd.ResourceBarrier(*ibResource->GetResource().Get(), ibResource->GetState(),
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    ibResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+
+    cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
+
+    //cmd.ResourceBarrier(*m_impl->m_BLAS->GetResource().Get(), m_impl->m_BLAS->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    //m_impl->m_BLAS->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+    cmd.ResourceBarrier(*vbResource->GetResource().Get(), vbResource->GetState(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    vbResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    cmd.ResourceBarrier(*ibResource->GetResource().Get(), ibResource->GetState(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    ibResource->ChangeState(D3D12_RESOURCE_STATE_INDEX_BUFFER);
+
+    cmd.TrackResource(vbResource->GetResource());
+    cmd.TrackResource(ibResource->GetResource());
+    cmd.TrackResource(scratch->GetResource());
+    cmd.TrackResource(m_impl->m_BLAS->GetResource());
 }
 
 size_t KS::Mesh::BLASAddress() const

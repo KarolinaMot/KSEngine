@@ -45,7 +45,7 @@ public:
     void* GetRenderTargetHeap() const;
     void* GetWindowHandle() const;
 
-    inline bool IsWindowOpen() const { return m_window_open; }
+    bool IsWindowOpen() const;
     void NewFrame();
     void EndFrame();
     void InitializeSwapchain();
