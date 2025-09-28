@@ -29,7 +29,7 @@ public:
     UINT GetFramebufferIndex();
 
     // void BindSwapchainRT();
-    void StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor);
+    void StartFrame(int cpuFrame);
     void EndFrame(int cpuFrame);
 
     enum DXResources
@@ -128,15 +128,15 @@ void KS::Device::NewFrame()
 
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
-    m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
+    m_impl->StartFrame(m_cpu_frame);
     m_swapchainRT->PrepareToRenderTo(*this, *commandList);
-    m_swapchainDS->PrepareToUse(*this, *commandList);
+    m_swapchainDS->PrepareToUse(*commandList);
     m_swapchainRT->Bind(*this, *commandList, m_swapchainDS.get());
     m_swapchainRT->Clear(*this, *commandList);
-    m_swapchainDS->Clear(*this, *commandList);
+    m_swapchainDS->Clear(*commandList);
 
-    ImGui::GetIO().DisplaySize.x = m_width;
-    ImGui::GetIO().DisplaySize.y = m_height;
+    ImGui::GetIO().DisplaySize.x = static_cast<float>(m_width);
+    ImGui::GetIO().DisplaySize.y =  static_cast<float>(m_height);
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -177,14 +177,14 @@ void KS::Device::InitializeSwapchain()
             LOG(Log::Severity::FATAL, "Failed to get swapchain buffer");
         }
 
-        m_swapchainTex[i] = std::make_shared<Texture>(*this, res.Get(), glm::vec2(m_width, m_height), Texture::RENDER_TARGET);
+        m_swapchainTex[i] = std::make_shared<Texture>(res.Get(), m_width, m_height, Texture::RENDER_TARGET);
     }
 
     auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
     auto& commandList = commandContext.m_commandList;
 
     m_swapchainRT = std::make_shared<RenderTarget>();
-    m_swapchainRT->AddTexture(*this, *commandList, m_swapchainTex[0], m_swapchainTex[1],
+    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1],
                               "Swapchain render target",
                               0,
                               1);
@@ -229,8 +229,8 @@ void KS::Device::InitializeImGUI()
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable |
                                   ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::GetIO().ConfigViewportsNoDecoration = false;
-    ImGui::GetIO().DisplaySize.x = m_width;
-    ImGui::GetIO().DisplaySize.y = m_height;
+    ImGui::GetIO().DisplaySize.x =  static_cast<float>(m_width);
+    ImGui::GetIO().DisplaySize.y =  static_cast<float>(m_height);
 
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP];
 
@@ -298,7 +298,7 @@ UINT KS::Device::Impl::GetFramebufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor)
+void KS::Device::Impl::StartFrame(int cpuFrame)
 {
     // Wait until the current swapchain is available;
     m_fence_values[cpuFrame].Wait();
@@ -318,7 +318,7 @@ void KS::Device::Impl::EndFrame(int cpuFrame)
     m_uploadArena->OnSubmit(m_fence_values[cpuFrame].GetFutureValue());
 }
 
-void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
+void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID, LPCSTR pDescription, void*)
 {
     switch (Severity)
     {

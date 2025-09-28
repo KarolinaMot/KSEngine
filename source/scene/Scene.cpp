@@ -7,13 +7,6 @@
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DX12Conversion.hpp>
 
-#include <DXR/DXRHelper.h>
-#include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
-#include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
-#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
-#include <DXR/nv_helpers_dx12/RootSignatureGenerator.h>
-#include <DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h>
-
 #include <device/Device.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
@@ -22,7 +15,10 @@
 #include <resources/Texture.hpp>
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
+#pragma warning(push, 0)
 #include <glm/gtc/matrix_transform.hpp>
+#pragma warning(pop)
+
 
 namespace KS
 {
@@ -47,8 +43,8 @@ public:
 
     ComPtr<ID3D12RootSignature> m_raytracingSignature;
 
-    nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
-    nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper[2];
+    //nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
+    //nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper[2];
 };
 }  // namespace KS
 
@@ -62,9 +58,9 @@ KS::Scene::Scene(const Device& device)
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList.get(), "MODEL MATRIX RESOURCE", &m_modelMatrices[0], sizeof(ModelMat), MAX_MESHES, false);
+        device, *commandList.get(), "MODEL MATRIX RESOURCE", &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList.get(), "MATERIAL INFO RESOURCE", &m_materialInstances[0], sizeof(MaterialInfo), MAX_MESHES, false);
+        device, *commandList.get(), "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
 
@@ -174,13 +170,15 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
     device.CloseCommandContext(std::move(commandContext));
 }
 
-void KS::Scene::ApplyModelTransform(Device& device, std::string name, const glm::mat4& transfrom)
+void KS::Scene::ApplyModelTransform(std::string name, const glm::mat4& transfrom)
 {
     auto& entry = draw_queue[name];
     ModelMat modelMat;
     modelMat.mModel = m_modelMatrices[entry.modelIndex].mModel * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
     m_modelMatrices[entry.modelIndex] = modelMat;
+
+    m_BVH->UpdateTransform(entry.mesh->GetTLASHandle(), modelMat.mModel);
 }
 
 void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
@@ -240,8 +238,8 @@ const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
 
         json(new_model);
 
-        auto [it, success] = model_cache.emplace(model, std::move(new_model));
-        return &it->second;
+        auto [obj, success] = model_cache.emplace(model, std::move(new_model));
+        return &obj->second;
     }
     return nullptr;
 }
@@ -262,8 +260,8 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
         if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size()))
         {
             auto new_tex = std::make_shared<Texture>(device, *commandList, img.value());
-            auto [it, success] = tex_cache.emplace(imgPath, std::move(new_tex));
-            return it->second;
+            auto [obj, success] = tex_cache.emplace(imgPath, std::move(new_tex));
+            return obj->second;
         }
     }
     return nullptr;

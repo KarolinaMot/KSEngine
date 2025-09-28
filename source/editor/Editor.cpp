@@ -5,11 +5,15 @@
 #include <imgui/imgui_impl_glfw.h>
 
 #include <device/Device.hpp>
+
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/matrix_decompose.hpp>  // <-- This one is key
 #include <glm/gtx/quaternion.hpp>
 #include <scene/Scene.hpp>
+#pragma warning(pop)
+
 
 KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
@@ -18,7 +22,7 @@ KS::Editor::~Editor() {}
 void KS::Editor::RenderWindows(Device& device, Scene& scene, float dt)
 {
     //SceneHierarchy(scene);
-    TransformWindow(device, scene);
+    TransformWindow(scene);
     FogWindow(device, scene);
     FPSWindow(device, dt);
 }
@@ -66,7 +70,7 @@ glm::mat4 RecomposeTransform(const glm::vec3& translation, const glm::vec3& rota
     return t * r * s;
 }
 
-void KS::Editor::TransformWindow(Device& device, Scene& scene)
+void KS::Editor::TransformWindow(Scene& scene)
 {
     auto& drawQueue = scene.GetQueue();
     bool open = true;
@@ -91,7 +95,7 @@ void KS::Editor::TransformWindow(Device& device, Scene& scene)
         {
             glm::mat4 newTransform = RecomposeTransform(translation, rotation, scale);
             glm::mat4 delta = glm::inverse(newTransform) * oldTransform;
-            scene.ApplyModelTransform(device, object.first, delta);
+            scene.ApplyModelTransform(object.first, delta);
         }
 
     }
@@ -118,7 +122,7 @@ void KS::Editor::FogWindow(Device& device, Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::FPSWindow(Device& device, float deltaTime)
+void KS::Editor::FPSWindow(Device&, float deltaTime)
 { 
     float FPS = 1000.f / deltaTime;
     bool open = true;

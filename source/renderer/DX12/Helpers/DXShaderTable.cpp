@@ -57,7 +57,7 @@ void DXShaderTable::Build(const ComPtr<ID3D12Device5>& device, ID3D12StateObject
      HRESULT hr = m_upl->GetResource()->Map(0, nullptr, (void**)&base);
      if (FAILED(hr)) ASSERT(false && "Failed to map shader table");
 
-     WriteTable(base + m_offRG, m_raygen, m_strideRG, props);
+     WriteTable(base + m_offRG, m_raygen, props);
      if (countMS) WriteTable(base + m_offMS, m_miss, m_strideMS, props);
      if (countHG) WriteTable(base + m_offHG, m_hit, m_strideHG, props);
 
@@ -151,7 +151,7 @@ void DXShaderTable::WriteTable(uint8_t* dst, const std::vector<TableRecord>& lis
     }
 }
 
-void DXShaderTable::WriteTable(uint8_t* dst, const TableRecord& list, UINT stride, ID3D12StateObjectProperties* props)
+void DXShaderTable::WriteTable(uint8_t* dst, const TableRecord& list, ID3D12StateObjectProperties* props)
 {
     const void* id = props->GetShaderIdentifier(list.exportName.c_str());
     assert(id && "Export name not found in this pipeline.");

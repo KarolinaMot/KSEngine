@@ -9,7 +9,9 @@
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
 #include <fileio\ResourceHandle.hpp>
+#pragma warning(push, 0)
 #include <glm/gtc/matrix_transform.hpp>
+#pragma warning(pop)
 #include <renderer/InfoStructs.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
@@ -22,7 +24,7 @@ KS::ModelRenderer::~ModelRenderer() {}
 
 bool SplitEven(int total, int parts, int i, int& start, int& end)
 {
-    const int used = std::min(parts, total);
+    const int used = std::min(parts, static_cast<int>(total));
     const int base = used ? total / used : 0;
     const int rem = used ? total % used : 0;
     if (i >= used)
@@ -40,7 +42,7 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
                                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
 {
-    int drawQueueSize = scene.GetDrawQueueSize();
+    int drawQueueSize = static_cast<int>(scene.GetDrawQueueSize());
     if (drawQueueSize == 0) return;
 
     auto pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
@@ -48,12 +50,12 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     auto& mainCommandList = commandContext->m_commandList;
 
     m_renderTarget->PrepareToRenderTo(device, *mainCommandList);
-    m_depthStencil->PrepareToUse(device, *mainCommandList);
+    m_depthStencil->PrepareToUse(*mainCommandList);
     if (clearRT)
     {
         m_renderTarget->Clear(device, *mainCommandList);
     }
-    m_depthStencil->Clear(device, *mainCommandList);
+    m_depthStencil->Clear(*mainCommandList);
     
     auto BindDrawResources = [&](DXCommandList* cmdList)
     {
@@ -72,7 +74,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
     device.CloseCommandContext(std::move(*commandContext));
 
-    auto RecordDrawCommandList = [&](int threadIndex, int startMeshIndex, int endMeshIndex, Device& device)
+    auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device)
     {
         // Reuse the existing lambda
         auto context = device.GetCommandContext();
@@ -85,10 +87,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         device.CloseCommandContext(std::move(context));
     };
 
-    int drawObjectsPerThread = drawQueueSize / NUM_DRAW_THREAD;
-    int leftOverObjects = drawQueueSize % NUM_DRAW_THREAD;
     std::vector<std::thread> workerThreads;
-    auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
@@ -96,7 +95,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
         if (!enoughMeshes) break;
 
-        workerThreads.emplace_back(RecordDrawCommandList, i, start, end, std::ref(device));
+        workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device));
     }
 
     for (auto& t : workerThreads)

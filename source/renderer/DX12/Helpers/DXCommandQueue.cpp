@@ -22,11 +22,6 @@ DXGPUFuture DXCommandQueue::ExecuteCommandLists(ID3D12CommandList* const* ppComm
                                                 uint32_t commandContextsCount)
 {
     std::lock_guard<std::mutex> lock(m_submitMutex);
-    ID3D12CommandList* commandLists[20];
-    //for (int i = 0; i < commandContextsCount; i++)
-    //{
-    //    commandLists[i] = ppCommandContexts[i].m_commandList->GetCommandList().Get();
-    //}
 
     m_command_queue->ExecuteCommandLists(commandContextsCount, ppCommandContexts);
     m_fence->Signal(m_command_queue, ++m_next_fence_value);

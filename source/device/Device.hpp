@@ -9,7 +9,9 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
+#pragma warning (push, 0)
 #include <glm/glm.hpp>
+#pragma warning (pop)
 #include <renderer/RenderTarget.hpp>
 #include <renderer/DepthStencil.hpp>
 #include <resources/Texture.hpp>
@@ -54,8 +56,8 @@ public:
 
     unsigned int GetFrameIndex() const { return m_frame_index; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
-    int GetWidth() const { return m_width; }
-    int GetHeight() const { return m_height; }
+    uint32_t GetWidth() const { return m_width; }
+    uint32_t GetHeight() const { return m_height; }
     std::shared_ptr<RenderTarget> GetRenderTarget() const { return m_swapchainRT; };
     std::shared_ptr<Texture> GetRenderTargetTexture(int index) const { return m_swapchainTex[index]; };
     std::shared_ptr<DepthStencil> GetDepthStencil() const { return m_swapchainDS; };
@@ -76,7 +78,7 @@ private:
     unsigned int m_frame_index = 0;
     unsigned int m_cpu_frame = 0;
     bool m_fullscreen = false;
-    int m_width, m_height;
+    uint32_t m_width, m_height;
     glm::vec4 m_clear_color;
     std::shared_ptr<RenderTarget> m_swapchainRT;
     std::shared_ptr<Texture> m_swapchainTex[2];

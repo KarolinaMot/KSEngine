@@ -1,6 +1,8 @@
 #pragma once
+#pragma warning(push, 0)
 #include <cereal/types/map.hpp>
 #include <cereal/types/string.hpp>
+#pragma warning(pop)
 #include <containers/ByteBuffer.hpp>
 #include <map>
 #include <memory>

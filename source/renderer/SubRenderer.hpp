@@ -27,7 +27,7 @@ struct SubRendererDesc
 class SubRenderer
 {
 public:
-    SubRenderer(const Device& device, SubRendererDesc& desc)
+    SubRenderer(const Device&, SubRendererDesc& desc)
         : m_shader(desc.shader), m_renderTarget(desc.renderTarget), m_depthStencil(desc.depthStencil){};
     virtual ~SubRenderer() = default;
     virtual void Render(Device& device, DXCommandContext* commandContext, Scene& scene,

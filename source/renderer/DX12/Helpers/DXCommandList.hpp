@@ -36,8 +36,8 @@ public:
     void BindBuffer(const DXResource& resource, int rootParameter, size_t elementSize = 0, int offsetElement = 0);
     void ClearRenderTargets(DXResource& rtResource, const DXHeapHandle& handle, const float* clearData);
     void ClearDepthStencils(DXResource& depthResource, const DXHeapHandle& handle);
-    void BindVertexData(const DXResource& buffer, size_t bufferStride, int inputSlot, int elementOffset);
-    void BindIndexData(const DXResource& buffer, size_t bufferStride, int elementOffset);
+    void BindVertexData(const DXResource& buffer, size_t bufferStride, int inputSlot, size_t elementOffset);
+    void BindIndexData(const DXResource& buffer, size_t bufferStride, size_t elementOffset);
     void DrawIndexed(int indexCount, int instancesCount = 1);
     void CopyResource(DXResource& source, DXResource& dest);
     void DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ);

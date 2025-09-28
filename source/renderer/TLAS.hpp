@@ -1,7 +1,9 @@
 #pragma once
 #include <memory>
 #include <vector>
+#pragma warning (push, 0)
 #include <glm/glm.hpp>
+#pragma warning (pop)
 #include <renderer/UploadArena.h>
 
 class DXCommandList;
@@ -46,10 +48,10 @@ private:
     // GPU
     size_t m_tlasSize = 0;
     size_t m_scratchSize = 0;
-    size_t m_capacity = 0;  // capacity of instance descs
+    uint32_t m_capacity = 0;  // capacity of instance descs
 
     void EnsureInstanceCapacity(const Device& device, DXCommandList& cmd,
-                                size_t count);  // grow buffers (and set m_dirtyStructure)
+                                uint32_t count);  // grow buffers (and set m_dirtyStructure)
     void WriteInstanceDescs();                // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
     void EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate);
     void EnsureScratch(const Device& device, uint64_t neededBytes);

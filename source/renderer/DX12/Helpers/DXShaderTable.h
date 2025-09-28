@@ -26,7 +26,7 @@ class DXShaderTable
         UINT MaxRecordStride(const std::vector<TableRecord>& list, const auto& recSize) const;
         UINT MaxRecordStride(const TableRecord& record, const auto& recSize) const;
         void WriteTable(uint8_t* dst, const std::vector<TableRecord>& list, UINT stride, ID3D12StateObjectProperties* props);
-        void WriteTable(uint8_t* dst, const TableRecord& list, UINT stride, ID3D12StateObjectProperties* props);
+        void WriteTable(uint8_t* dst, const TableRecord& list, ID3D12StateObjectProperties* props);
         inline UINT Align(UINT v, UINT a) { return (v + a - 1u) & ~(a - 1u); }
         inline UINT64 Align64(UINT64 v, UINT64 a) { return (v + a - 1ull) & ~(a - 1ull); }
 

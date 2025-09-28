@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
+#pragma warning (push, 0)
 #include <glm/glm.hpp>
+#pragma warning (pop)
 #include <vector>
 #include <renderer/InfoStructs.hpp>
 
@@ -35,8 +37,8 @@ public:
 
 private:
 
-    void GodRays(Device& device, Scene& scene, const RenderTickParams& params);
-    void Main(Device& device, Scene& scene, const RenderTickParams& params);
+    void GodRays(Device& device, Scene& scene);
+    void Main(Device& device, Scene& scene);
 
     std::shared_ptr<ShaderInputCollection> m_mainInputs;
     std::shared_ptr<ShaderInputCollection> m_rtInputs;

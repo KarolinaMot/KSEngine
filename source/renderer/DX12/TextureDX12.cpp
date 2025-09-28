@@ -62,9 +62,6 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     UINT64 textureUploadBufferSize;
     engineDevice->GetCopyableFootprints(&resourceDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
 
-    const int bitsPerPixel = 32;
-    int bytesPerRow = (m_width * bitsPerPixel) / 8;
-
     auto upl = device.GetUploadArena();
 
     UINT64 requiredSize = 0;
@@ -104,7 +101,7 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
 }
 
 KS::Texture::Texture(const Device& device,  uint32_t width, uint32_t height, int type,
-                     glm::vec4 clearColor, Formats format, int mipLevels)
+                     glm::vec4 clearColor, Formats format, uint16_t mipLevels)
 {
     m_impl = new Impl();
 
@@ -162,14 +159,14 @@ KS::Texture::Texture(const Device& device,  uint32_t width, uint32_t height, int
 
 }
 
-KS::Texture::Texture(const Device& device, void* resource, glm::vec2 size, int type)
+KS::Texture::Texture(void* resource, uint32_t width, uint32_t height, int type)
 {
     m_impl = new Impl();
     m_impl->mTextureBuffer = std::make_unique<DXResource>();
     m_impl->mTextureBuffer->SetResource(reinterpret_cast<ID3D12Resource*>(resource));
     m_format = Conversion::DXGIFormatsToKS(m_impl->mTextureBuffer->GetDesc().Format);
-    m_width = size.x;
-    m_height = size.y;
+    m_width = width;
+    m_height = height;
     m_flag = type;
 }
 
@@ -187,7 +184,7 @@ KS::Texture::~Texture()
     delete m_impl;
 }
 
-void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex)
+void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t)
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
@@ -226,7 +223,7 @@ void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandLis
     commandList.ResourceBarrier(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-size_t KS::Texture::GetGPUAddress(int elementIndex, int frameIndex) const
+size_t KS::Texture::GetGPUAddress(int, int) const
 {
     return m_impl->mTextureBuffer->GetResource()->GetGPUVirtualAddress();
 }
@@ -235,8 +232,6 @@ void KS::Texture::GenerateMipmaps(const Device& device, DXCommandList& commandLi
 {
     // FROM: https://www.3dgep.com/learning-directx-12-4/#Generate_Mipmaps_Compute_Shader
     // TODO: Do the required steps if resource does not support UAVs
-
-    ID3D12Device5* engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
     GenerateMipsInfo generateMipsCB;
     generateMipsCB.IsSRGB = false;  // TODO: check if format is SRGB
@@ -405,8 +400,8 @@ void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, st
 
     m_textureCount++;
 
-    m_impl->m_viewport.Width = texture1->m_width;
-    m_impl->m_viewport.Height = texture1->m_height;
+    m_impl->m_viewport.Width = static_cast<FLOAT>(texture1->m_width);
+    m_impl->m_viewport.Height = static_cast<FLOAT>(texture1->m_height);
     m_impl->m_viewport.TopLeftX = 0;
     m_impl->m_viewport.TopLeftY = 0;
     m_impl->m_viewport.MinDepth = 0.0f;
@@ -431,7 +426,7 @@ void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, st
     commandList.ResourceBarrier(*texResource2, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
-void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
+void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1,
                                   std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2)
 {
     if (m_textureCount >= 8)
@@ -465,8 +460,8 @@ void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, st
 
     m_textureCount++;
 
-    m_impl->m_viewport.Width = texture1->m_width;
-    m_impl->m_viewport.Height = texture1->m_height;
+    m_impl->m_viewport.Width = static_cast<FLOAT>(texture1->m_width);
+    m_impl->m_viewport.Height = static_cast<FLOAT>(texture1->m_height);
     m_impl->m_viewport.TopLeftX = 0;
     m_impl->m_viewport.TopLeftY = 0;
     m_impl->m_viewport.MinDepth = 0.0f;
@@ -485,13 +480,6 @@ void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, st
     texResource1->Get()->SetName(wString);
     MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(1)).c_str(), -1, wString, 4096);
     texResource2->Get()->SetName(wString);
-
-    //commandList.ResourceBarrier(*texResource1->Get(), texResource1->GetState(),
-    //                            D3D12_RESOURCE_STATE_RENDER_TARGET);
-    //texResource1->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-    //commandList.ResourceBarrier(*texResource2->Get(), texResource2->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    //texResource2->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 void KS::RenderTarget::Bind(Device& device, DXCommandList& commandList, const DepthStencil* depth) const
 {
@@ -607,13 +595,13 @@ KS::DepthStencil::DepthStencil(Device& device, DXCommandList& commandList, std::
 KS::DepthStencil::~DepthStencil()
 {}
 
-void KS::DepthStencil::PrepareToUse(Device& device, DXCommandList& commandList)
+void KS::DepthStencil::PrepareToUse(DXCommandList& commandList)
 {
     auto& texBuffer = m_texture->m_impl->mTextureBuffer;
     commandList.ResourceBarrier(*texBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
-void KS::DepthStencil::Clear(Device& device, DXCommandList& commandList)
+void KS::DepthStencil::Clear(DXCommandList& commandList)
 {
     commandList.ClearDepthStencils(*m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
 }

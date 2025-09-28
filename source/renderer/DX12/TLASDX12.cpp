@@ -26,13 +26,14 @@ KS::TLAS::~TLAS() {}
 
 void KS::TLAS::AddInstance(const Device& device, DXCommandList& cmd, std::shared_ptr<Mesh>& mesh, glm::mat4x4 modelMat)
 {
+    uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
     TLASInstance inst{};
     inst.m_mesh = mesh;
     inst.modelMat = modelMat;
-    inst.id = m_instances.size();
+    inst.id = instanceCount;
     m_instances.push_back(inst);
 
-    EnsureInstanceCapacity(device, cmd, m_instances.size());
+    EnsureInstanceCapacity(device, cmd, instanceCount+1);
     m_updateStructure = true;
 
     mesh->SetTLASHandle(inst.id);
@@ -40,7 +41,9 @@ void KS::TLAS::AddInstance(const Device& device, DXCommandList& cmd, std::shared
 
 void KS::TLAS::RemoveInstance(uint32_t instanceHandle)
 {
-    if (instanceHandle >= m_instances.size()) return;
+    uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
+
+    if (instanceHandle >= instanceCount) return;
 
     m_instances[instanceHandle] = std::move(m_instances.back());
     m_instances.pop_back();
@@ -57,7 +60,9 @@ void KS::TLAS::RemoveInstance(uint32_t instanceHandle)
 
 void KS::TLAS::UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat)
 {
-    if (instanceHandle >= m_instances.size()) return;
+    uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
+
+    if (instanceHandle >= instanceCount) return;
     m_instances[instanceHandle].modelMat = mat;
     m_updateTransforms = true;  // safe; worst case we rebuild
 }
@@ -69,9 +74,9 @@ void KS::TLAS::Clear()
     m_updateTransforms = false;
 }
 
-void KS::TLAS::EnsureInstanceCapacity(const Device& device, DXCommandList& cmd, size_t count)
+void KS::TLAS::EnsureInstanceCapacity(const Device& device, DXCommandList& cmd, uint32_t count)
 {
-    if (count <= m_capacity) return;
+    if (count < m_capacity) return;
 
     UINT newCap = m_capacity <= 1 ? 2 : m_capacity;
     while (newCap < count) newCap *= newCap;

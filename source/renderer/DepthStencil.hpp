@@ -14,8 +14,8 @@ class DepthStencil
 public:
     DepthStencil(Device& device, DXCommandList& commandList, std::shared_ptr<Texture>& texture);
     ~DepthStencil();
-    void PrepareToUse(Device& device, DXCommandList& commandList);
-    void Clear(Device& device, DXCommandList& commandList);
+    void PrepareToUse(DXCommandList& commandList);
+    void Clear(DXCommandList& commandList);
     bool IsValid() const { return m_texture != nullptr; }
 
 private:

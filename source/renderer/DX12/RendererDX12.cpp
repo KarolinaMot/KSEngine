@@ -1,7 +1,10 @@
 #include "../Renderer.hpp"
 
 #include <device/Device.hpp>
+
+#pragma warning (push, 0)
 #include <glm/glm.hpp>
+#pragma warning (pop)
 
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
@@ -88,8 +91,8 @@ KS::Renderer::Renderer(Device& device)
 
         lightRenderingTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT, 4);
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
+            Formats::R32G32B32A32_FLOAT, static_cast<std::uint16_t>(4));
 
         lightShaftTex[i] = std::make_shared<Texture>(device, device.GetWidth() / 4, device.GetHeight() / 4,
                                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
@@ -239,7 +242,7 @@ KS::Renderer::Renderer(Device& device)
 KS::Renderer::~Renderer() {}
 
 
-void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced)
+void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool)
 {
     CameraMats cam{};
     cam.m_proj = params.projectionMatrix;
@@ -251,11 +254,11 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_cameraRight = glm::vec4(params.cameraRight, 1.f);
     m_camera_buffer->Update(device, cam, 0);
 
-    GodRays(device, scene, params);
-    Main(device, scene, params);
+    GodRays(device, scene);
+    Main(device, scene);
 }
 
-void KS::Renderer::GodRays(Device& device, Scene& scene, const RenderTickParams& params)
+void KS::Renderer::GodRays(Device& device, Scene& scene)
 {
     if (scene.GetLightInfo().numPointLights == 0) return;
 
@@ -310,7 +313,7 @@ void KS::Renderer::GodRays(Device& device, Scene& scene, const RenderTickParams&
     device.CloseCommandContext(std::move(commandContext));
 }
 
-void KS::Renderer::Main(Device& device, Scene& scene, const RenderTickParams& params)
+void KS::Renderer::Main(Device& device, Scene& scene)
 {
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;

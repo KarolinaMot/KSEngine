@@ -53,9 +53,11 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
     }
 
     auto view = registry.view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
-    for (auto&& [e, camera, transform] : view.each())
+    if (view.begin() != view.end())
     {
-
+        auto& e = *view.begin();  // first entity in the view
+        auto& camera = view.get<KS::ComponentFirstPersonCamera>(e);
+        auto& transform = view.get<KS::ComponentTransform>(e);
         camera.eulerAngles += eulerDelta;
         camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 

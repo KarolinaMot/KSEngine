@@ -6,8 +6,9 @@
 #include <renderer/DX12/Helpers/DX12Conversion.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
 
+#pragma warning(push, 0)
 #include <DXR/DXRHelper.h>
-#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
+#pragma warning(pop)
 
 class KS::Shader::Impl
 {
@@ -111,7 +112,6 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
     }
     else if (shaderType == ShaderType::ST_RAYTRACER)
     {
-        ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
         auto& rtPipeline = m_impl->m_pipelineSet.m_RTPipeline;
         rtPipeline = std::make_shared<DXRTPipeline>();
 
@@ -163,7 +163,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         subobjects[7].pDesc = &assocDesc; 
 
         D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
-                                        .NumSubobjects = std::size(subobjects),
+                                        .NumSubobjects = static_cast<UINT>(std::size(subobjects)),
                                         .pSubobjects = subobjects};
         engineDevice->CreateStateObject(&desc, IID_PPV_ARGS(&rtPipeline->m_pipeline));
 

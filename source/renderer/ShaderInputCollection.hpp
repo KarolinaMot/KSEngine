@@ -42,7 +42,7 @@ class ShaderInputCollection
 {
 public:
     ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, const std::vector<std::pair<ShaderInputVisibility, SamplerDesc>>& samplers,  int totalDataTypeCount, std::string name);
-    ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name);
+    ShaderInputCollection(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name);
     ~ShaderInputCollection();
     void* GetSignature() const;
     ShaderInputDesc GetInput(std::string key) const;

@@ -1,5 +1,9 @@
+#pragma once
+
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#pragma warning(pop)
 
 namespace KS
 {

@@ -48,8 +48,8 @@ KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData&
         auto view = attributes.GetView<uint8_t>();
 
         auto* start = view.begin();
-        size_t size = view.count();
-        size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(name)->second;
+        uint32_t size = static_cast<uint32_t>(view.count());
+        uint32_t stride = static_cast<uint32_t>(MeshConstants::ATTRIBUTE_STRIDES.find(name)->second);
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
@@ -94,7 +94,7 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
     const auto vbStride = vb->GetBufferStride();
     const auto vbCount = vb->GetElementCount();
 
-    size_t ibStride = 0, ibCount = 0;
+    uint32_t ibStride = 0, ibCount = 0;
     KS::StorageBuffer* ibRaw = nullptr;
     if (ib)
     {
@@ -108,7 +108,6 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
     m_impl->FillGeometryDesc(*vb, vbStride, vbCount, ibRaw, ibStride, ibCount, D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
 
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto commandList = cmd.GetCommandList().Get();
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
     inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;

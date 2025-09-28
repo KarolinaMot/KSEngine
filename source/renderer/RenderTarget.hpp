@@ -17,7 +17,7 @@ public:
 
     void AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
                     std::shared_ptr<Texture> texture2, std::string name);
-    void AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
+    void AddTexture(Device& device, std::shared_ptr<Texture> texture1,
                     std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2);
     void Bind(Device& device, DXCommandList& commandList, const DepthStencil* depth) const;
     void Clear(const Device& device, DXCommandList& commandList);

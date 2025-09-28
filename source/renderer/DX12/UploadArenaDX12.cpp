@@ -3,6 +3,7 @@
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <tools/Log.hpp>
 
 class KS::UploadPage::Impl
 {
@@ -39,6 +40,11 @@ KS::UploadPage* KS::UploadArena::CreatePage(const Device& device, DXCommandList&
     p->m_index = m_pages.size();
 
     HRESULT hr = p->m_impl->m_resource->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&p->m_cpu));
+    if (FAILED(hr))
+    {
+        LOG(Log::Severity::WARN, "Failure trying to map upload page buffer");
+    }
+
     UploadPage* raw = p.get();
     m_pages.emplace_back(std::move(p));
     return raw;

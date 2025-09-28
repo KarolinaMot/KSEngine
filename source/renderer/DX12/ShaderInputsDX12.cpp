@@ -23,7 +23,7 @@ KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unor
 
     for (auto& pair : m_descriptors)
     {
-        D3D12_SHADER_VISIBILITY visibility;
+        D3D12_SHADER_VISIBILITY visibility{};
         switch (pair.second.visibility)
         {
         case ShaderInputVisibility::PIXEL:
@@ -62,7 +62,7 @@ KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unor
 
     for (int i = 0; i < samplers.size(); i++)
     {
-        D3D12_SHADER_VISIBILITY visibility;
+        D3D12_SHADER_VISIBILITY visibility{};
         switch (samplers[i].first)
         {
         case ShaderInputVisibility::PIXEL:
@@ -76,7 +76,7 @@ KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unor
             break;
         }
 
-        D3D12_TEXTURE_ADDRESS_MODE addressMode;
+        D3D12_TEXTURE_ADDRESS_MODE addressMode{};
         switch (samplers[i].second.addressMode)
         {
         case SamplerAddressMode::SAM_CLAMP:
@@ -96,7 +96,7 @@ KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unor
             break;
         }
 
-        D3D12_FILTER filterMode;
+        D3D12_FILTER filterMode{};
         switch (samplers[i].second.filter)
         {
         case SamplerFilter::SF_NEAREST:
@@ -112,7 +112,7 @@ KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unor
             break;
         }
 
-        D3D12_STATIC_BORDER_COLOR borderColor;
+        D3D12_STATIC_BORDER_COLOR borderColor{};
         switch (samplers[i].second.borderColor)
         {
         case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
@@ -135,7 +135,7 @@ KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unor
     m_impl->m_signature = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()), wString);
 }
 
-KS::ShaderInputCollection::ShaderInputCollection(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name)
+KS::ShaderInputCollection::ShaderInputCollection(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name)
 {
     m_impl = std::make_unique<Impl>();
     m_descriptors = std::move(inputs);

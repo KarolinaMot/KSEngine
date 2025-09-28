@@ -24,10 +24,10 @@ private:
     friend cereal::access;
 
     template <typename A>
-    std::string save_minimal(A& a) const { return path; }
+    std::string save_minimal(A&) const { return path; }
 
     template <typename A>
-    void load_minimal(A& a, const std::string& value) { path = value; }
+    void load_minimal(A&, const std::string& value) { path = value; }
 };
 
 }

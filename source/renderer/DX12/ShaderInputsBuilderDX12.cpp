@@ -165,7 +165,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddTexture(S
 KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
 {
     std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
-    D3D12_TEXTURE_ADDRESS_MODE addressMode;
+    D3D12_TEXTURE_ADDRESS_MODE addressMode{};
 
     switch (sampler.second.addressMode)
     {
@@ -186,7 +186,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
             break;
     }
 
-    D3D12_FILTER filterMode;
+    D3D12_FILTER filterMode{};
     switch (sampler.second.filter)
     {
         case SamplerFilter::SF_NEAREST:
@@ -202,7 +202,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
             break;
     }
 
-    D3D12_STATIC_BORDER_COLOR borderColor;
+    D3D12_STATIC_BORDER_COLOR borderColor{};
     switch (sampler.second.borderColor)
     {
         case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
@@ -216,7 +216,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
             break;
     }
 
-    m_impl->AddSampler(m_sampler_inputs.size(), m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor);
+    m_impl->AddSampler(static_cast<uint32_t>(m_sampler_inputs.size()), m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor);
     m_sampler_inputs.push_back(sampler);
 
     return *this;
@@ -258,12 +258,12 @@ std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Bui
     }
     signature->SetName(wString);
 
-    return std::make_shared<ShaderInputCollection>(device, std::move(m_descriptors), signature.Get(), name);
+    return std::make_shared<ShaderInputCollection>(std::move(m_descriptors), signature.Get(), name);
 }
 
 D3D12_SHADER_VISIBILITY KS::ShaderInputCollectionBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
 {
-    D3D12_SHADER_VISIBILITY descVisibility;
+    D3D12_SHADER_VISIBILITY descVisibility{};
     switch (visibility)
     {
         case ShaderInputVisibility::PIXEL:

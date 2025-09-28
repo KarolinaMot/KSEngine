@@ -25,8 +25,8 @@ KS::StorageBuffer::~StorageBuffer() {
     delete m_impl;
 }
 
-void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name, size_t dataSize,
-                                     int numOfElements)
+void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name,
+                                     uint32_t numOfElements)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -46,12 +46,13 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& comman
     if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
         AllocateAsReadWrite(device);
    
-   const UINT64 bytes = UINT64(m_buffer_stride) * UINT64(numOfElements);
+   const UINT64 bytes = m_buffer_stride * numOfElements;
    auto upl = device.GetUploadArena();
    m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
 }
 
-void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, int numOfElements)
+void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
+                                         uint32_t numOfElements)
 {
     if (!data)
     {
@@ -65,7 +66,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     else if (m_flags & StorageBufferFlags::VERTEX_DATA_BUFFER) 
         destState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 
-    const UINT64 bytes = UINT64(m_buffer_stride) * UINT64(numOfElements);
+    const UINT64 bytes = m_buffer_stride * numOfElements;
     auto upl = device.GetUploadArena();
     memcpy(m_impl->m_slice.m_cpu + m_impl->m_slice.m_head, data, size_t(bytes));
 
@@ -80,7 +81,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     commandList.ResourceBarrier(*m_impl->m_resource, destState);
 }
 
-void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, int newNumOfElements)
+void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, uint32_t newNumOfElements)
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
@@ -103,7 +104,7 @@ void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList,
     m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
 }
 
-void KS::StorageBuffer::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex)
+void KS::StorageBuffer::Bind(const Device&, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t)
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
@@ -136,8 +137,8 @@ void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)
     srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     srvDesc.Buffer.FirstElement = 0;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.StructureByteStride = m_buffer_stride;
-    srvDesc.Buffer.NumElements = m_num_elements;
+    srvDesc.Buffer.StructureByteStride = static_cast<UINT>(m_buffer_stride);
+    srvDesc.Buffer.NumElements = static_cast<UINT>(m_num_elements);
 
     if (slot == -1)
         m_impl->m_SRV_handle = heap->AllocateResource(m_impl->m_resource.get(), &srvDesc);
@@ -162,8 +163,8 @@ void KS::StorageBuffer::AllocateAsReadWrite(const Device& device, int slot)
     uavDesc.Format = DXGI_FORMAT_UNKNOWN;
     uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     uavDesc.Buffer.FirstElement = 0;
-    uavDesc.Buffer.StructureByteStride = m_buffer_stride;
-    uavDesc.Buffer.NumElements = m_num_elements;
+    uavDesc.Buffer.StructureByteStride = static_cast<UINT>(m_buffer_stride);
+    uavDesc.Buffer.NumElements = static_cast<UINT>(m_num_elements);
 
     if (slot == -1)
         m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc);
@@ -171,7 +172,7 @@ void KS::StorageBuffer::AllocateAsReadWrite(const Device& device, int slot)
         m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc, slot);
 }
 
-size_t KS::StorageBuffer::GetGPUAddress(int elementIndex, int frameIndex) const
+size_t KS::StorageBuffer::GetGPUAddress(int elementIndex, int) const
 {
     return m_impl->m_resource->GetResource()->GetGPUVirtualAddress() + (m_buffer_stride * elementIndex);
 }
