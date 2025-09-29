@@ -37,6 +37,8 @@ public:
 
     void Build(const Device& device, DXCommandList& cmd);
 
+    uint32_t GetSRVHandle() const;
+
 private:
     // CPU
     std::vector<TLASInstance> m_instances;

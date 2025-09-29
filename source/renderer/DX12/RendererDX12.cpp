@@ -54,6 +54,8 @@ KS::Renderer::Renderer(Device& device)
                      .AddStaticSampler(ShaderInputVisibility::COMPUTE, clampSampler)
                      .Build(device, "MAIN SIGNATURE");
 
+
+
     std::shared_ptr<Texture> deferredRendererTex[2][4];
     std::shared_ptr<Texture> deferredRendererDepthTex;
     std::shared_ptr<Texture> pbrResTex[2];
@@ -87,7 +89,7 @@ KS::Renderer::Renderer(Device& device)
         raytracingResTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
+                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM);
 
         lightRenderingTex[i] =
             std::make_shared<Texture>(device, device.GetWidth(), device.GetHeight(),
@@ -150,7 +152,7 @@ KS::Renderer::Renderer(Device& device)
      m_rtInputs = ShaderInputCollectionBuilder()
                      .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
                      .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
-                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 2, "bvh")
+                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "bvh")
                      .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output", ShaderInputMod::READ_WRITE)
                      .Build(device, "RAYTRACE SIGNATURE");
 
@@ -265,6 +267,7 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
+    auto frameIndex = device.GetCPUFrameIndex();
 
         // RENDERING LIGHTS
     m_inputs[LIGHT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER),
@@ -288,7 +291,7 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
     commandList = commandContext.m_commandList;
 
     // GENERATE LIGHT SCATTERING RENDER TARGET MIPS
-    auto lightRenderTex = m_renderTargets[LIGHT_RENDER]->GetTexture(device, 0);
+    auto lightRenderTex = m_renderTargets[LIGHT_RENDER]->GetTexture(frameIndex, 0);
     lightRenderTex->GenerateMipmaps(device, *commandList);
 
     // LIGHT SHAFT RENDER
@@ -305,9 +308,11 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
     m_subrenderers[LIGHT_SHAFT_RENDER]->Render(device, &commandContext, scene, m_inputs[LIGHT_SHAFT_RENDER], true);
 
     // LIGHT SHAFT UPSCALE
-    auto lightShaftTex = m_renderTargets[LIGHT_SHAFT_RENDER]->GetTexture(device, 0);
+    auto lightShaftTex = m_renderTargets[LIGHT_SHAFT_RENDER]->GetTexture(frameIndex, 0);
     m_inputs[UPSCALING_RENDER][0] =
         std::pair<ShaderInput*, ShaderInputDesc>(lightShaftTex.get(), rootSignature->GetInput("base_tex"));
+    m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, scene, m_inputs[UPSCALING_RENDER], true);
+
     m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, scene, m_inputs[UPSCALING_RENDER], true);
 
     device.CloseCommandContext(std::move(commandContext));
@@ -318,6 +323,7 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[0]->GetShader()->GetShaderInput();
+    auto frameIndex = device.GetCPUFrameIndex();
 
     // DEFERRED RENDERER
     m_inputs[DEFERRED_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER),
@@ -338,10 +344,10 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     commandList = commandContext.m_commandList;
 
     // PBR RENDER
-    auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(device, 0);
+    auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(frameIndex, 0);
     for (int i = 0; i < 4; i++)
     {
-        auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(device, i);
+        auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(frameIndex, i);
         m_inputs[PBR_RENDER][i] =
             std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
     }

@@ -21,6 +21,7 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), true);
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+    auto frameIndex = device.GetCPUFrameIndex();
 
     if (clearRT)
     {
@@ -28,14 +29,14 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
         m_renderTarget->Bind(device, *commandList, m_depthStencil.get());
         m_renderTarget->Clear(device, *commandList);
     }
-    m_renderTarget->GetTexture(device, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("PBRRes"));
+    m_renderTarget->GetTexture(frameIndex, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("PBRRes"));
 
     for (int i = 0; i < inputs.size(); i++)
     {
         inputs[i].first->Bind(device, *commandList, inputs[i].second);
     }
 
-    uint32_t texWidth = m_renderTarget->GetTexture(device, 0)->GetWidth();
-    uint32_t texHeight = m_renderTarget->GetTexture(device, 0)->GetHeight();
+    uint32_t texWidth = m_renderTarget->GetTexture(frameIndex, 0)->GetWidth();
+    uint32_t texHeight = m_renderTarget->GetTexture(frameIndex, 0)->GetHeight();
     commandList->DispatchShader(texWidth / 8, texHeight / 8, 1);
 }

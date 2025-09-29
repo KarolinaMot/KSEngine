@@ -26,7 +26,7 @@ public:
     void SetCopyFrom(const Device& device, DXCommandList& commandList, int rtIndex);
     void PrepareToPresent(const Device& device, DXCommandList& commandList);
     void PrepareToRenderTo(const Device& device, DXCommandList& commandList);
-    std::shared_ptr<Texture> GetTexture(Device& device, int index);
+    std::shared_ptr<Texture> GetTexture(uint32_t frameIndex, uint32_t index) const;
 
 private:
     class Impl;

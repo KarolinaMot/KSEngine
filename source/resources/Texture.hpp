@@ -52,6 +52,7 @@ public:
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
+    uint32_t GetHandleIndex(bool readOnly) const;
 
     void GenerateMipmaps(const Device& device, DXCommandList& commandList);
 

@@ -226,10 +226,15 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
 
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
-    m_Impl->m_SRVHandle = heap->AllocateResource(m_Impl->m_tlas.get(), &desc);
+    m_Impl->m_SRVHandle = heap->AllocateResource(m_Impl->m_tlas.get(), &desc, BVH_SLOT);
+
+    if (m_updateTransforms) m_updateTransforms = false;
+    if (m_updateStructure) m_updateStructure = false;
 
     cmd.TrackResource(m_Impl->m_tlas->GetResource());
 }
+
+uint32_t KS::TLAS::GetSRVHandle() const { return m_Impl->m_SRVHandle.GetIndex(); }
 
 
 

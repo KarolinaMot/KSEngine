@@ -159,6 +159,31 @@ KS::Texture::Texture(const Device& device,  uint32_t width, uint32_t height, int
 
 }
 
+uint32_t KS::Texture::GetHandleIndex(bool readOnly) const
+{
+    if (readOnly)
+    {
+        if (!m_impl->mSRVHeapSlot.IsValid())
+        {
+            LOG(Log::Severity::FATAL, "Tried to get SRV index of texture with no allocated SRV.");
+            return 0;
+        }
+
+        return static_cast<uint32_t>(m_impl->mSRVHeapSlot.GetIndex());
+    }
+    else
+    {
+        if (!m_impl->mUAVHeapSlot.IsValid())
+        {
+            LOG(Log::Severity::FATAL, "Tried to get UAV index of texture with no allocated SRV.");
+            return 0;
+        }
+
+        return static_cast<uint64_t>(m_impl->mUAVHeapSlot.GetIndex());
+    }
+}
+
+
 KS::Texture::Texture(void* resource, uint32_t width, uint32_t height, int type)
 {
     m_impl = new Impl();
@@ -525,8 +550,9 @@ void KS::RenderTarget::Clear(const Device& device, DXCommandList& commandList)
 void KS::RenderTarget::CopyTo(Device& device, DXCommandList& commandList, std::shared_ptr<RenderTarget> sourceRT,
                               int sourceRtIndex, int dstRTIndex)
 {
-    auto& copyDestRsc = m_textures[device.GetCPUFrameIndex()][dstRTIndex]->m_impl->mTextureBuffer;
-    auto& copySrcRsc = sourceRT->GetTexture(device, sourceRtIndex)->m_impl->mTextureBuffer;
+    uint32_t frameIndex = device.GetCPUFrameIndex();
+    auto& copyDestRsc = m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer;
+    auto& copySrcRsc = sourceRT->GetTexture(frameIndex, sourceRtIndex)->m_impl->mTextureBuffer;
 
     commandList.ResourceBarrier(*copyDestRsc, D3D12_RESOURCE_STATE_COPY_DEST);
 
@@ -563,9 +589,9 @@ void KS::RenderTarget::PrepareToRenderTo(const Device& device, DXCommandList& co
     }
 }
 
-std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(Device& device, int index)
+std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(uint32_t frameIndex, uint32_t index) const
 {
-    return m_textures[device.GetCPUFrameIndex()][index];
+    return m_textures[frameIndex][index];
 }
 
 KS::DepthStencil::DepthStencil(Device& device, DXCommandList& commandList, std::shared_ptr<Texture>& texture)

@@ -12,6 +12,7 @@
 #include <renderer/UniformBuffer.hpp>
 #include <renderer/Shader.hpp>
 #include <scene/Scene.hpp>
+#include <renderer/DX12/Helpers/DXShaderTable.h>
 
 class KS::RTRenderer::Impl
 {
@@ -21,17 +22,47 @@ public:
         glm::vec4 colorAndDistance;
     };
 
+    std::unique_ptr<DXShaderTable> m_shaderTable[FRAME_BUFFER_COUNT];
     //nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper[2];
     //Microsoft::WRL::ComPtr<ID3D12Resource> m_sbtStorage[2];
     //RTShaderInfo m_SBTinfo[2];
 };
 
-KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer*)
+KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer* cameraBuffer)
     : SubRenderer(device, desc)
 {
-    //m_impl = std::make_unique<Impl>();
-    //int frameIndex = 0;
-    //m_frameIndex = std::make_unique<UniformBuffer>(device, "FRAME INDEX BUFFER", frameIndex, 1);
+
+    m_impl = std::make_unique<Impl>();
+    int frameIndex = 0;
+    m_frameIndex = std::make_unique<UniformBuffer>(device, "FRAME INDEX BUFFER", frameIndex, 1);
+    auto heap = static_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
+    DXRTPipeline* pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
+
+    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+    {
+        m_impl->m_shaderTable[i] = std::make_unique<DXShaderTable>();
+        m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup");
+        m_impl->m_shaderTable[i]->AddMiss(L"Miss");
+
+        uint32_t texSRVIndex = desc.renderTarget->GetTexture(i, 0)->GetHandleIndex(true);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        outputHandle.ptr += static_cast<uint64_t>(texSRVIndex * heap->GetDescriptorSize());
+
+        D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT * heap->GetDescriptorSize());
+
+        std::vector<void*> heapPointers(4);
+        heapPointers[0] = reinterpret_cast<void*>(m_frameIndex->GetGPUAddress(0, i));
+        heapPointers[1] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, i));
+        heapPointers[3] = reinterpret_cast<void*>(outputHandle.ptr);
+        heapPointers[2] = reinterpret_cast<void*>(tlasHandle.ptr);
+        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", &heapPointers[0], sizeof(void*)*4);
+
+        m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
+    }
+
 
     //ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
 
