@@ -3,6 +3,7 @@
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <device/Device.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/UploadArena.h>
 
 struct KS::TLAS::Impl
@@ -11,6 +12,7 @@ struct KS::TLAS::Impl
     std::shared_ptr<DXResource> m_scratch;
     std::shared_ptr<DXResource> m_tlas;
     std::shared_ptr<DXResource> m_defaultPerFrame[FRAME_BUFFER_COUNT];
+    DXHeapHandle m_SRVHandle;
 };
 
 
@@ -212,6 +214,19 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     build.ScratchAccelerationStructureData = m_Impl->m_scratch->GetResource()->GetGPUVirtualAddress();
     build.SourceAccelerationStructureData = doUpdate ? m_Impl->m_tlas->GetResource()->GetGPUVirtualAddress() : 0;
     cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
+
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV tlasSrv{};
+    tlasSrv.Location = m_Impl->m_tlas->GetResource()->GetGPUVirtualAddress();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+    desc.Format = DXGI_FORMAT_UNKNOWN;
+    desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+    desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    desc.RaytracingAccelerationStructure = tlasSrv;
+
+    auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+
+    m_Impl->m_SRVHandle = heap->AllocateResource(m_Impl->m_tlas.get(), &desc);
 
     cmd.TrackResource(m_Impl->m_tlas->GetResource());
 }
