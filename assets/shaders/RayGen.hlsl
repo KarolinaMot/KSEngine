@@ -2,17 +2,13 @@
 #include "Structs.hlsl"
 
 // Raytracing output texture, accessed as a UAV
-RWTexture2D<float4> gOutput[] : register(u0);
+RWTexture2D<float4> gOutput : register(u0);
 
 // Raytracing acceleration structure, accessed as a SRV
-RaytracingAccelerationStructure SceneBVH[] : register(t0);
+RaytracingAccelerationStructure SceneBVH : register(t0);
 
-cbuffer FrameIndexBuffer : register(b0)
-{
-    int frameIndex;
-};
 
-cbuffer Camera : register(b1)
+cbuffer Camera : register(b0)
 {
     CameraMats cameraMats;
 };
@@ -32,9 +28,9 @@ void RayGen()
     
     // Define a ray, consisting of origin, direction, and the min-max distance values
     RayDesc ray;
-    ray.Origin = mul(cameraMats.mInvView, float4(0.f, 0.f, 0.f, 1.f));
+    ray.Origin = mul(cameraMats.mInvView, float4(0.f, 0.f, 0.f, 1.f)).xyz;
     float4 target = mul(cameraMats.mInvProjection, float4(d.x, -d.y, 1, 1));
-    ray.Direction = mul(cameraMats.mInvView, float4(target.xyz, 0));
+    ray.Direction = mul(cameraMats.mInvView, float4(target.xyz, 0)).xyz;
     ray.TMin = 0;
     ray.TMax = 100000;
     
@@ -42,7 +38,7 @@ void RayGen()
     TraceRay(
       // Parameter name: AccelerationStructure
       // Acceleration structure
-      SceneBVH[frameIndex],
+      SceneBVH,
 
       // Parameter name: RayFlags
       // Flags can be used to specify the behavior upon hitting a surface
@@ -86,5 +82,5 @@ void RayGen()
       // shaders and the raygen
       payload);
     
-    gOutput[frameIndex][launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+    gOutput[launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
 }

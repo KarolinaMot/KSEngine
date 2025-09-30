@@ -150,7 +150,6 @@ KS::Renderer::Renderer(Device& device)
                                  std::initializer_list<Formats>{});
 
      m_rtInputs = ShaderInputCollectionBuilder()
-                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
                      .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
                      .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "bvh")
                      .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output", ShaderInputMod::READ_WRITE)

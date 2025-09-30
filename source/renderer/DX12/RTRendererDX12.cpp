@@ -45,19 +45,19 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
         m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup");
         m_impl->m_shaderTable[i]->AddMiss(L"Miss");
 
-        uint32_t texUAVIndex = desc.renderTarget->GetTexture(i, 0)->GetHandleIndex(false);
+        int frame = i;
+        uint32_t texUAVIndex = desc.renderTarget->GetTexture(frame, 0)->GetHandleIndex(false);
 
         D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         outputHandle.ptr += static_cast<uint64_t>(texUAVIndex * heap->GetDescriptorSize());
 
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
-        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT * heap->GetDescriptorSize());
+        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT + frame * heap->GetDescriptorSize());
 
-        std::vector<void*> heapPointers(4);
-        heapPointers[0] = reinterpret_cast<void*>(m_frameIndex->GetGPUAddress(0, i));
-        heapPointers[1] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, i));
-        heapPointers[3] = reinterpret_cast<void*>(outputHandle.ptr);
-        heapPointers[2] = reinterpret_cast<void*>(tlasHandle.ptr);
+        std::vector<void*> heapPointers(3);
+        heapPointers[0] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, frame));
+        heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
+        heapPointers[2] = reinterpret_cast<void*>(outputHandle.ptr);
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", &heapPointers[0], sizeof(void*)*4);
 
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
@@ -75,6 +75,7 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Sc
     auto width = m_renderTarget->GetWidth();
     auto height = m_renderTarget->GetHeight();
     auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline())->m_pipeline.Get();
+    m_frameIndex->Update(device, cpuFrameIndex);
 
     auto desc = m_impl->m_shaderTable[cpuFrameIndex]->FillDispatchDesc(width, height);
 
@@ -86,7 +87,6 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Sc
 
     //auto& sbtInfo = m_impl->m_SBTinfo[cpuFrameIndex];
 
-    //m_frameIndex->Update(device, cpuFrameIndex);
 
     //m_renderTarget->GetTexture(device, cpuFrameIndex)->TransitionToRW(device, *commandList);
 
