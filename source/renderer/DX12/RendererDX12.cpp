@@ -154,6 +154,7 @@ KS::Renderer::Renderer(Device& device)
                      .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
                      .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "bvh")
                      .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output", ShaderInputMod::READ_WRITE)
+                     .SetAsLocal()
                      .Build(device, "RAYTRACE SIGNATURE");
 
      std::shared_ptr<Shader> rtShader = std::make_shared<Shader>(
@@ -237,6 +238,7 @@ KS::Renderer::Renderer(Device& device)
     m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(4);
     m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(5);
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(1);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(1);
 
     device.CloseCommandContext(std::move(commandContext));
 }
@@ -244,7 +246,7 @@ KS::Renderer::Renderer(Device& device)
 KS::Renderer::~Renderer() {}
 
 
-void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool)
+void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced)
 {
     CameraMats cam{};
     cam.m_proj = params.projectionMatrix;
@@ -256,8 +258,15 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_cameraRight = glm::vec4(params.cameraRight, 1.f);
     m_camera_buffer->Update(device, cam, 0);
 
-    GodRays(device, scene);
-    Main(device, scene);
+    if (!raytraced)
+    {
+        GodRays(device, scene);
+        Main(device, scene);
+    }
+    else
+    {
+        Raytrace(device, scene);
+    }
 }
 
 void KS::Renderer::GodRays(Device& device, Scene& scene)
@@ -363,6 +372,19 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     m_subrenderers[PBR_RENDER]->Render(device, &commandContext, scene, m_inputs[PBR_RENDER], true);
 
     auto& boundRT =  m_renderTargets[PBR_RENDER];
+    device.GetRenderTarget()->CopyTo(device, *commandList, boundRT, 0, 0);
+
+    device.CloseCommandContext(std::move(commandContext));
+}
+
+void KS::Renderer::Raytrace(Device& device, Scene& scene) 
+{
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+
+    m_subrenderers[RT_RENDER]->Render(device, &commandContext, scene, m_inputs[RT_RENDER], true);
+
+    auto& boundRT = m_renderTargets[RT_RENDER];
     device.GetRenderTarget()->CopyTo(device, *commandList, boundRT, 0, 0);
 
     device.CloseCommandContext(std::move(commandContext));

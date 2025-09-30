@@ -1,5 +1,4 @@
 #include "DXPipeline.hpp"
-#include "DXSignature.hpp"
 #include <code_utility.hpp>
 #include <tools/Log.hpp>
 

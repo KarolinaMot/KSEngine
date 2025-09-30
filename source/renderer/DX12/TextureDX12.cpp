@@ -86,6 +86,11 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     m_impl->AllocateAsSRV(descriptorHeap);
 
+    if (m_flag & RW_TEXTURE)
+    {
+        m_impl->AllocateAsUAV(descriptorHeap);
+    }
+
     for (int i = 1; i < resourceDesc.MipLevels; i++)
     {
         D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
@@ -138,10 +143,15 @@ KS::Texture::Texture(const Device& device,  uint32_t width, uint32_t height, int
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
+    auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+
+    if (m_flag & RW_TEXTURE)
+    {
+        m_impl->AllocateAsUAV(descriptorHeap);
+    }
 
     if (m_mipLevels > 1)
     {
-        auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
         m_impl->AllocateAsSRV(descriptorHeap);
 
         for (int i = 1; i < resourceDesc.MipLevels; i++)
@@ -165,7 +175,8 @@ uint32_t KS::Texture::GetHandleIndex(bool readOnly) const
     {
         if (!m_impl->mSRVHeapSlot.IsValid())
         {
-            LOG(Log::Severity::FATAL, "Tried to get SRV index of texture with no allocated SRV.");
+            LOG(Log::Severity::WARN, "Tried to get SRV index of texture with no allocated SRV.");
+            assert(false);
             return 0;
         }
 
@@ -175,7 +186,8 @@ uint32_t KS::Texture::GetHandleIndex(bool readOnly) const
     {
         if (!m_impl->mUAVHeapSlot.IsValid())
         {
-            LOG(Log::Severity::FATAL, "Tried to get UAV index of texture with no allocated SRV.");
+            LOG(Log::Severity::FATAL, "Tried to get UAV index of texture with no allocated UAV.");
+            assert(false);
             return 0;
         }
 
@@ -444,7 +456,6 @@ void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, st
     MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(0)).c_str(), -1, wString, 4096);
     texResource1->Get()->SetName(wString);
     MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(1)).c_str(), -1, wString, 4096);
-
     texResource2->Get()->SetName(wString);
 
     commandList.ResourceBarrier(*texResource1, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -592,6 +603,16 @@ void KS::RenderTarget::PrepareToRenderTo(const Device& device, DXCommandList& co
 std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(uint32_t frameIndex, uint32_t index) const
 {
     return m_textures[frameIndex][index];
+}
+
+uint32_t KS::RenderTarget::GetWidth() const
+{ 
+    return static_cast<uint32_t>(m_impl->m_viewport.Width);
+}
+
+uint32_t KS::RenderTarget::GetHeight() const
+{ 
+    return static_cast<uint32_t>(m_impl->m_viewport.Height); 
 }
 
 KS::DepthStencil::DepthStencil(Device& device, DXCommandList& commandList, std::shared_ptr<Texture>& texture)

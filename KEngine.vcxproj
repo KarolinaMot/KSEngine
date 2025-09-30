@@ -106,7 +106,6 @@
     <ClCompile Include="source\renderer\DX12\Helpers\DXGPUSync.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXPipeline.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXResource.cpp" />
-    <ClCompile Include="source\renderer\DX12\Helpers\DXSignature.cpp" />
     <ClCompile Include="source\renderer\DX12\ModelRendererDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\RendererDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\ShaderDX12.cpp" />
@@ -217,7 +216,6 @@
     <ClInclude Include="source\renderer\DX12\Helpers\DXIncludes.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXPipeline.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXResource.hpp" />
-    <ClInclude Include="source\renderer\DX12\Helpers\DXSignature.hpp" />
     <ClInclude Include="source\renderer\InfoStructs.hpp" />
     <ClInclude Include="source\renderer\ModelRenderer.hpp" />
     <ClInclude Include="source\renderer\Renderer.hpp" />

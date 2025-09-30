@@ -45,10 +45,10 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
         m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup");
         m_impl->m_shaderTable[i]->AddMiss(L"Miss");
 
-        uint32_t texSRVIndex = desc.renderTarget->GetTexture(i, 0)->GetHandleIndex(true);
+        uint32_t texUAVIndex = desc.renderTarget->GetTexture(i, 0)->GetHandleIndex(false);
 
         D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
-        outputHandle.ptr += static_cast<uint64_t>(texSRVIndex * heap->GetDescriptorSize());
+        outputHandle.ptr += static_cast<uint64_t>(texUAVIndex * heap->GetDescriptorSize());
 
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT * heap->GetDescriptorSize());
@@ -62,66 +62,28 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
 
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
     }
-
-
-    //ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
-
-    //D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle =
-    //    static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
-    //auto heapPointer = srvUavHeapHandle.ptr;
-
-    //for (int i = 1; i > -1; i--)
-    //{
-    //    // The ray generation only uses heap data
-    //    std::vector<void*> heapPointers(3);
-    //    heapPointers[0] = reinterpret_cast<void*>(heapPointer);
-    //    heapPointers[1] = reinterpret_cast<void*>(m_frameIndex->GetGPUAddress(0, i));
-    //    heapPointers[2] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, i));
-
-    //    m_impl->m_sbtHelper[i].AddRayGenerationProgram(L"RayGen", heapPointers);
-
-    //   // The miss and hit shaders do not access any external resources: instead they
-    //    // communicate their results through the ray payload
-    //    m_impl->m_sbtHelper[i].AddMissProgram(L"Miss", heapPointers);
-
-    //    // Adding the triangle hit shader
-    //    m_impl->m_sbtHelper[i].AddHitGroup(L"HitGroup", {});
-    //    uint32_t sbtSize = m_impl->m_sbtHelper[i].ComputeSBTSize();
-
-    //    m_impl->m_sbtStorage[i] =
-    //        nv_helpers_dx12::CreateBuffer(engineDevice, sbtSize, D3D12_RESOURCE_FLAG_NONE,
-    //                                                    D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
-    //    if (!m_impl->m_sbtStorage[i])
-    //    {
-    //        throw std::logic_error("Could not allocate the shader binding table");
-    //    }
-
-    //   m_impl->m_sbtHelper[i].Generate(m_impl->m_sbtStorage[i].Get(),
-    //                                    reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline())->m_stateObjectProps.Get());
-    //}
-
-    //for (int i = 0; i < 2; i++)
-    //{
-    //    auto& sbtInfo = m_impl->m_SBTinfo[i];
-    //    auto& sbtHelper = m_impl->m_sbtHelper[i];
-    //    sbtInfo.GPUAddress = m_impl->m_sbtStorage[i]->GetGPUVirtualAddress();
-    //    sbtInfo.HitGroupEntrySize = sbtHelper.GetHitGroupEntrySize();
-    //    sbtInfo.HitGroupSectionSize = sbtHelper.GetHitGroupSectionSize();
-    //    sbtInfo.MissEntrySize = sbtHelper.GetMissEntrySize();
-    //    sbtInfo.MissSectionSize = sbtHelper.GetMissSectionSize();
-    //    sbtInfo.RayGenEntrySize = sbtHelper.GetRayGenEntrySize();
-    //    sbtInfo.RayGenSectionSize = sbtHelper.GetRayGenSectionSize();
-    //}
 }
 
 KS::RTRenderer::~RTRenderer() {}
 
-void KS::RTRenderer::Render(Device&, DXCommandContext*, Scene&,
+void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Scene&,
                             std::vector<std::pair<ShaderInput*, ShaderInputDesc>>&, bool)
 {
     //int i = 0;
-    //int cpuFrameIndex = device.GetFrameIndex();
-    //auto& commandList = commandContext->m_commandList;
+    int cpuFrameIndex = device.GetFrameIndex();
+    auto& commandList = commandContext->m_commandList;
+    auto width = m_renderTarget->GetWidth();
+    auto height = m_renderTarget->GetHeight();
+    auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline())->m_pipeline.Get();
+
+    auto desc = m_impl->m_shaderTable[cpuFrameIndex]->FillDispatchDesc(width, height);
+
+    // Bind the raytracing pipeline
+    commandList->GetCommandList()->SetPipelineState1(pipeline);
+
+    // Dispatch the rays and write to the raytracing output
+    commandList->GetCommandList()->DispatchRays(&desc);
+
     //auto& sbtInfo = m_impl->m_SBTinfo[cpuFrameIndex];
 
     //m_frameIndex->Update(device, cpuFrameIndex);
@@ -160,10 +122,4 @@ void KS::RTRenderer::Render(Device&, DXCommandContext*, Scene&,
     //desc.Width = device.GetWidth();
     //desc.Height = device.GetHeight();
     //desc.Depth = 1;
-
-    //// Bind the raytracing pipeline
-    //commandList->GetCommandList()->SetPipelineState1(
-    //    reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline())->m_pipeline.Get());
-    //// Dispatch the rays and write to the raytracing output
-    //commandList->GetCommandList()->DispatchRays(&desc);
 }

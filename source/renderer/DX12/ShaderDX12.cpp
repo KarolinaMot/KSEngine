@@ -134,7 +134,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             .MaxAttributeSizeInBytes = 8,
         };
 
-        D3D12_GLOBAL_ROOT_SIGNATURE globalSig = {signature};
+        D3D12_GLOBAL_ROOT_SIGNATURE localSig = {signature};
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 1};
 
@@ -144,7 +144,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &rayGenLibrary.libDesc},
         {.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, .pDesc = &hitGroup},
         {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, .pDesc = &shaderCfg},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, .pDesc = &globalSig},
+        {.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, .pDesc = &localSig},
         {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, .pDesc = &pipelineCfg}};
 
         // Create a list of shader entry point names that use the payload.

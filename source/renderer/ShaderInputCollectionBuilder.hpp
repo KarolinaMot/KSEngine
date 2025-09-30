@@ -19,6 +19,8 @@ public:
     ShaderInputCollectionBuilder& AddTexture(ShaderInputVisibility visibility, std::string name,
                                     ShaderInputMod modifiable = ShaderInputMod::READ_ONLY);
     ShaderInputCollectionBuilder& AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc);
+    ShaderInputCollectionBuilder& SetAsLocal();
+
     std::shared_ptr<ShaderInputCollection> Build(const Device& device, std::string name);
 
 private:
@@ -31,6 +33,7 @@ private:
     int m_rw_array_counter = 0;
     int m_texture_counter = 0;
     int m_input_counter = 0;
+    bool m_global = true;
 };
 
 }  // namespace KS

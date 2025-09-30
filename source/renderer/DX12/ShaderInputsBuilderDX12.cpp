@@ -1,6 +1,6 @@
-#include <device/Device.hpp>
-#include <renderer/DX12/Helpers/DXSignature.hpp>
 #include <renderer/ShaderInputCollectionBuilder.hpp>
+#include <device/Device.hpp>
+#include "Helpers/DXIncludes.hpp"
 
 class KS::ShaderInputCollectionBuilder::Impl
 {
@@ -222,6 +222,12 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
     return *this;
 }
 
+KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::SetAsLocal()
+{ 
+    m_global = false;
+    return *this;
+}
+
 std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Build(const Device& device, std::string name)
 {
     wchar_t wString[4096];
@@ -230,10 +236,11 @@ std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Bui
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(static_cast<UINT>(m_impl->mParameters.size()), m_impl->mParameters.data(),
                            static_cast<UINT>(m_impl->mSamplers.size()), m_impl->mSamplers.data(),
-                           D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                               D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                               D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                               D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
+                           m_global ? D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                                           D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                                           D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                                           D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
+                            : D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
 
     ComPtr<ID3DBlob> serializedSignature;
     ComPtr<ID3DBlob> errBlob;

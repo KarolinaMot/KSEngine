@@ -28,6 +28,9 @@ public:
     void PrepareToRenderTo(const Device& device, DXCommandList& commandList);
     std::shared_ptr<Texture> GetTexture(uint32_t frameIndex, uint32_t index) const;
 
+    uint32_t GetWidth() const;
+    uint32_t GetHeight() const;
+
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
