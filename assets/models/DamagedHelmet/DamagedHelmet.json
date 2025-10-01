@@ -13,14 +13,14 @@
                     "value1": {
                         "value0": 0.0,
                         "value1": -3.5762786865234377e-7,
-                        "value2": -0.9999999403953552,
+                        "value2": 0.9999999403953552,
                         "value3": 0.0
                     },
                     "value2": {
-                        "value0": 0.0,
-                        "value1": 0.9999999403953552,
+                        "value0": -0.0,
+                        "value1": -0.9999999403953552,
                         "value2": -3.5762786865234377e-7,
-                        "value3": 0.0
+                        "value3": -0.0
                     },
                     "value3": {
                         "value0": 0.0,
@@ -142,7 +142,7 @@
                         "key": "BASE_TEXTURE",
                         "value": {
                             "index": 4,
-                            "data": "assets/textures/White.png"
+                            "data": "assets/models/SanMiguel/textures/White.png"
                         }
                     },
                     {
@@ -182,7 +182,7 @@
                         "key": "NORMAL_TEXTURE",
                         "value": {
                             "index": 4,
-                            "data": "assets/textures/Blue.png"
+                            "data": "assets/textures/Blue.jpg"
                         }
                     },
                     {

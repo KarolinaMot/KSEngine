@@ -134,18 +134,18 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             .MaxAttributeSizeInBytes = 8,
         };
 
-        D3D12_GLOBAL_ROOT_SIGNATURE localSig = {signature};
+        D3D12_LOCAL_ROOT_SIGNATURE localSig = {signature};
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 1};
 
-        D3D12_STATE_SUBOBJECT subobjects[8] = {
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &hitLibrary.libDesc},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &missLibrary.libDesc},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &rayGenLibrary.libDesc},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, .pDesc = &hitGroup},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, .pDesc = &shaderCfg},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, .pDesc = &localSig},
-        {.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, .pDesc = &pipelineCfg}};
+        std::vector<D3D12_STATE_SUBOBJECT> subs;
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &hitLibrary.libDesc});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &missLibrary.libDesc});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &rayGenLibrary.libDesc});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &hitGroup});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &shaderCfg});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSig});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipelineCfg});
 
         // Create a list of shader entry point names that use the payload.
         const WCHAR* shaderPayloadExports[] = {
@@ -154,24 +154,22 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             L"Miss"
         };
 
-        D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocDesc = {};
-        assocDesc.NumExports = _countof(shaderPayloadExports);
-        assocDesc.pExports = shaderPayloadExports;
-        assocDesc.pSubobjectToAssociate = &subobjects[4];
+        D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocShaderCfg = {};
+        assocShaderCfg.NumExports = _countof(shaderPayloadExports);
+        assocShaderCfg.pExports = shaderPayloadExports;
+        assocShaderCfg.pSubobjectToAssociate = &subs[4];  // shaderCfg subobject
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocShaderCfg});
 
-        subobjects[7].Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-        subobjects[7].pDesc = &assocDesc; 
+        D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocLocalRS = {};
+        assocLocalRS.NumExports = _countof(shaderPayloadExports);
+        assocLocalRS.pExports = shaderPayloadExports;
+        assocLocalRS.pSubobjectToAssociate = &subs[5];  // local RS subobject
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocLocalRS});
 
         D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
-                                        .NumSubobjects = static_cast<UINT>(std::size(subobjects)),
-                                        .pSubobjects = subobjects};
+                                        .NumSubobjects = static_cast<UINT>(subs.size()),
+                                        .pSubobjects = subs.data()};
         engineDevice->CreateStateObject(&desc, IID_PPV_ARGS(&rtPipeline->m_pipeline));
-
-
-        auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(3 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT));
-        auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        engineDevice->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
-                                        nullptr, IID_PPV_ARGS(&rtPipeline->m_shaderIDs));
 
         rtPipeline->m_pipeline->QueryInterface(IID_PPV_ARGS(&rtPipeline->m_stateObjectProps));
     }

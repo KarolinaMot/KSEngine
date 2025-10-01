@@ -113,7 +113,7 @@ int main()
     glm::vec3 lightPosition1 = glm::normalize(glm::vec3(0.5f, 0.5f, 0.f));
     glm::vec3 lightPosition2 = glm::vec3(-2.f, 0.f, 0.f);
 
-    glm::mat4x4 transform = glm::rotate(glm::mat4x4(1.f), glm::radians(-180.f), glm::vec3(1.f, 0.f, 0.f));
+    glm::mat4x4 transform = glm::mat4(1.f);
     //transform = glm::scale(transform, glm::vec3(0.5f));
     scene.QueueDirectionalLight(lightPosition1, glm::vec3(0.597202f, 0.450786f, 1.f), 5.f);
     scene.QueueModel(*device, model, transform, "SanMiguel");

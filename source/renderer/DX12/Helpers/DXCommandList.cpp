@@ -313,7 +313,7 @@ void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY
     m_command_list->Dispatch(threadGroupX, threadgGroupY, threadGroupZ);
 }
 
-void DXCommandList::ResourceBarrier(DXResource& buffer, D3D12_RESOURCE_STATES dstState)
+void DXCommandList::TransitionResource(DXResource& buffer, D3D12_RESOURCE_STATES dstState)
 {
     if (!m_isOpen)
     {
@@ -327,6 +327,22 @@ void DXCommandList::ResourceBarrier(DXResource& buffer, D3D12_RESOURCE_STATES ds
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.GetResource().Get(), buffer.GetState(), dstState);
     m_command_list->ResourceBarrier(1, &barrier);
     buffer.ChangeState(dstState);
+    m_allocator->TrackResource(buffer.GetResource());
+}
+
+void DXCommandList::ResourceBarrier(DXResource& buffer, D3D12_RESOURCE_BARRIER_TYPE barrierType)
+{
+    if (!m_isOpen)
+    {
+        LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
+        return;
+    }
+
+    D3D12_RESOURCE_BARRIER u{};
+    u.Type = barrierType;
+    u.UAV.pResource = buffer.GetResource().Get(); 
+    m_command_list->ResourceBarrier(1, &u);
+
     m_allocator->TrackResource(buffer.GetResource());
 }
 

@@ -37,13 +37,34 @@ void DXShaderTable::Build(const ComPtr<ID3D12Device5>& device, ID3D12StateObject
      UINT64 sizeHG = m_strideHG * countHG;
 
      UINT64 cursor = 0;
+
+     // RayGen (always present: 1 record)
      m_offRG = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
      cursor = m_offRG + sizeRG;
-     m_offMS = (countMS ? Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT) : 0);
-     cursor = m_offMS + sizeMS;
-     m_offHG = (countHG ? Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT) : 0);
-     cursor = m_offHG + sizeHG;
 
+     // Miss (optional)
+     if (countMS)
+     {
+         m_offMS = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+         cursor = m_offMS + sizeMS;
+     }
+     else
+     {
+         m_offMS = 0;
+     }
+
+     // Hit (optional)
+     if (countHG)
+     {
+         m_offHG = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+         cursor = m_offHG + sizeHG;
+     }
+     else
+     {
+         m_offHG = 0;
+     }
+
+     m_size = cursor;  // final end; no fallbacks needed
      m_size = cursor ? cursor : sizeRG;
 
      m_upl = std::make_unique<DXResource>(device,
@@ -133,21 +154,27 @@ UINT DXShaderTable::MaxRecordStride(const TableRecord& record, const auto& recSi
     return m;
 }
 
-void DXShaderTable::WriteTable(uint8_t* dst, const std::vector<TableRecord>& list, UINT stride,
+void DXShaderTable::WriteTable(uint8_t* base, const std::vector<TableRecord>& list, UINT stride,
                                ID3D12StateObjectProperties* props)
 {
-    for (const auto& r : list)
+    for (size_t i = 0; i < list.size(); ++i)
     {
+        uint8_t* dst = base + i * stride;
+        const auto& r = list[i];
+
+        // id
         const void* id = props->GetShaderIdentifier(r.exportName.c_str());
-        assert(id && "Export name not found in this pipeline.");
-        // Write identifier
         memcpy(dst, id, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-        // Write local-root arguments (if any) immediately after the ID
+
+        // locals
         if (!r.localArgs.empty())
         {
             memcpy(dst + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, r.localArgs.data(), r.localArgs.size());
         }
-        dst += stride;
+
+        // pad the rest of the stride with zeros (important)
+        size_t used = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + r.localArgs.size();
+        if (used < stride) memset(dst + used, 0, stride - used);
     }
 }
 

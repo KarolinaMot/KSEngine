@@ -18,6 +18,8 @@ struct TLASInstance
 
     glm::mat4x4 modelMat{};
     uint32_t id = 0;
+    uint32_t hitgroupIndex = 0;
+
 
     std::weak_ptr<Mesh> m_mesh;
 };
@@ -37,14 +39,12 @@ public:
 
     void Build(const Device& device, DXCommandList& cmd);
 
-    uint32_t GetSRVHandle() const;
+    uint32_t GetSRVHandle(uint32_t frameIndex) const;
 
 private:
     // CPU
     std::vector<TLASInstance> m_instances;
 
-    bool m_updateStructure = true;     // add/remove/reorder → need rebuild
-    bool m_updateTransforms = false;  // transforms changed → can refit
     UploadSlice m_slice;
 
     // GPU

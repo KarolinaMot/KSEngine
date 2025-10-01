@@ -52,13 +52,13 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
         outputHandle.ptr += static_cast<uint64_t>(texUAVIndex * heap->GetDescriptorSize());
 
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
-        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT + frame * heap->GetDescriptorSize());
+        tlasHandle.ptr += static_cast<uint64_t>((BVH_SLOT + frame) * heap->GetDescriptorSize());
 
         std::vector<void*> heapPointers(3);
         heapPointers[0] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, frame));
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
         heapPointers[2] = reinterpret_cast<void*>(outputHandle.ptr);
-        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", &heapPointers[0], sizeof(void*)*4);
+        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", &heapPointers[0], sizeof(void*)*3);
 
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
     }

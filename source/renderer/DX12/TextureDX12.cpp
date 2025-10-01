@@ -69,7 +69,7 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     constexpr UINT64 kPlacementAlign = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;  // 512
     m_impl->m_slice = upl->Allocate(device, commandList, requiredSize, kPlacementAlign);
 
-    commandList.ResourceBarrier(*m_impl->mTextureBuffer,  D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList.TransitionResource(*m_impl->mTextureBuffer,  D3D12_RESOURCE_STATE_COPY_DEST);
 
     auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_impl->m_slice.m_pageID));
     
@@ -81,7 +81,7 @@ KS::Texture::Texture(Device& device, DXCommandList& commandList, const Image& im
     UpdateSubresources(commandList.GetCommandList().Get(), m_impl->mTextureBuffer->GetResource().Get(),
                        uploadSource->GetResource().Get(), static_cast<UINT64>(m_impl->m_slice.m_head), 0, 1, &textureData);
 
-    commandList.ResourceBarrier(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    commandList.TransitionResource(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     m_impl->AllocateAsSRV(descriptorHeap);
@@ -245,7 +245,7 @@ void KS::Texture::TransitionToRO(const Device& device, DXCommandList& commandLis
         m_impl->AllocateAsSRV(resourceHeap);
     }
 
-    commandList.ResourceBarrier(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_COMMON);
+    commandList.TransitionResource(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_COMMON);
 }
 
 void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandList) const
@@ -257,7 +257,7 @@ void KS::Texture::TransitionToRW(const Device& device, DXCommandList& commandLis
         m_impl->AllocateAsUAV(resourceHeap);
     }
 
-    commandList.ResourceBarrier(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    commandList.TransitionResource(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 size_t KS::Texture::GetGPUAddress(int, int) const
@@ -458,8 +458,8 @@ void KS::RenderTarget::AddTexture(Device& device, DXCommandList& commandList, st
     MultiByteToWideChar(CP_ACP, 0, (name + std::to_string(1)).c_str(), -1, wString, 4096);
     texResource2->Get()->SetName(wString);
 
-    commandList.ResourceBarrier(*texResource1, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    commandList.ResourceBarrier(*texResource2, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    commandList.TransitionResource(*texResource1, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    commandList.TransitionResource(*texResource2, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1,
@@ -565,7 +565,7 @@ void KS::RenderTarget::CopyTo(Device& device, DXCommandList& commandList, std::s
     auto& copyDestRsc = m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer;
     auto& copySrcRsc = sourceRT->GetTexture(frameIndex, sourceRtIndex)->m_impl->mTextureBuffer;
 
-    commandList.ResourceBarrier(*copyDestRsc, D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList.TransitionResource(*copyDestRsc, D3D12_RESOURCE_STATE_COPY_DEST);
 
     sourceRT->SetCopyFrom(device, commandList, sourceRtIndex);
 
@@ -576,7 +576,7 @@ void KS::RenderTarget::SetCopyFrom(const Device& device, DXCommandList& commandL
 {
     auto& rsc = m_textures[device.GetCPUFrameIndex()][rtIndex]->m_impl->mTextureBuffer;
 
-    commandList.ResourceBarrier(*rsc, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList.TransitionResource(*rsc, D3D12_RESOURCE_STATE_COPY_SOURCE);
 }
 
 void KS::RenderTarget::PrepareToPresent(const Device& device, DXCommandList& commandList)
@@ -585,7 +585,7 @@ void KS::RenderTarget::PrepareToPresent(const Device& device, DXCommandList& com
     {
         int frameIndex = device.GetCPUFrameIndex();
         auto& textureBuffer = m_textures[frameIndex][i]->m_impl->mTextureBuffer;
-        commandList.ResourceBarrier(*textureBuffer, D3D12_RESOURCE_STATE_PRESENT);
+        commandList.TransitionResource(*textureBuffer, D3D12_RESOURCE_STATE_PRESENT);
     }
 }
 
@@ -595,7 +595,7 @@ void KS::RenderTarget::PrepareToRenderTo(const Device& device, DXCommandList& co
     {
         auto& texture = m_textures[device.GetCPUFrameIndex()][i];
         auto resource = texture->m_impl->mTextureBuffer.get();
-        commandList.ResourceBarrier(*resource, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        commandList.TransitionResource(*resource, D3D12_RESOURCE_STATE_RENDER_TARGET);
         resource->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 }
@@ -636,7 +636,7 @@ KS::DepthStencil::DepthStencil(Device& device, DXCommandList& commandList, std::
     depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
     m_impl->mDepthHandle = depthHeap->AllocateDepthStencil(texBuffer.get(), &depthStencilDesc);
 
-    commandList.ResourceBarrier(*texBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
 KS::DepthStencil::~DepthStencil()
@@ -645,7 +645,7 @@ KS::DepthStencil::~DepthStencil()
 void KS::DepthStencil::PrepareToUse(DXCommandList& commandList)
 {
     auto& texBuffer = m_texture->m_impl->mTextureBuffer;
-    commandList.ResourceBarrier(*texBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
 void KS::DepthStencil::Clear(DXCommandList& commandList)

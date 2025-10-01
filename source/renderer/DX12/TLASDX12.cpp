@@ -9,10 +9,12 @@
 struct KS::TLAS::Impl
 {
     //std::shared_ptr<DXResource> m_instanceUpload;                  // or default+copy
-    std::shared_ptr<DXResource> m_scratch;
-    std::shared_ptr<DXResource> m_tlas;
+    std::shared_ptr<DXResource> m_scratch[FRAME_BUFFER_COUNT];
+    std::shared_ptr<DXResource> m_tlas[FRAME_BUFFER_COUNT];
     std::shared_ptr<DXResource> m_defaultPerFrame[FRAME_BUFFER_COUNT];
-    DXHeapHandle m_SRVHandle;
+    DXHeapHandle m_SRVHandle[FRAME_BUFFER_COUNT];
+    bool m_updateStructure[FRAME_BUFFER_COUNT] = {true, true};  // add/remove/reorder → need rebuild
+    bool m_updateTransforms[FRAME_BUFFER_COUNT] = {false, false};  // transforms changed → can refit
 };
 
 
@@ -31,12 +33,13 @@ void KS::TLAS::AddInstance(const Device& device, DXCommandList& cmd, std::shared
     uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
     TLASInstance inst{};
     inst.m_mesh = mesh;
-    inst.modelMat = modelMat;
+    inst.modelMat = glm::transpose(modelMat);
     inst.id = instanceCount;
     m_instances.push_back(inst);
 
     EnsureInstanceCapacity(device, cmd, instanceCount+1);
-    m_updateStructure = true;
+    m_Impl->m_updateStructure[0] = true;
+    m_Impl->m_updateStructure[1] = true;
 
     mesh->SetTLASHandle(inst.id);
 }
@@ -57,7 +60,8 @@ void KS::TLAS::RemoveInstance(uint32_t instanceHandle)
     {
         RemoveInstance(instanceHandle);
     }
-    m_updateStructure = true;
+    m_Impl->m_updateStructure[0] = true;
+    m_Impl->m_updateStructure[1] = true;
 }
 
 void KS::TLAS::UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat)
@@ -66,14 +70,15 @@ void KS::TLAS::UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat)
 
     if (instanceHandle >= instanceCount) return;
     m_instances[instanceHandle].modelMat = mat;
-    m_updateTransforms = true;  // safe; worst case we rebuild
+    m_Impl->m_updateTransforms[0] = true;  // safe; worst case we rebuild
+    m_Impl->m_updateTransforms[1] = true;  // safe; worst case we rebuild
 }
 
 void KS::TLAS::Clear()
 {
     m_instances.clear();
-    m_updateStructure = true;
-    m_updateTransforms = false;
+    m_Impl->m_updateStructure[0] = true;
+    m_Impl->m_updateStructure[1] = true;
 }
 
 void KS::TLAS::EnsureInstanceCapacity(const Device& device, DXCommandList& cmd, uint32_t count)
@@ -117,8 +122,8 @@ void KS::TLAS::WriteInstanceDescs()
             std::memcpy(d.Transform, &s.modelMat[0], sizeof(float) * 12);
             d.InstanceID = s.id;
             d.InstanceMask = 0xFF;
-            d.InstanceContributionToHitGroupIndex = 0;
-            d.Flags = D3D12_RAYTRACING_INSTANCE_FLAGS::D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+            d.InstanceContributionToHitGroupIndex = s.hitgroupIndex;
+            d.Flags = D3D12_RAYTRACING_INSTANCE_FLAGS::D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
             d.AccelerationStructure = m->BLASAddress();
             descs[i] = d;
         }
@@ -129,50 +134,55 @@ static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
 void KS::TLAS::EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate)
 {
-    if (!forceRecreate && m_Impl->m_tlas && m_Impl->m_tlas->GetDesc().Width >= neededBytes) return;
+    auto frameIndex = device.GetCPUFrameIndex();
+
+    if (!forceRecreate && m_Impl->m_tlas[frameIndex] && m_Impl->m_tlas[frameIndex]->GetDesc().Width >= neededBytes) return;
    
     ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
     auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(Align256(neededBytes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-    m_Impl->m_tlas = std::make_shared<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "TLAS buffer",
+    m_Impl->m_tlas[frameIndex] = std::make_shared<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "TLAS buffer",
                                                   D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
-    m_tlasSize = m_Impl->m_tlas->GetDesc().Width;
+    m_tlasSize = m_Impl->m_tlas[frameIndex]->GetDesc().Width;
 }
 
 void KS::TLAS::EnsureScratch(const Device& device, uint64_t neededBytes)
 {
-    if (m_Impl->m_scratch && m_Impl->m_scratch->GetDesc().Width >= neededBytes) return;
+    auto frameIndex = device.GetCPUFrameIndex();
+
+    if (m_Impl->m_scratch[frameIndex] && m_Impl->m_scratch[frameIndex]->GetDesc().Width >= neededBytes) return;
 
     ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
     auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(Align256(neededBytes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-    m_Impl->m_scratch = std::make_shared<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "TLAS scratch",
+    m_Impl->m_scratch[frameIndex] = std::make_shared<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "TLAS scratch",
                                                      D3D12_RESOURCE_STATE_COMMON);
 
-    m_scratchSize = m_Impl->m_scratch->GetDesc().Width;
+    m_scratchSize = m_Impl->m_scratch[frameIndex]->GetDesc().Width;
 }
 
 void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
 {
-    if (!m_updateTransforms && !m_updateStructure) return;
+    auto frameIndex = device.GetCPUFrameIndex();
+    if (!m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex]) return;
 
     const UINT count = static_cast<UINT>(m_instances.size());
     if (count == 0)
     {
         return;
     }
-    const bool doUpdate = m_updateTransforms && !m_updateStructure && (m_Impl->m_tlas != nullptr);
+    const bool doUpdate = m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex] && (m_Impl->m_tlas[frameIndex] != nullptr);
     WriteInstanceDescs();
 
 
     // Copy from arena into DEFAULT heap buffer
     D3D12_GPU_VIRTUAL_ADDRESS instanceVA = 0;
-    auto& dst = m_Impl->m_defaultPerFrame[device.GetCPUFrameIndex()];
+    auto& dst = m_Impl->m_defaultPerFrame[frameIndex];
     const UINT64 bytes = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * UINT64(count);
 
-    cmd.ResourceBarrier(*dst, D3D12_RESOURCE_STATE_COPY_DEST);
+    cmd.TransitionResource(*dst, D3D12_RESOURCE_STATE_COPY_DEST);
 
     auto upl = device.GetUploadArena();
     auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_slice.m_pageID));
@@ -181,7 +191,7 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
                                            m_slice.m_head,
                                            bytes);
 
-    cmd.ResourceBarrier(*dst, D3D12_RESOURCE_STATE_GENERIC_READ);
+    cmd.TransitionResource(*dst, D3D12_RESOURCE_STATE_GENERIC_READ);
 
     instanceVA = dst->GetResource()->GetGPUVirtualAddress();
 
@@ -205,18 +215,19 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     EnsureTLAS(device, pre.ResultDataMaxSizeInBytes, /*forceRecreate=*/!doUpdate);
     EnsureScratch(device, pre.ScratchDataSizeInBytes);
 
-    cmd.ResourceBarrier(*m_Impl->m_scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    cmd.TransitionResource(*m_Impl->m_scratch[frameIndex], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     //Build / Refit
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};
     build.Inputs = inputs;
-    build.DestAccelerationStructureData = m_Impl->m_tlas->GetResource()->GetGPUVirtualAddress();
-    build.ScratchAccelerationStructureData = m_Impl->m_scratch->GetResource()->GetGPUVirtualAddress();
-    build.SourceAccelerationStructureData = doUpdate ? m_Impl->m_tlas->GetResource()->GetGPUVirtualAddress() : 0;
+    build.DestAccelerationStructureData = m_Impl->m_tlas[frameIndex]->GetResource()->GetGPUVirtualAddress();
+    build.ScratchAccelerationStructureData = m_Impl->m_scratch[frameIndex]->GetResource()->GetGPUVirtualAddress();
+    build.SourceAccelerationStructureData = doUpdate ? m_Impl->m_tlas[frameIndex]->GetResource()->GetGPUVirtualAddress() : 0;
     cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
+    cmd.ResourceBarrier(*m_Impl->m_tlas[frameIndex], D3D12_RESOURCE_BARRIER_TYPE_UAV);
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV tlasSrv{};
-    tlasSrv.Location = m_Impl->m_tlas->GetResource()->GetGPUVirtualAddress();
+    tlasSrv.Location = m_Impl->m_tlas[frameIndex]->GetResource()->GetGPUVirtualAddress();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
     desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -226,15 +237,17 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
 
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
-    m_Impl->m_SRVHandle = heap->AllocateResource(m_Impl->m_tlas.get(), &desc, BVH_SLOT);
+    m_Impl->m_SRVHandle[frameIndex] = heap->AllocateResource(m_Impl->m_tlas[frameIndex].get(), &desc, BVH_SLOT + frameIndex);
 
-    if (m_updateTransforms) m_updateTransforms = false;
-    if (m_updateStructure) m_updateStructure = false;
+    if (m_Impl->m_updateTransforms[frameIndex]) m_Impl->m_updateTransforms[frameIndex] = false;
+    if (m_Impl->m_updateStructure[frameIndex]) m_Impl->m_updateStructure[frameIndex] = false;
 
-    cmd.TrackResource(m_Impl->m_tlas->GetResource());
+    cmd.TrackResource(m_Impl->m_tlas[frameIndex]->GetResource());
 }
 
-uint32_t KS::TLAS::GetSRVHandle() const { return m_Impl->m_SRVHandle.GetIndex(); }
+uint32_t KS::TLAS::GetSRVHandle(uint32_t frameIndex) const {
+    return m_Impl->m_SRVHandle[frameIndex].GetIndex();
+}
 
 
 
