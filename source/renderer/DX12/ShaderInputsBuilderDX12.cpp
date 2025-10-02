@@ -265,7 +265,7 @@ std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Bui
     }
     signature->SetName(wString);
 
-    return std::make_shared<ShaderInputCollection>(std::move(m_descriptors), signature.Get(), name);
+    return std::make_shared<ShaderInputCollection>(std::move(m_descriptors), signature.Get(), name, m_global);
 }
 
 D3D12_SHADER_VISIBILITY KS::ShaderInputCollectionBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)

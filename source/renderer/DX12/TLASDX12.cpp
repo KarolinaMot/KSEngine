@@ -5,6 +5,7 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/UploadArena.h>
+#include <renderer/ShaderInputCollection.hpp>
 
 struct KS::TLAS::Impl
 {
@@ -79,6 +80,19 @@ void KS::TLAS::Clear()
     m_instances.clear();
     m_Impl->m_updateStructure[0] = true;
     m_Impl->m_updateStructure[1] = true;
+}
+
+void KS::TLAS::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t)
+{
+    auto frame = device.GetCPUFrameIndex();
+    auto& tlas = m_Impl->m_tlas[frame];
+    commandList.BindHeapResource(*tlas, m_Impl->m_SRVHandle[frame], desc.rootIndex);
+}
+
+size_t KS::TLAS::GetGPUAddress(int, int frameIndex) const 
+{ 
+    auto& tlas = m_Impl->m_tlas[frameIndex];
+    return tlas->GetResource()->GetGPUVirtualAddress();
 }
 
 void KS::TLAS::EnsureInstanceCapacity(const Device& device, DXCommandList& cmd, uint32_t count)

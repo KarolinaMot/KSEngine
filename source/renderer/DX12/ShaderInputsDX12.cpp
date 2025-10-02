@@ -10,11 +10,12 @@ public:
     ComPtr<ID3D12RootSignature> m_signature;
 };
 
-KS::ShaderInputCollection::ShaderInputCollection(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name)
+KS::ShaderInputCollection::ShaderInputCollection(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature,
+                                                 std::string name, bool global)
 {
     m_impl = std::make_unique<Impl>();
     m_descriptors = std::move(inputs);
-
+    m_global = global;
     m_impl->m_signature = reinterpret_cast<ID3D12RootSignature*>(signature);
 }
 

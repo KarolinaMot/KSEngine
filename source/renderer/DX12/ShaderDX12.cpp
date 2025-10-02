@@ -31,12 +31,12 @@ public:
     struct DXRLibrary
     {
         D3D12_DXIL_LIBRARY_DESC libDesc{};
-        std::vector<D3D12_EXPORT_DESC> exports;  // keep storage alive
+        D3D12_EXPORT_DESC exports;  // keep storage alive
         D3D12_STATE_SUBOBJECT subobject{};
     };
 
     
-    DXRLibrary MakeLibrarySO(IDxcBlob* dxil, std::initializer_list<const wchar_t*> exportNames);
+    DXRLibrary MakeLibrarySO(IDxcBlob* dxil, const wchar_t* exportName, const wchar_t* toRename);
 };
 
 std::wstring ConvertToWideString(const char* input)
@@ -122,9 +122,9 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         ComPtr<IDxcBlob> rayGenBlob =
             nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString((paths.begin() + 2)->c_str()).c_str());
 
-        Impl::DXRLibrary hitLibrary = m_impl->MakeLibrarySO(hitBlob.Get(), {L"ClosestHit"});
-        Impl::DXRLibrary missLibrary = m_impl->MakeLibrarySO(missBlob.Get(), {L"Miss"});
-        Impl::DXRLibrary rayGenLibrary = m_impl->MakeLibrarySO(rayGenBlob.Get(), {L"RayGen"});
+        Impl::DXRLibrary missLibrary = m_impl->MakeLibrarySO(missBlob.Get(), L"Miss", nullptr);
+        Impl::DXRLibrary rayGenLibrary = m_impl->MakeLibrarySO(rayGenBlob.Get(), L"RayGen", nullptr);
+        Impl::DXRLibrary hitLibrary = m_impl->MakeLibrarySO(hitBlob.Get(), L"ClosestHit", nullptr);
 
         D3D12_HIT_GROUP_DESC hitGroup = {
             .HitGroupExport = L"HitGroup", .Type = D3D12_HIT_GROUP_TYPE_TRIANGLES, .ClosestHitShaderImport = L"ClosestHit"};
@@ -134,17 +134,28 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             .MaxAttributeSizeInBytes = 8,
         };
 
-        D3D12_LOCAL_ROOT_SIGNATURE localSig = {signature};
+        bool localSignature = !shaderInput->GetIsGlobal();
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 1};
 
         std::vector<D3D12_STATE_SUBOBJECT> subs;
-        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &hitLibrary.libDesc});
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &missLibrary.libDesc});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &hitLibrary.libDesc});
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &rayGenLibrary.libDesc});
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &hitGroup});
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &shaderCfg});
-        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSig});
+
+        if (localSignature)
+        {
+            D3D12_LOCAL_ROOT_SIGNATURE localSig = {signature};
+            subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSig});
+        }
+        else
+        {
+            D3D12_GLOBAL_ROOT_SIGNATURE globalSig = {signature};
+            subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &globalSig});
+        }
+
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipelineCfg});
 
         // Create a list of shader entry point names that use the payload.
@@ -160,11 +171,15 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         assocShaderCfg.pSubobjectToAssociate = &subs[4];  // shaderCfg subobject
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocShaderCfg});
 
-        D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocLocalRS = {};
-        assocLocalRS.NumExports = _countof(shaderPayloadExports);
-        assocLocalRS.pExports = shaderPayloadExports;
-        assocLocalRS.pSubobjectToAssociate = &subs[5];  // local RS subobject
-        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocLocalRS});
+        if (localSignature)
+        {
+            D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocLocalRS = {};
+            assocLocalRS.NumExports = _countof(shaderPayloadExports);
+            assocLocalRS.pExports = shaderPayloadExports;
+            assocLocalRS.pSubobjectToAssociate = &subs[5];  // local RS subobject
+            subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocLocalRS});
+
+        }
 
         D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
                                         .NumSubobjects = static_cast<UINT>(subs.size()),
@@ -213,23 +228,18 @@ void* KS::Shader::GetPipeline() const
     }
 }
 
-KS::Shader::Impl::DXRLibrary KS::Shader::Impl::MakeLibrarySO(IDxcBlob* dxil, std::initializer_list<const wchar_t*> exportNames)
+KS::Shader::Impl::DXRLibrary KS::Shader::Impl::MakeLibrarySO(IDxcBlob* dxil, const wchar_t* exportName,
+                                                             const wchar_t* toRename)
 {
     DXRLibrary out{};
     out.libDesc.DXILLibrary.pShaderBytecode = dxil->GetBufferPointer();
     out.libDesc.DXILLibrary.BytecodeLength = dxil->GetBufferSize();
-    out.exports.resize(exportNames.size());
+    out.exports.Name = exportName;  // exported name
+    out.exports.ExportToRename = toRename;
+    out.exports.Flags = D3D12_EXPORT_FLAG_NONE;
 
-    size_t i = 0;
-    for (auto* name : exportNames)
-    {
-        out.exports[i].Name = name;               // exported name
-        out.exports[i].ExportToRename = nullptr;  // no rename; export symbol as-is
-        out.exports[i].Flags = D3D12_EXPORT_FLAG_NONE;
-        ++i;
-    }
-    out.libDesc.NumExports = (UINT)out.exports.size();
-    out.libDesc.pExports = out.exports.data();
+    out.libDesc.NumExports = 1;
+    out.libDesc.pExports = &out.exports;
 
     out.subobject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
     out.subobject.pDesc = &out.libDesc;

@@ -56,8 +56,9 @@ public:
     MaterialInfo GetMaterialInfo(const Material& material) const;
     MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
     FogInfo GetFogValues() const { return m_fogInfo; }
-    StorageBuffer* GetStorageBuffer(StorageBuffers buffer) { return mStorageBuffers[buffer].get(); }
-    UniformBuffer* GetUniformBuffer(UniformBuffers buffer) { return mUniformBuffers[buffer].get(); }
+    StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
+    UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
+    TLAS* GetBVH() { return m_BVH.get(); }
     size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }

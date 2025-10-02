@@ -41,14 +41,16 @@ class Device;
 class ShaderInputCollection
 {
 public:
-    ShaderInputCollection(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name);
+    ShaderInputCollection(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, std::string name, bool global = true);
     ~ShaderInputCollection();
     void* GetSignature() const;
     ShaderInputDesc GetInput(std::string key) const;
+    bool GetIsGlobal() const { return m_global; }
 
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
     std::unordered_map<std::string, ShaderInputDesc> m_descriptors;
+    bool m_global = true;
 };
 }

@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #pragma warning (pop)
 #include <renderer/UploadArena.h>
+#include <renderer/ShaderInput.hpp>
 
 class DXCommandList;
 namespace KS
@@ -24,7 +25,7 @@ struct TLASInstance
     std::weak_ptr<Mesh> m_mesh;
 };
 
-class TLAS
+class TLAS : public ShaderInput
 {
 public:
 
@@ -36,6 +37,10 @@ public:
     void RemoveInstance(uint32_t instanceHandle);
     void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
     void Clear();
+    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t offsetIndex = 0) override;
+    virtual size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
+
 
     void Build(const Device& device, DXCommandList& cmd);
 

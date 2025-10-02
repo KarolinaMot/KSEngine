@@ -22,6 +22,7 @@
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/RTRenderer.hpp>
 #include <renderer/UniformBuffer.hpp>
+#include <renderer/TLAS.hpp>
 #include <renderer/DX12/Helpers/DX12Common.hpp>
 
 #include <resources/Texture.hpp>
@@ -115,7 +116,6 @@ KS::Renderer::Renderer(Device& device)
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, *commandList, deferredRendererDepthTex);
     CameraMats cam{};
     m_camera_buffer = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
-
 
     int fullInputFlags = Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS;
     int positionsInputFlags = Shader::HAS_POSITIONS;
@@ -237,7 +237,7 @@ KS::Renderer::Renderer(Device& device)
     m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(4);
     m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(5);
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(1);
-    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(1);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputDesc>>(2);
 
     device.CloseCommandContext(std::move(commandContext));
 }
@@ -380,6 +380,10 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
 {
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
+    auto rootSignature = m_subrenderers[RT_RENDER]->GetShader()->GetShaderInput();
+
+    m_inputs[RT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(m_camera_buffer.get(), rootSignature->GetInput("camera_matrix"));
+    m_inputs[RT_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetBVH(), rootSignature->GetInput("bvh"));
 
     m_subrenderers[RT_RENDER]->Render(device, &commandContext, scene, m_inputs[RT_RENDER], true);
 
