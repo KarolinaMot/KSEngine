@@ -55,7 +55,6 @@ KS::Renderer::Renderer(Device& device)
     m_rtInputs = KS::ShaderInputBlueprintBuilder()
                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output_tex", ShaderInputMod::READ_WRITE)
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "BVH")
-                    .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
                     .SetLocal()
                     .Build(device, "RT SIGNATURE");

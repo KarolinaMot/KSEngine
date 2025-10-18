@@ -30,22 +30,23 @@ struct Scene::Impl
 public:
     Impl();
     ~Impl();
-    //struct ASBuffers
-    //{
-    //    std::shared_ptr<DXResource> pScratch[2] = {nullptr, nullptr};
-    //    std::shared_ptr<DXResource> pResult[2] = {nullptr, nullptr};
-    //    std::shared_ptr<DXResource> pInstanceDesc[2] = {nullptr, nullptr};
-    //};
+    struct ASBuffers
+    {
+        std::shared_ptr<DXResource> pScratch[2] = {nullptr, nullptr};
+        std::shared_ptr<DXResource> pResult[2] = {nullptr, nullptr};
+        std::shared_ptr<DXResource> pInstanceDesc[2] = {nullptr, nullptr};
+    };
 
-    //ASBuffers m_BLBuffers[200];
-    //ASBuffers m_topLevelASBuffers;
-    //int m_BLCount = 0;
-    //DXHeapHandle m_BHVHandle[2];
-    //bool m_updateBVH = false;
+    ASBuffers m_BLBuffers[200];
+    std::pair<UINT, DirectX::XMMATRIX> m_instances[200];
+    ASBuffers m_topLevelASBuffers;
+    int m_BLCount = 0;
+    DXHeapHandle m_BHVHandle[2];
+    bool m_updateBVH = false;
 
-    //ComPtr<ID3D12RootSignature> m_raytracingSignature;
+    ComPtr<ID3D12RootSignature> m_raytracingSignature;
 
-    //nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
+    nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
 };
 }  // namespace KS
 
@@ -223,7 +224,7 @@ void KS::Scene::Tick(Device& device)
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
     //m_BVH->Build(device, *commandList);
-    //CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, device.GetCPUFrameIndex());
+    CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, device.GetCPUFrameIndex());
 
     device.CloseCommandContext(std::move(commandContext));
 }
@@ -231,98 +232,105 @@ void KS::Scene::Tick(Device& device)
 void KS::Scene::CreateBVHBotomLevelInstance(const DrawEntry& draw_entry,
                                             bool updateOnly)
 {
-    //if (!updateOnly)
+    // if (!updateOnly)
     //{
-    //    auto mesh = draw_entry.mesh;
-    //    if (!mesh)
-    //        return;
+    if (!draw_entry.mesh) return;
 
+    // CreateBottomLevelAS(device, mesh, cpuFrame);
+    auto& inst = m_impl->m_instances[m_impl->m_BLCount];
+    inst.first = draw_entry.mesh->BLASAddress();
+    inst.second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
 
-    //    auto BLASAddress =  static_cast<UINT>(mesh->BLASAddress());
-    //    m_impl->m_topLevelASGenerator.AddInstance(BLASAddress, Conversion::GLMToXMMATRIX(draw_entry.modelMat),
-    //                                              static_cast<uint32_t>(m_impl->m_BLCount), static_cast<uint32_t>(0));
+    // auto BLASAddress =
+    // m_impl->m_BLBuffers[m_impl->m_BLCount].pResult[cpuFrame]->GetResource()->GetGPUVirtualAddress();
+    m_impl->m_topLevelASGenerator.AddInstance(inst.first, m_impl->m_instances[m_impl->m_BLCount].second,
+                                              static_cast<uint32_t>(m_impl->m_BLCount), static_cast<uint32_t>(0));
 
-    //    m_impl->m_BLCount++;
+    m_impl->m_BLCount++;
+    //}
+    // else
+    //{
+    //    m_impl->m_instances[entryIndex].second = Conversion::GLMToXMMATRIX(draw_entry.modelMat);
     //}
 }
 
 void KS::Scene::CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame)
 {
-    // ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+     ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
 
-    // if (!updateOnly)
-    //{
-    //     // As for the bottom-level AS, the building the AS requires some scratch space
-    //     // to store temporary data in addition to the actual AS. In the case of the
-    //     // top-level AS, the instance descriptors also need to be stored in GPU
-    //     // memory. This call outputs the memory requirements for each (scratch,
-    //     // results, instance descriptors) so that the application can allocate the
-    //     // corresponding memory
-    //     UINT64 scratchSize, resultSize, instanceDescsSize;
+     if (!updateOnly)
+    {
+         // As for the bottom-level AS, the building the AS requires some scratch space
+         // to store temporary data in addition to the actual AS. In the case of the
+         // top-level AS, the instance descriptors also need to be stored in GPU
+         // memory. This call outputs the memory requirements for each (scratch,
+         // results, instance descriptors) so that the application can allocate the
+         // corresponding memory
+         UINT64 scratchSize, resultSize, instanceDescsSize;
 
-    //    m_impl->m_topLevelASGenerator.ComputeASBufferSizes(engineDevice, true, &scratchSize,
-    //        &resultSize, &instanceDescsSize);
+        m_impl->m_topLevelASGenerator.ComputeASBufferSizes(engineDevice, true, &scratchSize,
+            &resultSize, &instanceDescsSize);
 
-    //    //// Create the scratch and result buffers. Since the build is all done on GPU,
-    //    //// those can be allocated on the default heap
+        //// Create the scratch and result buffers. Since the build is all done on GPU,
+        //// those can be allocated on the default heap
 
-    //    auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-    //    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    //    heapProps.CreationNodeMask = 0;
-    //    heapProps.VisibleNodeMask = 0;
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        heapProps.CreationNodeMask = 0;
+        heapProps.VisibleNodeMask = 0;
 
-    //    m_impl->m_topLevelASBuffers.pScratch[cpuFrame] =
-    //        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
-    //    bufDesc.Width = resultSize;
-    //    m_impl->m_topLevelASBuffers.pResult[cpuFrame] =
-    //        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT",
-    //                                     D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+        m_impl->m_topLevelASBuffers.pScratch[cpuFrame] =
+            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
+        bufDesc.Width = resultSize;
+        m_impl->m_topLevelASBuffers.pResult[cpuFrame] =
+            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT",
+                                         D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
-    //    // The buffer describing the instances: ID, shader binding information,
-    //    // matrices ... Those will be copied into the buffer by the helper through
-    //    // mapping, so the buffer has to be allocated on the upload heap.
-    //    bufDesc.Width = instanceDescsSize;
-    //    bufDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        // The buffer describing the instances: ID, shader binding information,
+        // matrices ... Those will be copied into the buffer by the helper through
+        // mapping, so the buffer has to be allocated on the upload heap.
+        bufDesc.Width = instanceDescsSize;
+        bufDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-    //    heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    //    heapProps.CreationNodeMask = 0;
-    //    heapProps.VisibleNodeMask = 0;
-    //    m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame] =
-    //        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
+        heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        heapProps.CreationNodeMask = 0;
+        heapProps.VisibleNodeMask = 0;
+        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame] =
+            std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
 
-    //    commandList.TransitionResource(*m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame],
-    //                                 D3D12_RESOURCE_STATE_GENERIC_READ);
-    //    m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
-    // }
+        commandList.TransitionResource(*m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame],
+                                     D3D12_RESOURCE_STATE_GENERIC_READ);
+        m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
+     }
 
-    //// After all the buffers are allocated, or if only an update is required, we
-    //// can build the acceleration structure. Note that in the case of the update
-    //// we also pass the existing AS as the 'previous' AS, so that it can be
-    //// refitted in place.
-    // m_impl->m_topLevelASGenerator.Generate(commandList.GetCommandList().Get(),
-    //     m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->Get(),
-    //     m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
-    //     updateOnly, m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get());
+    // After all the buffers are allocated, or if only an update is required, we
+    // can build the acceleration structure. Note that in the case of the update
+    // we also pass the existing AS as the 'previous' AS, so that it can be
+    // refitted in place.
+     m_impl->m_topLevelASGenerator.Generate(commandList.GetCommandList().Get(),
+         m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->Get(),
+         m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
+         updateOnly, m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get());
 
-    //if (!updateOnly)
-    //{
-    //     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
-    //     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    //     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-    //     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    //     srvDesc.RaytracingAccelerationStructure.Location =
-    //         m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get()->GetGPUVirtualAddress();
+    if (!updateOnly)
+    {
+         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
+         srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+         srvDesc.RaytracingAccelerationStructure.Location =
+             m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get()->GetGPUVirtualAddress();
 
-    //    m_impl->m_BHVHandle[cpuFrame] =
-    //        reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())
-    //                              ->AllocateResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame].get(), &srvDesc,
-    //                              BVH_SLOT+cpuFrame);
-    //}
+        m_impl->m_BHVHandle[cpuFrame] =
+            reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())
+                                  ->AllocateResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame].get(), &srvDesc,
+                                  BVH_SLOT+cpuFrame);
+    }
 
-    // commandList.TrackResource(m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->GetResource());
-    // commandList.TrackResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame]->GetResource());
-    // commandList.TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetResource());
+     commandList.TrackResource(m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->GetResource());
+     commandList.TrackResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame]->GetResource());
+     commandList.TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetResource());
 }
 
 const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)

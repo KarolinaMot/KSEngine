@@ -63,7 +63,7 @@ namespace nv_helpers_dx12
 // of the hit group indicating which shaders are executed upon hitting any
 // geometry within the instance
 void TopLevelASGenerator::AddInstance(
-    ID3D12Resource* bottomLevelAS,      // Bottom-level acceleration structure containing the
+    UINT blasAddress,      // Bottom-level acceleration structure containing the
                                         // actual geometric data of the instance
     const DirectX::XMMATRIX& transform, // Transform matrix to apply to the instance, allowing the
                                         // same bottom-level AS to be used at several world-space
@@ -75,7 +75,7 @@ void TopLevelASGenerator::AddInstance(
                                         // invocated upon hitting the geometry
 )
 {
-  m_instances.emplace_back(Instance(bottomLevelAS, transform, instanceID, hitGroupIndex));
+    m_instances.emplace_back(Instance(blasAddress, transform, instanceID, hitGroupIndex));
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -192,7 +192,7 @@ void TopLevelASGenerator::Generate(
         m_instances[i].transform); // GLM is column major, the INSTANCE_DESC is row major
     memcpy(instanceDescs[i].Transform, &m, sizeof(instanceDescs[i].Transform));
     // Get access to the bottom level
-    instanceDescs[i].AccelerationStructure = m_instances[i].bottomLevelAS->GetGPUVirtualAddress();
+    instanceDescs[i].AccelerationStructure = m_instances[i].BLASAddress;
     // Visibility mask, always visible here - TODO: should be accessible from
     // outside
     instanceDescs[i].InstanceMask = 0xFF;
@@ -252,9 +252,8 @@ void TopLevelASGenerator::Generate(
 //--------------------------------------------------------------------------------------------------
 //
 //
-TopLevelASGenerator::Instance::Instance(ID3D12Resource* blAS, const DirectX::XMMATRIX& tr, UINT iID,
-                                        UINT hgId)
-    : bottomLevelAS(blAS), transform(tr), instanceID(iID), hitGroupIndex(hgId)
+TopLevelASGenerator::Instance::Instance(UINT blasAddress, const DirectX::XMMATRIX& tr, UINT iID, UINT hgId)
+    : BLASAddress(blasAddress), transform(tr), instanceID(iID), hitGroupIndex(hgId)
 {
 }
 } // namespace nv_helpers_dx12

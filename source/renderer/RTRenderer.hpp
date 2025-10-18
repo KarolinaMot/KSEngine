@@ -28,10 +28,6 @@ class UniformBuffer;
     private:
         class Impl;
         std::unique_ptr<Impl> m_impl;
-
-        void CreateBVHBotomLevelInstance(const Device& device, const Mesh* mesh, const glm::mat4x4& modelMat, int cpuFrame);
-        void CreateTopLevelAS(const Device& device, DXCommandContext* commandContext, bool updateOnly, int cpuFrame);
-
         bool m_raytraced = false;
         int32_t m_frameCount = 0;
     };

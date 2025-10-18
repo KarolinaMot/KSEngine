@@ -86,7 +86,7 @@ public:
   /// index of the hit group indicating which shaders are executed upon hitting
   /// any geometry within the instance
   void
-  AddInstance(ID3D12Resource* bottomLevelAS, /// Bottom-level acceleration structure containing the
+  AddInstance(UINT blasAddress, /// Bottom-level acceleration structure containing the
                                              /// actual geometric data of the instance
               const DirectX::XMMATRIX& transform, /// Transform matrix to apply to the instance,
                                                   /// allowing the same bottom-level AS to be used
@@ -135,9 +135,9 @@ private:
   /// Helper struct storing the instance data
   struct Instance
   {
-    Instance(ID3D12Resource* blAS, const DirectX::XMMATRIX& tr, UINT iID, UINT hgId);
+    Instance(UINT blasAddress, const DirectX::XMMATRIX& tr, UINT iID, UINT hgId);
     /// Bottom-level AS
-    ID3D12Resource* bottomLevelAS;
+    UINT BLASAddress;
     /// Transform matrix
     const DirectX::XMMATRIX& transform;
     /// Instance ID visible in the shader
