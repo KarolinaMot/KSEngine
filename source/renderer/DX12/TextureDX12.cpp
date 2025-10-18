@@ -193,7 +193,7 @@ void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const S
     {
         TransitionToRO(device, commandList);
         m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
-        commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
     }
     else
     {
@@ -212,7 +212,7 @@ void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const S
             LOG(Log::Severity::WARN, "Tried to bind a mip level ({}) above the defined max mip level ({}) of a texture. Mip level 0 will be bound.", mip, m_mipLevels);
             mipLevel = 0;
         }
-        commandList.BindHeapResource(m_impl->mTextureBuffer, m_impl->mUAVHeapSlot[mip], desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVHeapSlot[mip], desc.rootIndex);
     }
 }
 

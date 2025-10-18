@@ -99,6 +99,7 @@ public:
     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
     void SetTLASHandle(uint32_t handle) { m_TLASHandle = handle; }
     uint32_t BLASAddress() const;
+    uint32_t GetTLASHandle() const { return m_TLASHandle; }
     std::shared_ptr<DXResource> GetBLASRes() const;
 
 private:

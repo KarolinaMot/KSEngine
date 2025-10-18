@@ -105,7 +105,7 @@ void DXCommandList::BindDescriptorHeaps(DXDescHeap* rscHeap, DXDescHeap* rtHeap,
     m_command_list->SetDescriptorHeaps(heapCount, descriptorHeaps);
 }
 
-void DXCommandList::BindHeapResource(std::unique_ptr<DXResource>& resource, const DXHeapHandle& handle, int rootSlot)
+void DXCommandList::BindHeapResource(DXResource& resource, const DXHeapHandle& handle, int rootSlot)
 {
     if (!m_isOpen)
     {
@@ -129,7 +129,7 @@ void DXCommandList::BindHeapResource(std::unique_ptr<DXResource>& resource, cons
     else
         m_command_list->SetGraphicsRootDescriptorTable(rootSlot, handle.GetAddressGPU());
 
-    m_allocator->TrackResource(resource->GetResource());
+    m_allocator->TrackResource(resource.GetResource());
 }
 
 void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles, std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle, unsigned int numRtv)

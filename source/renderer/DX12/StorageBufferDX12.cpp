@@ -104,11 +104,11 @@ void KS::StorageBuffer::Bind(const Device&, DXCommandList& commandList, const Sh
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
-        commandList.BindHeapResource(m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
     }
     else
     {
-        commandList.BindHeapResource(m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
     }
 }
 
