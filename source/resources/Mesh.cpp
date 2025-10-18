@@ -167,9 +167,7 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
                                      CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
                                      nullptr, "Mesh BLAS scratch", D3D12_RESOURCE_STATE_COMMON);
 
-    cmd.TransitionResource(*scratch->GetResource().Get(), scratch->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    scratch->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    cmd.TrackResource(scratch->GetResource());
+    cmd.TransitionResource(*scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     m_impl->m_BLASSize = need;
 
@@ -183,23 +181,14 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
     auto vbResource = reinterpret_cast<DXResource*>(vb->GetRawResource());
     auto ibResource = reinterpret_cast<DXResource*>(ib->GetRawResource());
 
-    cmd.TransitionResource(*vbResource->GetResource().Get(), vbResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    vbResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    cmd.TrackResource(vbResource->GetResource());
-
-    cmd.TransitionResource(*ibResource->GetResource().Get(), ibResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    ibResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    cmd.TrackResource(ibResource->GetResource());
+    cmd.TransitionResource(*vbResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    cmd.TransitionResource(*ibResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
     cmd.ResourceBarrier(*m_impl->m_BLAS, D3D12_RESOURCE_BARRIER_TYPE_UAV);
 
-    cmd.TransitionResource(*vbResource->GetResource().Get(), vbResource->GetState(),
-                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    vbResource->ChangeState(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-    cmd.TransitionResource(*ibResource->GetResource().Get(), ibResource->GetState(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
-    ibResource->ChangeState(D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    cmd.TransitionResource(*vbResource,  D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    cmd.TransitionResource(*ibResource, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
     cmd.TrackResource(m_impl->m_BLAS->GetResource());
 }

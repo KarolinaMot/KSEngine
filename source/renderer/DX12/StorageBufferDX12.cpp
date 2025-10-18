@@ -114,12 +114,12 @@ void KS::StorageBuffer::Bind(const Device&, DXCommandList& commandList, const Sh
 
 void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset)
 {
-    commandList.BindVertexData(m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
+    commandList.BindVertexData(*m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
 }
 
 void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset)
 {
-    commandList.BindIndexData(m_impl->m_resource, m_buffer_stride, elementOffset);
+    commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset);
 }
 
 void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)

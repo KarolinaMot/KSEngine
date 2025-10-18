@@ -473,12 +473,10 @@ void KS::RenderTarget::Bind(DXCommandList& commandList, uint32_t frameIndex, con
     for (int i = 0; i < m_textureCount; i++)
     {
         m_resources[i] = m_textures[frameIndex][i]->m_impl->mTextureBuffer.get();
-        commandList.TransitionResource(*m_resources[i]->Get(), m_resources[i]->GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-        m_resources[i]->ChangeState(D3D12_RESOURCE_STATE_RENDER_TARGET);
+        commandList.TransitionResource(*m_resources[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
-    commandList.TransitionResource(*depth->m_texture->m_impl->mTextureBuffer->Get(), depth->m_texture->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    depth->m_texture->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    commandList.TransitionResource(*depth->m_texture->m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     commandList.BindRenderTargets(&m_resources[0], &m_impl->m_RT[frameIndex][0], depth->m_texture->m_impl->mTextureBuffer, depth->m_impl->mDepthHandle, m_textureCount);
 
@@ -497,38 +495,34 @@ void KS::RenderTarget::Clear(DXCommandList& commandList, uint32_t frameIndex)
     for (int i = 0; i < m_textureCount; i++)
     {
         glm::vec4 clearColor = m_textures[frameIndex][i]->m_clearColor;
-        commandList.ClearRenderTargets(m_textures[frameIndex][i]->m_impl->mTextureBuffer, m_impl->m_RT[frameIndex][i], &clearColor[0]);
+        commandList.ClearRenderTargets(*m_textures[frameIndex][i]->m_impl->mTextureBuffer, m_impl->m_RT[frameIndex][i], &clearColor[0]);
     }
 }
 
 void KS::RenderTarget::CopyTo(DXCommandList& commandList, uint32_t frameIndex, std::shared_ptr<RenderTarget> sourceRT,
                               int sourceRtIndex, int dstRTIndex)
 {
-    commandList.TransitionResource(*m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer->Get(),
-        m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer->GetState(),
-        D3D12_RESOURCE_STATE_COPY_DEST);
-    m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_DEST);
+    auto& dstTexBuffer = m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer;
+    auto& srcTexBuffer = sourceRT->GetTexture(frameIndex, sourceRtIndex)->m_impl->mTextureBuffer;
 
+    commandList.TransitionResource(*dstTexBuffer,  D3D12_RESOURCE_STATE_COPY_DEST);
     sourceRT->SetCopyFrom(commandList, frameIndex, sourceRtIndex);
-
-    commandList.CopyResource(sourceRT->GetTexture(frameIndex, sourceRtIndex)->m_impl->mTextureBuffer,
-        m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer);
+    commandList.CopyResource(srcTexBuffer, dstTexBuffer);
 }
 
 void KS::RenderTarget::SetCopyFrom(DXCommandList& commandList, uint32_t frameIndex, int rtIndex)
 {
-    commandList.TransitionResource(*m_textures[frameIndex][rtIndex]->m_impl->mTextureBuffer->Get(),
-                                   m_textures[frameIndex][rtIndex]->m_impl->mTextureBuffer->GetState(),
-        D3D12_RESOURCE_STATE_COPY_SOURCE);
-    m_textures[frameIndex][rtIndex]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COPY_SOURCE);
+    auto& texBuffer = m_textures[frameIndex][rtIndex]->m_impl->mTextureBuffer;
+    commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
 }
 
 void KS::RenderTarget::PrepareToPresent(DXCommandList& commandList, uint32_t frameIndex)
 {
     for (int i = 0; i < m_textureCount; i++)
     {
-        commandList.TransitionResource(*m_textures[frameIndex][i]->m_impl->mTextureBuffer->Get(), m_textures[frameIndex][i]->m_impl->mTextureBuffer->GetState(), D3D12_RESOURCE_STATE_PRESENT);
-        m_textures[frameIndex][i]->m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_PRESENT);
+        auto& texBuffer = m_textures[frameIndex][i]->m_impl->mTextureBuffer;
+
+        commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_PRESENT);
     }
 }
 
@@ -563,5 +557,5 @@ KS::DepthStencil::~DepthStencil()
 
 void KS::DepthStencil::Clear(DXCommandList& commandList)
 {
-    commandList.ClearDepthStencils(m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
+    commandList.ClearDepthStencils(*m_texture->m_impl->mTextureBuffer, m_impl->mDepthHandle);
 }
