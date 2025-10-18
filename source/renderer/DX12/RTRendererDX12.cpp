@@ -51,10 +51,6 @@ public:
     DXHeapHandle m_BHVHandle[2];
     bool m_updateBVH = false;
 
-    std::shared_ptr<KS::ShaderInputBlueprint> m_rtInputs;
-    std::shared_ptr<Shader> m_rtShader;
-
-
     std::unique_ptr<UniformBuffer> m_frameIndex;
 };
 
@@ -70,20 +66,6 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
     D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle =
         static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
     auto heapPointer = srvUavHeapHandle.ptr;
-
-    m_impl->m_rtInputs = KS::ShaderInputBlueprintBuilder()
-                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output_tex", ShaderInputMod::READ_WRITE)
-                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "BVH")
-                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"frame_index"})
-                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
-                     .SetLocal()
-                     .Build(device, "RT SIGNATURE");
-
-     m_impl->m_rtShader = std::make_shared<Shader>(
-        device, ShaderType::ST_RAYTRACER, m_impl->m_rtInputs,
-        std::initializer_list<std::string>{"assets/shaders/Hit.hlsl", "assets/shaders/Miss.hlsl", "assets/shaders/RayGen.hlsl"},
-        std::initializer_list<Formats>{});
-
 
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
@@ -106,7 +88,7 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));
         
-        auto pipeline = reinterpret_cast<DXRTPipeline*>(m_impl->m_rtShader->GetPipeline());
+        auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
     }
 }
@@ -145,7 +127,7 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Sc
 
      D3D12_DISPATCH_RAYS_DESC desc =
          m_impl->m_shaderTable[cpuFrameIndex]->FillDispatchDesc(device.GetWidth(), device.GetHeight(), 1);
-     auto pipeline = reinterpret_cast<DXRTPipeline*>(m_impl->m_rtShader->GetPipeline())->m_pipeline.Get();
+     auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline())->m_pipeline.Get();
 
     // Bind the raytracing pipeline
      commandList->GetCommandList()->SetPipelineState1(pipeline);
