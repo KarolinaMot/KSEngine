@@ -98,10 +98,7 @@ public:
 private:
     std::pair<Index, Version> SplitKey(Key k) const
     {
-        constexpr Key LOW_MASK = 0xFFFFFFFFull;
-        const Index idx = static_cast<Index>(k >> 32);           // high 32 bits
-        const Version ver = static_cast<Version>(k & LOW_MASK);  // low 32 bits
-        return {idx, ver};
+        return { k >> 32, Version(k) };
     }
 
     Key MakeKey(Index i, Version v) const
@@ -114,10 +111,10 @@ private:
         if (free_list.empty())
         {
             storage.emplace_back();
-            return static_cast<uint32_t>(storage.size() - 1);
+            return storage.size() - 1;
         }
 
-        return static_cast<uint32_t>(free_list.back());
+        return free_list.back();
     }
 
     // Holds pairs of version, item

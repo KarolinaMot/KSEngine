@@ -1,4 +1,5 @@
-#include "DXShaderTable.h"
+#include "DXShaderTable.hpp"
+
 #include <code_utility.hpp>
 
 void DXShaderTable::AddRayGen(const std::wstring& exportName, const void* localData, UINT localSize)
@@ -17,75 +18,72 @@ void DXShaderTable::AddHitGroup(const std::wstring& exportName, const void* loca
 }
 
 void DXShaderTable::Build(const ComPtr<ID3D12Device5>& device, ID3D12StateObjectProperties* props)
-{ 
-     auto recSize = [&](const TableRecord& r)
-     {
-            return Align(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + UINT(r.localArgs.size()),
-                         D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);  // 32
-     };
+{
+    auto recSize = [&](const TableRecord& r)
+    {
+        return Align(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + UINT(r.localArgs.size()),
+                     D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);  // 32
+    };
 
-     m_strideRG = MaxRecordStride(m_raygen, recSize);
-     m_strideMS = MaxRecordStride(m_miss, recSize);
-     m_strideHG = MaxRecordStride(m_hit, recSize);
+    m_strideRG = MaxRecordStride(m_raygen, recSize);
+    m_strideMS = MaxRecordStride(m_miss, recSize);
+    m_strideHG = MaxRecordStride(m_hit, recSize);
 
-     const UINT countRG = 1;  // usually 1
-     const UINT countMS = (UINT)m_miss.size();
-     const UINT countHG = (UINT)m_hit.size();
+    const UINT countRG = 1;  // usually 1
+    const UINT countMS = (UINT)m_miss.size();
+    const UINT countHG = (UINT)m_hit.size();
 
-     UINT64 sizeRG = m_strideRG * countRG;
-     UINT64 sizeMS = m_strideMS * countMS;
-     UINT64 sizeHG = m_strideHG * countHG;
+    UINT64 sizeRG = m_strideRG * countRG;
+    UINT64 sizeMS = m_strideMS * countMS;
+    UINT64 sizeHG = m_strideHG * countHG;
 
-     UINT64 cursor = 0;
+    UINT64 cursor = 0;
 
-     // RayGen (always present: 1 record)
-     m_offRG = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-     cursor = m_offRG + sizeRG;
+    // RayGen (always present: 1 record)
+    m_offRG = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+    cursor = m_offRG + sizeRG;
 
-     // Miss (optional)
-     if (countMS)
-     {
-         m_offMS = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-         cursor = m_offMS + sizeMS;
-     }
-     else
-     {
-         m_offMS = 0;
-     }
+    // Miss (optional)
+    if (countMS)
+    {
+        m_offMS = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+        cursor = m_offMS + sizeMS;
+    }
+    else
+    {
+        m_offMS = 0;
+    }
 
-     // Hit (optional)
-     if (countHG)
-     {
-         m_offHG = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-         cursor = m_offHG + sizeHG;
-     }
-     else
-     {
-         m_offHG = 0;
-     }
+    // Hit (optional)
+    if (countHG)
+    {
+        m_offHG = Align64(cursor, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+        cursor = m_offHG + sizeHG;
+    }
+    else
+    {
+        m_offHG = 0;
+    }
 
-     m_size = cursor;  // final end; no fallbacks needed
-     m_size = cursor ? cursor : sizeRG;
+    m_size = cursor;  // final end; no fallbacks needed
+    m_size = cursor ? cursor : sizeRG;
 
-     m_upl = std::make_unique<DXResource>(device,
-         CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-         CD3DX12_RESOURCE_DESC::Buffer(m_size, D3D12_RESOURCE_FLAG_NONE),
-         nullptr,
-         "Shader table buffer");
+    m_upl = std::make_unique<DXResource>(device, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                         CD3DX12_RESOURCE_DESC::Buffer(m_size, D3D12_RESOURCE_FLAG_NONE), nullptr,
+                                         "Shader table buffer");
 
-     uint8_t* base = nullptr;
+    uint8_t* base = nullptr;
 
-     HRESULT hr = m_upl->GetResource()->Map(0, nullptr, (void**)&base);
-     if (FAILED(hr)) ASSERT(false && "Failed to map shader table");
+    HRESULT hr = m_upl->GetResource()->Map(0, nullptr, (void**)&base);
+    if (FAILED(hr)) ASSERT(false && "Failed to map shader table");
 
-     WriteTable(base + m_offRG, m_raygen, props);
-     if (countMS) WriteTable(base + m_offMS, m_miss, m_strideMS, props);
-     if (countHG) WriteTable(base + m_offHG, m_hit, m_strideHG, props);
+    WriteTable(base + m_offRG, m_raygen, props);
+    if (countMS) WriteTable(base + m_offMS, m_miss, m_strideMS, props);
+    if (countHG) WriteTable(base + m_offHG, m_hit, m_strideHG, props);
 
-     m_upl->GetResource()->Unmap(0, nullptr);
-     m_gpuVA = m_upl->GetResource()->GetGPUVirtualAddress();
+    m_upl->GetResource()->Unmap(0, nullptr);
+    m_gpuVA = m_upl->GetResource()->GetGPUVirtualAddress();
 }
-
 
 void DXShaderTable::Clear()
 {
@@ -129,7 +127,7 @@ D3D12_DISPATCH_RAYS_DESC DXShaderTable::FillDispatchDesc(UINT width, UINT height
 }
 
 DXShaderTable::TableRecord DXShaderTable::MakeRecord(const std::wstring& name, const void* data, UINT size)
-{ 
+{
     TableRecord r;
     r.exportName = name;
     if (data && size)
@@ -147,8 +145,8 @@ UINT DXShaderTable::MaxRecordStride(const std::vector<TableRecord>& list, const 
     return m;
 }
 
-UINT DXShaderTable::MaxRecordStride(const TableRecord& record, const auto& recSize) const 
-{ 
+UINT DXShaderTable::MaxRecordStride(const TableRecord& record, const auto& recSize) const
+{
     UINT m = D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;  // at least 32
     m = std::max(m, recSize(record));
     return m;

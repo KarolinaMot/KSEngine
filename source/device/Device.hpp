@@ -9,9 +9,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
-#pragma warning (push, 0)
 #include <glm/glm.hpp>
-#pragma warning (pop)
 #include <renderer/RenderTarget.hpp>
 #include <renderer/DepthStencil.hpp>
 #include <resources/Texture.hpp>
@@ -20,10 +18,8 @@ class DXCommandList;
 struct DXCommandContext;
 namespace KS
 {
-
-class ShaderInputCollection;
-class Shader;
 class UploadArena;
+
 struct DeviceInitParams
 {
     std::string name = "KS Engine";
@@ -32,7 +28,9 @@ struct DeviceInitParams
     bool debug_context = true;
     glm::vec4 clear_color = glm::vec4(0.25f, 0.25f, 0.25f, 1.f);
 };
-
+class UploadArena;
+class ShaderInputBlueprint;
+class Shader;
 class Device
 {
 public:
@@ -47,7 +45,7 @@ public:
     void* GetRenderTargetHeap() const;
     void* GetWindowHandle() const;
 
-    bool IsWindowOpen() const;
+    inline bool IsWindowOpen() const { return m_window_open; }
     void NewFrame();
     void EndFrame();
     void InitializeSwapchain();
@@ -56,15 +54,26 @@ public:
 
     unsigned int GetFrameIndex() const { return m_frame_index; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
-    uint32_t GetWidth() const { return m_width; }
-    uint32_t GetHeight() const { return m_height; }
-    std::shared_ptr<RenderTarget> GetRenderTarget() const { return m_swapchainRT; };
-    std::shared_ptr<Texture> GetRenderTargetTexture(int index) const { return m_swapchainTex[index]; };
-    std::shared_ptr<DepthStencil> GetDepthStencil() const { return m_swapchainDS; };
-    std::shared_ptr<Texture> GetDepthStencilTex() const { return m_swapchainDepthTex; };
+    int GetWidth() const { return m_width; }
+    int GetHeight() const { return m_height; }
+    void TrackResource(::std::shared_ptr<void> buffer);
+    std::shared_ptr<RenderTarget> GetRenderTarget() { return m_swapchainRT; };
+    std::shared_ptr<Texture> GetRenderTargetTexture(int index) { return m_swapchainTex[index]; };
+    std::shared_ptr<DepthStencil> GetDepthStencil() { return m_swapchainDS; };
+    std::shared_ptr<Texture> GetDepthStencilTex() { return m_swapchainDepthTex; };
     UploadArena* GetUploadArena() const;
-    ShaderInputCollection* GetMipGenShaderInputs() const { return m_mipMapShaderInputs.get(); }
-    Shader* GetMipGenShader() const { return m_mipMapShader.get(); }
+
+    void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
+    void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
+    size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
+    KS::Texture* GetTextureForMipmapGen(int index) const
+    {
+        if (auto lock = m_texWithoutMipmaps[index].lock())
+            return lock.get();
+        else
+            return nullptr;
+    }
+
     // Blocks until all rendering operations are finished
     void Flush();
 
@@ -78,14 +87,13 @@ private:
     unsigned int m_frame_index = 0;
     unsigned int m_cpu_frame = 0;
     bool m_fullscreen = false;
-    uint32_t m_width, m_height;
+    int m_width, m_height;
     glm::vec4 m_clear_color;
     std::shared_ptr<RenderTarget> m_swapchainRT;
     std::shared_ptr<Texture> m_swapchainTex[2];
     std::shared_ptr<DepthStencil> m_swapchainDS;
     std::shared_ptr<Texture> m_swapchainDepthTex;
-    std::shared_ptr<ShaderInputCollection> m_mipMapShaderInputs;
-    std::shared_ptr<Shader> m_mipMapShader;
+    std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
 };
 
 } // namespace KS

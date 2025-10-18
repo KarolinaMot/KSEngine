@@ -1,8 +1,9 @@
 #include "Mesh.hpp"
 #include <device/Device.hpp>
 #include <renderer/DX12/Helpers/DX12Common.hpp>
+#include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <tools/Log.hpp>
+
 
 void KS::MeshData::AddAttribute(const std::string& name, ByteBuffer&& data)
 {
@@ -38,38 +39,59 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
-
 KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData& data)
 {
-    m_impl = new Impl();
-    m_name = data.m_name;
+    m_impl = std::make_unique<Impl>();
+
     for (const auto& [name, attributes] : data)
     {
         auto view = attributes.GetView<uint8_t>();
 
         auto* start = view.begin();
-        uint32_t size = static_cast<uint32_t>(view.count());
-        uint32_t stride = static_cast<uint32_t>(MeshConstants::ATTRIBUTE_STRIDES.find(name)->second);
+        size_t size = view.count();
+        size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(name)->second;
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
-        StorageBuffer::StorageBufferFlags flag = StorageBuffer::StorageBufferFlags::VERTEX_DATA_BUFFER;
-        if (name == MeshConstants::ATTRIBUTE_INDICES_NAME) 
-            flag = StorageBuffer::StorageBufferFlags::INDEX_DATA_BUFFER;
-
-
-        auto buffer =
-            std::make_shared<KS::StorageBuffer>(device, commandList, name, start, stride, size / stride, false, flag);
+        auto buffer = std::make_shared<KS::StorageBuffer>(device, commandList, name, start, stride, size / stride, false);
 
         m_data.emplace(name, buffer);
     }
 
     BuildBLAS(device, commandList);
+
+    if (!m_impl->m_BLAS)
+    {
+        throw std::runtime_error("Mesh::BLASAddress: there is no blas.");
+    }
 }
 
-KS::Mesh::~Mesh() 
+KS::Mesh::~Mesh() {
+}
+
+KS::Mesh::Mesh(Mesh&& other) noexcept 
+{ 
+    m_impl = std::move(other.m_impl);
+    //m_impl->m_BLAS = other.m_impl->m_BLAS;
+    //m_impl->m_BLASSize = other.m_impl->m_BLASSize;
+    //m_impl->m_geom = other.m_impl->m_geom;
+    other.m_impl = nullptr;
+    m_data = std::move(other.m_data);
+    m_TLASHandle = other.m_TLASHandle;
+    m_BLASAddress = other.m_BLASAddress;
+}
+
+KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
 {
-    delete m_impl;
+    m_impl = std::move(other.m_impl);
+    // m_impl->m_BLAS = other.m_impl->m_BLAS;
+    // m_impl->m_BLASSize = other.m_impl->m_BLASSize;
+    // m_impl->m_geom = other.m_impl->m_geom;
+    other.m_impl = nullptr;
+    m_data = std::move(other.m_data);
+    m_TLASHandle = other.m_TLASHandle;
+    m_BLASAddress = other.m_BLASAddress;
+    return *this;
 }
 
 std::shared_ptr<KS::StorageBuffer> KS::Mesh::GetAttribute(const std::string& name) const
@@ -80,6 +102,18 @@ std::shared_ptr<KS::StorageBuffer> KS::Mesh::GetAttribute(const std::string& nam
     }
     return nullptr;
 }
+
+uint32_t KS::Mesh::BLASAddress() const 
+{ 
+    if (!m_impl->m_BLAS)
+    {
+        throw std::runtime_error("Mesh::BLASAddress: there is no blas.");
+    }
+
+    return m_impl->m_BLAS->Get()->GetGPUVirtualAddress();
+}
+
+std::shared_ptr<DXResource> KS::Mesh::GetBLASRes() const { return m_impl->m_BLAS; }
 
 void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
 {
@@ -123,50 +157,51 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
     const UINT64 need = Align256(pre.ResultDataMaxSizeInBytes);
     m_impl->m_BLAS =
         std::make_shared<DXResource>(engineDevice, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                    CD3DX12_RESOURCE_DESC::Buffer(need, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-                                    nullptr,
-                                    "Mesh BLAS",
-                                    D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+                                     CD3DX12_RESOURCE_DESC::Buffer(need, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), nullptr,
+                                     "Mesh BLAS", D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
     const UINT64 scratchSize = Align256(pre.ScratchDataSizeInBytes);
     std::shared_ptr<DXResource> scratch;
     scratch =
         std::make_shared<DXResource>(engineDevice, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                      CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-                                      nullptr, "Mesh BLAS scratch", D3D12_RESOURCE_STATE_COMMON);
+                                     CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+                                     nullptr, "Mesh BLAS scratch", D3D12_RESOURCE_STATE_COMMON);
 
-    cmd.TransitionResource(*scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    cmd.TransitionResource(*scratch->GetResource().Get(), scratch->GetState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    scratch->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    cmd.TrackResource(scratch->GetResource());
 
     m_impl->m_BLASSize = need;
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};
     build.Inputs = inputs;
     build.DestAccelerationStructureData = m_impl->m_BLAS->Get()->GetGPUVirtualAddress();
-    build.ScratchAccelerationStructureData = scratch->Get()->GetGPUVirtualAddress(); 
+    build.ScratchAccelerationStructureData = scratch->Get()->GetGPUVirtualAddress();
     build.SourceAccelerationStructureData = 0;
 
+    m_BLASAddress = m_impl->m_BLAS->Get()->GetGPUVirtualAddress();
     auto vbResource = reinterpret_cast<DXResource*>(vb->GetRawResource());
     auto ibResource = reinterpret_cast<DXResource*>(ib->GetRawResource());
-    cmd.TransitionResource(*vbResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    cmd.TransitionResource(*ibResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+    cmd.TransitionResource(*vbResource->GetResource().Get(), vbResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    vbResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    cmd.TrackResource(vbResource->GetResource());
+
+    cmd.TransitionResource(*ibResource->GetResource().Get(), ibResource->GetState(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    ibResource->ChangeState(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    cmd.TrackResource(ibResource->GetResource());
 
     cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
     cmd.ResourceBarrier(*m_impl->m_BLAS, D3D12_RESOURCE_BARRIER_TYPE_UAV);
 
-    cmd.TransitionResource(*vbResource, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    cmd.TransitionResource(*vbResource, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    cmd.TransitionResource(*ibResource, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    cmd.TransitionResource(*vbResource->GetResource().Get(), vbResource->GetState(),
+                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    vbResource->ChangeState(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+    cmd.TransitionResource(*ibResource->GetResource().Get(), ibResource->GetState(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    ibResource->ChangeState(D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
     cmd.TrackResource(m_impl->m_BLAS->GetResource());
-}
-
-size_t KS::Mesh::BLASAddress() const
-{ 
-    return (m_impl->m_BLAS) ? static_cast<size_t>(m_impl->m_BLAS->GetResource()->GetGPUVirtualAddress()) : 0;
-}
-
-std::shared_ptr<void> KS::Mesh::GetBLASResource() const { 
-    return m_impl->m_BLAS;
 }
 
 void KS::Mesh::Impl::FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UINT vbCount, const StorageBuffer* ib,
@@ -185,7 +220,7 @@ void KS::Mesh::Impl::FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UI
     if (ib && ibCount > 0)
     {
         t.IndexFormat = IndexFormatFromStride(ibStride);
-        t.IndexBuffer = ib->GetGPUAddress(0,0);
+        t.IndexBuffer = ib->GetGPUAddress(0, 0);
         t.IndexCount = ibCount;
     }
     else
@@ -197,4 +232,3 @@ void KS::Mesh::Impl::FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UI
 
     t.Transform3x4 = 0;  // no per-geometry pre-transform
 }
-

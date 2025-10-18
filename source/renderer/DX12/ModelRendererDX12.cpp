@@ -1,24 +1,36 @@
+#include <device/Device.hpp>
+#include <fileio\ResourceHandle.hpp>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DX12Conversion.hpp>
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputCollection.hpp>
-#include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
-
-#include <device/Device.hpp>
-#include <resources/Texture.hpp>
+#include <renderer/ShaderInputBlueprint.hpp>
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
-#include <fileio\ResourceHandle.hpp>
+#include <resources/Texture.hpp>
 #pragma warning(push, 0)
 #include <glm/gtc/matrix_transform.hpp>
+#include <DXR/DXRHelper.h>
+#include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
+#include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
+#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
+#include <DXR/nv_helpers_dx12/RootSignatureGenerator.h>
+#include <DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h>
 #pragma warning(pop)
 #include <renderer/InfoStructs.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
 #include <scene/Scene.hpp>
-#include <thread>
 
-KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc) : SubRenderer(device, desc) {}
+#include <renderer/ShaderInputBlueprintBuilder.hpp>
+#include <renderer/DX12/Helpers/DXShaderTable.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
+#include <renderer/DX12/Helpers/DXRTPipeline.hpp>
+
+KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc)
+: SubRenderer(device, desc)
+{
+}
 
 KS::ModelRenderer::~ModelRenderer() {}
 
@@ -40,35 +52,43 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 }
 
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                               std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT)
+                               std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT)
 {
     int drawQueueSize = static_cast<int>(scene.GetDrawQueueSize());
     if (drawQueueSize == 0) return;
 
+    auto commandList = commandContext->m_commandList.get();
+
     auto pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    auto& mainCommandList = commandContext->m_commandList;
+    auto rootSignature = m_shader->GetShaderInput();
+    auto frameIndex = device.GetCPUFrameIndex();
 
-    m_renderTarget->PrepareToRenderTo(device, *mainCommandList);
-    m_depthStencil->PrepareToUse(*mainCommandList);
+    m_renderTarget->Bind(*commandList, frameIndex, m_depthStencil.get());
+
     if (clearRT)
     {
-        m_renderTarget->Clear(device, *mainCommandList);
+        m_renderTarget->Clear(*commandList, frameIndex);
     }
-    m_depthStencil->Clear(*mainCommandList);
-    
+    m_depthStencil->Clear(*commandList);
+
     auto BindDrawResources = [&](DXCommandList* cmdList)
     {
         cmdList->BindPipeline(pipeline);
         cmdList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), false);
         cmdList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-        for (const auto& input : inputs)
+        for (int i=0; i<inputs.size(); i++)
         {
-            input.first->Bind(device, *cmdList, input.second);
+            auto &input = inputs[i];
+            if (input.first) 
+                input.first->Bind(device, *cmdList, input.second.desc, input.second.bindOffset);
+            else
+                LOG(Log::Severity::WARN,
+                    "One of the inputs {} in a model renderer was empty command will be ignored", i);
         }
 
-        m_renderTarget->Bind(device, *cmdList, m_depthStencil.get());
+        m_renderTarget->Bind(*cmdList, frameIndex, m_depthStencil.get());
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
 
@@ -104,7 +124,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     }
 }
 
-void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index)
+void KS::ModelRenderer::DrawMesh(Device & device, Scene & scene, DXCommandList & commandList, int index)
 {
     if (index >= scene.GetDrawQueueSize()) return;
 
@@ -132,10 +152,10 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
     indices->BindAsIndexData(commandList);
 
     meshSet.baseTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("base_tex"));
-    meshSet.normalTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("normal_tex"));
-    meshSet.emissiveTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("emissive_tex"));
-    meshSet.roughMetTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("roughmet_tex"));
-    meshSet.occlusionTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("occlusion_tex"));
+    meshSet.normalTex->Bind(device, commandList,m_shader->GetShaderInput()->GetInput("normal_tex"));
+    meshSet.emissiveTex->Bind(device,commandList, m_shader->GetShaderInput()->GetInput("emissive_tex"));
+    meshSet.roughMetTex->Bind(device, commandList,m_shader->GetShaderInput()->GetInput("roughmet_tex"));
+    meshSet.occlusionTex->Bind(device, commandList,m_shader->GetShaderInput()->GetInput("occlusion_tex"));
 
     commandList.DrawIndexed(indices->GetElementCount());
 }

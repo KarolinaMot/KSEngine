@@ -1,15 +1,15 @@
 #include <device/Device.hpp>
-#include <renderer/ShaderInputCollection.hpp>
-#include <renderer/ShaderInputCollectionBuilder.hpp>
-#include <renderer/Shader.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DXCommandQueue.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/UploadArena.h>
+#include <renderer/Shader.hpp>
+#include <renderer/ShaderInputBlueprint.hpp>
+#include <renderer/ShaderInputBlueprintBuilder.hpp>
 #include <tools/Log.hpp>
 #include "DX12/DXFactory.hpp"
 
@@ -29,7 +29,7 @@ public:
     UINT GetFramebufferIndex();
 
     // void BindSwapchainRT();
-    void StartFrame(int cpuFrame);
+    void StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor);
     void EndFrame(int cpuFrame);
 
     enum DXResources
@@ -58,7 +58,6 @@ public:
     DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
     std::shared_ptr<UploadArena> m_uploadArena;
 
-
     std::shared_ptr<DXDescHeap> m_descriptor_heaps[NUM_DESC_HEAPS];
     const DXGI_FORMAT m_depth_format = DXGI_FORMAT_D32_FLOAT;
 };
@@ -74,7 +73,6 @@ KS::Device::Device(const DeviceInitParams& params)
     m_clear_color = params.clear_color;
     m_impl->InitializeDevice(params);
     m_frame_index = 0;
-
 }
 
 KS::Device::~Device()
@@ -84,16 +82,15 @@ KS::Device::~Device()
 
 void* KS::Device::GetDevice() const
 {
-    return m_impl->m_device.Get();
-}
+    return m_impl->m_device.Get(); }
 
 DXCommandContext KS::Device::GetCommandContext() const
-{
+{ 
     return m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
 }
 
-void KS::Device::CloseCommandContext(DXCommandContext&& context) const
-{
+void KS::Device::CloseCommandContext(DXCommandContext&& context) const 
+{ 
     m_impl->m_commandPool->Close(std::move(context));
 }
 
@@ -116,31 +113,25 @@ void* KS::Device::GetWindowHandle() const
     return m_impl->m_window;
 }
 
-bool KS::Device::IsWindowOpen() const 
-{
-    return !glfwWindowShouldClose(m_impl->m_window);
-}
-
 void KS::Device::NewFrame()
 {
     auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
     auto& commandList = commandContext.m_commandList;
-
+    m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
-    m_impl->StartFrame(m_cpu_frame);
-    m_swapchainRT->PrepareToRenderTo(*this, *commandList);
-    m_swapchainDS->PrepareToUse(*commandList);
-    m_swapchainRT->Bind(*this, *commandList, m_swapchainDS.get());
-    m_swapchainRT->Clear(*this, *commandList);
+    m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
+    //m_swapchainRT->PrepareToRenderTo(*this, *commandList);
+    //m_swapchainDS->PrepareToUse(*commandList);
+    m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
+    m_swapchainRT->Clear(*commandList, m_cpu_frame);
     m_swapchainDS->Clear(*commandList);
 
     ImGui::GetIO().DisplaySize.x = static_cast<float>(m_width);
-    ImGui::GetIO().DisplaySize.y =  static_cast<float>(m_height);
+    ImGui::GetIO().DisplaySize.y = static_cast<float>(m_height);
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-
     m_impl->m_commandPool->Close(std::move(commandContext));
 }
 
@@ -148,22 +139,26 @@ void KS::Device::EndFrame()
 {
     auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
     auto& commandList = commandContext.m_commandList;
+
     ImGui::Render();
 
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP].get();
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
-    GetRenderTarget()->PrepareToRenderTo(*this, *commandList);
-    GetRenderTarget()->Bind(*this, *commandList, GetDepthStencil().get());
+    GetRenderTarget()->Bind(*commandList, m_cpu_frame, GetDepthStencil().get());
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
     glfwSwapBuffers(m_impl->m_window);
-    m_swapchainRT->PrepareToPresent(*this, *commandList);
+    m_swapchainRT->PrepareToPresent(*commandList, m_cpu_frame);
     m_impl->m_commandPool->Close(std::move(commandContext));
 
     m_impl->EndFrame(m_cpu_frame);
+
     ImGui::EndFrame();
     ImGui::UpdatePlatformWindows();
 }
+
+//KS::UploadArena* KS::Device::GetUploadArena() const
+//{ return m_impl->m_uploadArena.get(); }
 
 void KS::Device::InitializeSwapchain()
 {
@@ -180,40 +175,15 @@ void KS::Device::InitializeSwapchain()
         m_swapchainTex[i] = std::make_shared<Texture>(res.Get(), m_width, m_height, Texture::RENDER_TARGET);
     }
 
-    auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
-    auto& commandList = commandContext.m_commandList;
-
     m_swapchainRT = std::make_shared<RenderTarget>();
-    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1],
-                              "Swapchain render target",
-                              0,
-                              1);
+    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target", 0, 1);
 
     m_swapchainDepthTex = std::make_shared<Texture>(*this, m_width, m_height, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
-    m_swapchainDS = std::make_shared<DepthStencil>(*this, *commandList, m_swapchainDepthTex);
-
-    m_impl->m_commandPool->Close(std::move(commandContext));
+    m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
 }
 
 void KS::Device::FinishInitialization()
 {
-    KS::SamplerDesc desc{};
-    desc.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
-    desc.borderColor = SamplerBorderColor::SBC_TRANSPARENT_BLACK;
-    desc.filter = SamplerFilter::SF_LINEAR;
-
-    m_mipMapShaderInputs = KS::ShaderInputCollectionBuilder()
-                               .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"mipmap_info"})
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_3", KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_0", KS::ShaderInputMod::READ_ONLY)
-                               .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
-                               .Build(*this, "MIPMAP SIGNATURE");
-
-    m_mipMapShader = std::make_shared<Shader>(*this, ShaderType::ST_COMPUTE, m_mipMapShaderInputs,
-                                              std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
-                                              std::initializer_list<Formats>{});
     int size = 128 * 1024;
     m_impl->m_uploadArena = std::make_shared<UploadArena>(size);
 
@@ -229,31 +199,30 @@ void KS::Device::InitializeImGUI()
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable |
                                   ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::GetIO().ConfigViewportsNoDecoration = false;
-    ImGui::GetIO().DisplaySize.x =  static_cast<float>(m_width);
-    ImGui::GetIO().DisplaySize.y =  static_cast<float>(m_height);
+    ImGui::GetIO().DisplaySize.x = static_cast<float>(m_width);
+    ImGui::GetIO().DisplaySize.y = static_cast<float>(m_height);
 
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP];
 
-   CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
         resourceHeap->Get()->GetCPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize());
     CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize()); 
+        resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize());
 
-    ImGui_ImplDX12_Init(m_impl->m_device.Get(), FRAME_BUFFER_COUNT, DXGI_FORMAT_R8G8B8A8_UNORM,
-                        resourceHeap->Get(),
-                        D3D12_CPU_DESCRIPTOR_HANDLE(cpuHandle.ptr), 
-                        D3D12_GPU_DESCRIPTOR_HANDLE(gpuHandle.ptr));
+    ImGui_ImplDX12_Init(m_impl->m_device.Get(), FRAME_BUFFER_COUNT, DXGI_FORMAT_R8G8B8A8_UNORM, resourceHeap->Get(),
+                        D3D12_CPU_DESCRIPTOR_HANDLE(cpuHandle.ptr), D3D12_GPU_DESCRIPTOR_HANDLE(gpuHandle.ptr));
     ImGui_ImplGlfw_InitForOther(m_impl->m_window, true);
     ImGui_ImplGlfw_SetCallbacksChainForAllWindows(true);
 }
 
-KS::UploadArena* KS::Device::GetUploadArena() const
-{ 
-    return m_impl->m_uploadArena.get();
+void KS::Device::TrackResource(std::shared_ptr<void> buffer)
+{
 }
 
+KS::UploadArena* KS::Device::GetUploadArena() const { return m_impl->m_uploadArena.get(); }
+
 void KS::Device::Flush() {
-    //m_impl->m_command_queue->Signal();
+    m_impl->m_command_queue->Flush();
 }
 
 void window_close_callback(GLFWwindow* window)
@@ -298,7 +267,7 @@ UINT KS::Device::Impl::GetFramebufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-void KS::Device::Impl::StartFrame(int cpuFrame)
+void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor)
 {
     // Wait until the current swapchain is available;
     m_fence_values[cpuFrame].Wait();
@@ -313,12 +282,12 @@ void KS::Device::Impl::EndFrame(int cpuFrame)
     {
         LOG(Log::Severity::FATAL, "Failed to present");
     }
-    
+
     m_fence_values[cpuFrame] = m_commandPool->Execute(*m_command_queue.get());
     m_uploadArena->OnSubmit(m_fence_values[cpuFrame].GetFutureValue());
 }
 
-void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID, LPCSTR pDescription, void*)
+void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
 {
     switch (Severity)
     {

@@ -1,7 +1,7 @@
 #include <scene/Scene.hpp>
 
 #include <renderer/Shader.hpp>
-#include <renderer/ShaderInputCollection.hpp>
+#include <renderer/ShaderInputBlueprint.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
@@ -15,8 +15,11 @@
 #include <resources/Texture.hpp>
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
+
 #pragma warning(push, 0)
 #include <glm/gtc/matrix_transform.hpp>
+#include <DXR/DXRHelper.h>
+#include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
 #pragma warning(pop)
 
 
@@ -27,24 +30,22 @@ struct Scene::Impl
 public:
     Impl();
     ~Impl();
-    struct ASBuffers
-    {
-        std::shared_ptr<DXResource> pScratch[2] = {nullptr, nullptr};
-        std::shared_ptr<DXResource> pResult[2] = {nullptr, nullptr};
-        std::shared_ptr<DXResource> pInstanceDesc[2] = {nullptr, nullptr};
-    };
+    //struct ASBuffers
+    //{
+    //    std::shared_ptr<DXResource> pScratch[2] = {nullptr, nullptr};
+    //    std::shared_ptr<DXResource> pResult[2] = {nullptr, nullptr};
+    //    std::shared_ptr<DXResource> pInstanceDesc[2] = {nullptr, nullptr};
+    //};
 
-    ASBuffers m_BLBuffers[200];
-    std::pair<std::shared_ptr<DXResource>, DirectX::XMMATRIX> m_instances[200];
-    ASBuffers m_topLevelASBuffers;
-    int m_BLCount = 0;
-    DXHeapHandle m_BHVHandle[2];
-    bool m_updateBVH = false;
+    //ASBuffers m_BLBuffers[200];
+    //ASBuffers m_topLevelASBuffers;
+    //int m_BLCount = 0;
+    //DXHeapHandle m_BHVHandle[2];
+    //bool m_updateBVH = false;
 
-    ComPtr<ID3D12RootSignature> m_raytracingSignature;
+    //ComPtr<ID3D12RootSignature> m_raytracingSignature;
 
     //nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
-    //nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper[2];
 };
 }  // namespace KS
 
@@ -58,11 +59,14 @@ KS::Scene::Scene(const Device& device)
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList.get(), "MODEL MATRIX RESOURCE", &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
+        device, *commandList, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList.get(), "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
+        device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
-        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
+        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES);
+
+    GenerateMipsInfo mipInfo;
+    mUniformBuffers[MIP_GEN_INFO] = std::make_unique<UniformBuffer>(device, "MIP GEN INFO", mipInfo, NUM_OF_TEXTURES);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
     m_fogInfo.fogDensity = 0.6f;
@@ -73,14 +77,14 @@ KS::Scene::Scene(const Device& device)
     m_fogInfo.decay = 0.99f;
 
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] =
-        std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1, false);
+        std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
     mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1, false);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, *commandList.get(), "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
+        std::make_unique<StorageBuffer>(device, *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, *commandList.get(), "POINT LIGHT BUFFER", m_pointLights, false);
+        std::make_unique<StorageBuffer>(device, *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
 
-    m_BVH = std::make_unique<TLAS>();
+    //m_BVH = std::make_unique<TLAS>();
 
     device.CloseCommandContext(std::move(commandContext));
 }
@@ -90,7 +94,7 @@ KS::Scene::~Scene() {}
 void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name)
 {
     auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
+    auto commandList = commandContext.m_commandList.get();
 
     if (auto* ptr = GetModel(model))
     {
@@ -140,11 +144,11 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 auto occlusionHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME);
 
                 MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
-                auto baseTex = GetTexture(device, commandList.get(), *baseTexHandle);
-                auto normalTex = GetTexture(device, commandList.get(), *normalTexHandle);
-                auto emissiveTex = GetTexture(device, commandList.get(), *emissiveTexHandle);
-                auto roughMetTex = GetTexture(device, commandList.get(), *roughMetHandle);
-                auto occlusionTex = GetTexture(device, commandList.get(), *occlusionHandle);
+                auto baseTex = GetTexture(device, commandList, *baseTexHandle);
+                auto normalTex = GetTexture(device, commandList, *normalTexHandle);
+                auto emissiveTex = GetTexture(device, commandList, *emissiveTexHandle);
+                auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
+                auto occlusionTex = GetTexture(device, commandList, *occlusionHandle);
 
                 matInfo.useColorTex = baseTex != nullptr;
                 matInfo.useEmissiveTex = emissiveTex != nullptr;
@@ -157,14 +161,14 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 m_materialInstances[m_modelCount] = matInfo;
                 m_modelCount++;
 
-                m_BVH->AddInstance(device, *commandList, meshPtr, modelMat.mModel);
+               // m_BVH->AddInstance(device, *commandList, meshPtr, modelMat.mModel);
+                CreateBVHBotomLevelInstance(draw_queue[data.m_name], false);
             }
         }
     }
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, &m_materialInstances[0], m_modelCount);
-    mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
     device.CloseCommandContext(std::move(commandContext));
@@ -178,7 +182,7 @@ void KS::Scene::ApplyModelTransform(std::string name, const glm::mat4& transfrom
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
     m_modelMatrices[entry.modelIndex] = modelMat;
 
-    m_BVH->UpdateTransform(entry.mesh->GetTLASHandle(), modelMat.mModel);
+    //m_BVH->UpdateTransform(entry.mesh->GetTLASHandle(), modelMat.mModel);
 }
 
 void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
@@ -217,9 +221,108 @@ void KS::Scene::Tick(Device& device)
     auto& commandList = commandContext.m_commandList;
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
-    m_BVH->Build(device, *commandList);
+    mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
+    //m_BVH->Build(device, *commandList);
+    //CreateTopLevelAS(device, *commandList, m_impl->m_updateBVH, device.GetCPUFrameIndex());
 
     device.CloseCommandContext(std::move(commandContext));
+}
+
+void KS::Scene::CreateBVHBotomLevelInstance(const DrawEntry& draw_entry,
+                                            bool updateOnly)
+{
+    //if (!updateOnly)
+    //{
+    //    auto mesh = draw_entry.mesh;
+    //    if (!mesh)
+    //        return;
+
+
+    //    auto BLASAddress =  static_cast<UINT>(mesh->BLASAddress());
+    //    m_impl->m_topLevelASGenerator.AddInstance(BLASAddress, Conversion::GLMToXMMATRIX(draw_entry.modelMat),
+    //                                              static_cast<uint32_t>(m_impl->m_BLCount), static_cast<uint32_t>(0));
+
+    //    m_impl->m_BLCount++;
+    //}
+}
+
+void KS::Scene::CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame)
+{
+    // ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+
+    // if (!updateOnly)
+    //{
+    //     // As for the bottom-level AS, the building the AS requires some scratch space
+    //     // to store temporary data in addition to the actual AS. In the case of the
+    //     // top-level AS, the instance descriptors also need to be stored in GPU
+    //     // memory. This call outputs the memory requirements for each (scratch,
+    //     // results, instance descriptors) so that the application can allocate the
+    //     // corresponding memory
+    //     UINT64 scratchSize, resultSize, instanceDescsSize;
+
+    //    m_impl->m_topLevelASGenerator.ComputeASBufferSizes(engineDevice, true, &scratchSize,
+    //        &resultSize, &instanceDescsSize);
+
+    //    //// Create the scratch and result buffers. Since the build is all done on GPU,
+    //    //// those can be allocated on the default heap
+
+    //    auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+    //    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    //    heapProps.CreationNodeMask = 0;
+    //    heapProps.VisibleNodeMask = 0;
+
+    //    m_impl->m_topLevelASBuffers.pScratch[cpuFrame] =
+    //        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH SCRATCH");
+    //    bufDesc.Width = resultSize;
+    //    m_impl->m_topLevelASBuffers.pResult[cpuFrame] =
+    //        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH RESULT",
+    //                                     D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+
+    //    // The buffer describing the instances: ID, shader binding information,
+    //    // matrices ... Those will be copied into the buffer by the helper through
+    //    // mapping, so the buffer has to be allocated on the upload heap.
+    //    bufDesc.Width = instanceDescsSize;
+    //    bufDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    //    heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    //    heapProps.CreationNodeMask = 0;
+    //    heapProps.VisibleNodeMask = 0;
+    //    m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame] =
+    //        std::make_shared<DXResource>(engineDevice, heapProps, bufDesc, nullptr, "TOP LEVEL BVH DESC");
+
+    //    commandList.TransitionResource(*m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame],
+    //                                 D3D12_RESOURCE_STATE_GENERIC_READ);
+    //    m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->ChangeState(D3D12_RESOURCE_STATE_GENERIC_READ);
+    // }
+
+    //// After all the buffers are allocated, or if only an update is required, we
+    //// can build the acceleration structure. Note that in the case of the update
+    //// we also pass the existing AS as the 'previous' AS, so that it can be
+    //// refitted in place.
+    // m_impl->m_topLevelASGenerator.Generate(commandList.GetCommandList().Get(),
+    //     m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->Get(),
+    //     m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get(), m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->Get(),
+    //     updateOnly, m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get());
+
+    //if (!updateOnly)
+    //{
+    //     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
+    //     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    //     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+    //     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    //     srvDesc.RaytracingAccelerationStructure.Location =
+    //         m_impl->m_topLevelASBuffers.pResult[cpuFrame]->Get()->GetGPUVirtualAddress();
+
+    //    m_impl->m_BHVHandle[cpuFrame] =
+    //        reinterpret_cast<DXDescHeap*>(device.GetResourceHeap())
+    //                              ->AllocateResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame].get(), &srvDesc,
+    //                              BVH_SLOT+cpuFrame);
+    //}
+
+    // commandList.TrackResource(m_impl->m_topLevelASBuffers.pScratch[cpuFrame]->GetResource());
+    // commandList.TrackResource(m_impl->m_topLevelASBuffers.pResult[cpuFrame]->GetResource());
+    // commandList.TrackResource(m_impl->m_topLevelASBuffers.pInstanceDesc[cpuFrame]->GetResource());
 }
 
 const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
@@ -260,6 +363,7 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
         if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size()))
         {
             auto new_tex = std::make_shared<Texture>(device, *commandList, img.value());
+            device.AddToMipmapQueue(new_tex);
             auto [obj, success] = tex_cache.emplace(imgPath, std::move(new_tex));
             return obj->second;
         }
@@ -307,10 +411,10 @@ KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, in
     meshSet.occlusionTex = GetTexture(device, commandList,
                    *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
     meshSet.modelIndex = draw_entry.modelIndex;
+    meshSet.transform = draw_entry.modelMat;
 
     return meshSet;
 }
-
 //void KS::Scene::CreateBottomLevelAS(const Device& device, DXCommandList& commandList, const Mesh* mesh, int cpuFrame)
 //{
 //    nv_helpers_dx12::BottomLevelASGenerator bottomLevelASGen;

@@ -1,9 +1,9 @@
 #pragma once
 #include <memory>
+#include <renderer/ShaderInput.hpp>
 #include <string>
 #include <tools/Log.hpp>
 #include <vector>
-#include <renderer/ShaderInput.hpp>
 
 struct DXCommandContext;
 namespace KS
@@ -12,7 +12,6 @@ class UploadArena;
 class StorageBuffer : public ShaderInput
 {
 public:
-
     enum StorageBufferFlags
     {
         NONE = 1 << 0,
@@ -24,16 +23,14 @@ public:
     ~StorageBuffer();
 
     template <typename T>
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name,
-                  const std::vector<T>& data,
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const std::vector<T>& data,
                   bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
-        : StorageBuffer(device, commandList, name, (const void*)(data.data()), sizeof(T), data.size() == 0 ? 1 : static_cast<uint32_t>(data.size()),
-                        readWriteEnabled, flags)
+        : StorageBuffer(device, commandList, name, (const void*)(data.data()), sizeof(T),
+                        data.size() == 0 ? 1 : static_cast<uint32_t>(data.size()), readWriteEnabled, flags)
     {
     }
 
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data,
-                  uint32_t stride,
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, uint32_t stride,
                   uint32_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
     {
         m_read_write = readWriteEnabled;
@@ -43,7 +40,7 @@ public:
         m_name = name;
         m_flags = flags;
 
-        CreateBuffer(device,commandList, name, m_num_elements);
+        CreateBuffer(device, commandList, name, m_num_elements);
         UploadDataBuffer(device, commandList, data, m_num_elements);
     }
 
@@ -73,7 +70,6 @@ public:
         Update(device, commandList, data.data(), static_cast<uint32_t>(data.size()));
     }
 
-
     void Resize(const Device& device, DXCommandList& commandList, uint32_t newNumOfElements);
     virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
                       uint32_t offsetIndex = 0) override;
@@ -91,10 +87,8 @@ public:
     void* GetRawResource() const;
     int GetAllocationIndex(bool readOnly);
 
-
 private:
-    void CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name,
-                      uint32_t numOfElements);
+    void CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name, uint32_t numOfElements);
     void UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, uint32_t numOfElements);
 
     bool m_read_write = false;

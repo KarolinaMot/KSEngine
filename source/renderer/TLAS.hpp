@@ -1,69 +1,61 @@
-#pragma once
-#include <memory>
-#include <vector>
-#pragma warning (push, 0)
-#include <glm/glm.hpp>
-#pragma warning (pop)
-#include <renderer/UploadArena.h>
-#include <renderer/ShaderInput.hpp>
-
-class DXCommandList;
-namespace KS
-{
-class Device;
-class Mesh;
-
-struct TLASInstance
-{
-    TLASInstance();
-
-    glm::mat4x4 modelMat{};
-    uint32_t id = 0;
-    uint32_t hitgroupIndex = 0;
-
-
-    std::weak_ptr<Mesh> m_mesh;
-};
-
-class TLAS : public ShaderInput
-{
-public:
-
-    TLAS();
-    ~TLAS();
-
-    // Ownership of instances lives here:
-    void AddInstance(const Device& device, DXCommandList& cmd, std::shared_ptr<Mesh>& mesh, glm::mat4x4 modelMat);
-    void RemoveInstance(uint32_t instanceHandle);
-    void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
-    void Clear();
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
-                      uint32_t offsetIndex = 0) override;
-    virtual size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
-
-
-    void Build(const Device& device, DXCommandList& cmd);
-
-    uint32_t GetSRVHandle(uint32_t frameIndex) const;
-
-private:
-    // CPU
-    std::vector<TLASInstance> m_instances;
-
-    UploadSlice m_slice;
-
-    // GPU
-    size_t m_tlasSize = 0;
-    size_t m_scratchSize = 0;
-    uint32_t m_capacity = 0;  // capacity of instance descs
-
-    void EnsureInstanceCapacity(const Device& device, DXCommandList& cmd,
-                                uint32_t count);  // grow buffers (and set m_dirtyStructure)
-    void WriteInstanceDescs();                // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
-    void EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate);
-    void EnsureScratch(const Device& device, uint64_t neededBytes);
-
-    struct Impl;
-    std::unique_ptr<Impl> m_Impl;
-};
-}  // namespace KS
+//#pragma once
+//#include <memory>
+//#include <vector>
+//#pragma warning(push, 0)
+//#include <glm/glm.hpp>
+//#pragma warning(pop)
+//
+//
+//class DXCommandList;
+//namespace KS
+//{
+//class Device;
+//class Mesh;
+//
+//struct TLASInstance
+//{
+//    TLASInstance();
+//
+//    glm::mat4x4 modelMat{};
+//    uint32_t id = 0;
+//    uint32_t hitgroupIndex = 0;
+//
+//    Mesh* m_mesh;
+//};
+//
+//class TLAS
+//{
+//public:
+//    TLAS();
+//    ~TLAS();
+//
+//    // Ownership of instances lives here:
+//    void AddInstance(const Device& device, DXCommandList& cmd, Mesh* mesh, glm::mat4x4 modelMat);
+//    void RemoveInstance(uint32_t instanceHandle);
+//    void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
+//    void Clear();
+//    virtual size_t GetGPUAddress(int elementIndex, int frameIndex) const;
+//
+//    void Build(const Device& device, DXCommandList& cmd);
+//
+//    uint32_t GetSRVHandle(uint32_t frameIndex) const;
+//
+//private:
+//    // CPU
+//    std::vector<TLASInstance> m_instances;
+//
+//    // GPU
+//    size_t m_tlasSize = 0;
+//    size_t m_scratchSize = 0;
+//    uint32_t m_capacity = 0;  // capacity of instance descs
+//
+//    void EnsureInstanceCapacity(const Device& device, DXCommandList& cmd,
+//                                uint32_t count);  // grow buffers (and set m_dirtyStructure)
+//    void WriteInstanceDescs(uint32_t frameIndex);  // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
+//    void EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate);
+//    void EnsureScratch(const Device& device, uint64_t neededBytes);
+//
+//    struct Impl;
+//    std::unique_ptr<Impl> m_Impl;
+//};
+//}  // namespace KS

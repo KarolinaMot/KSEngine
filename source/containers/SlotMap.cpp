@@ -27,7 +27,7 @@ void KS::Tests::TestSlotMap()
         throw;
     }
 
-    IntCache.Insert(31);
+    auto key2 = IntCache.Insert(31);
 
     if (IntCache.Size() != 1)
     {

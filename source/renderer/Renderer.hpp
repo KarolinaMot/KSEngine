@@ -1,10 +1,10 @@
 #pragma once
 #include <memory>
-#pragma warning (push, 0)
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
-#pragma warning (pop)
-#include <vector>
+#pragma warning(pop)
 #include <renderer/InfoStructs.hpp>
+#include <vector>
 
 namespace KS
 {
@@ -12,11 +12,12 @@ class Device;
 class SubRenderer;
 class DepthStencil;
 class RenderTarget;
-class ShaderInputCollection;
+class ShaderInputBlueprint;
 class ShaderInput;
+struct ShaderInputBindDesc;
+class Shader;
 class UniformBuffer;
 class Scene;
-struct ShaderInputDesc;
 
 struct RenderTickParams
 {
@@ -36,17 +37,19 @@ public:
     void Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced = false);
 
 private:
-
     void GodRays(Device& device, Scene& scene);
     void Main(Device& device, Scene& scene);
+    void GenerateMipmaps(Device& device, Scene& scene);
     void Raytrace(Device& device, Scene& scene);
 
-    std::shared_ptr<ShaderInputCollection> m_mainInputs;
-    std::shared_ptr<ShaderInputCollection> m_rtInputs;
+    std::shared_ptr<ShaderInputBlueprint> m_mainInputs;
+    std::shared_ptr<ShaderInputBlueprint> m_rtInputs;
     std::unique_ptr<SubRenderer> m_subrenderers[NUM_SUBRENDER];
     std::shared_ptr<RenderTarget> m_renderTargets[NUM_SUBRENDER];
-    std::vector<std::pair<ShaderInput*, ShaderInputDesc>> m_inputs[NUM_SUBRENDER];
+    std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>> m_inputs[NUM_SUBRENDER];
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
     std::shared_ptr<UniformBuffer> m_camera_buffer;
+
+    std::shared_ptr<ShaderInputBlueprint> m_mipMapShaderInputs;
 };
 }  // namespace KS

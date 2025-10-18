@@ -21,7 +21,7 @@ KS::Editor::~Editor() {}
 
 void KS::Editor::RenderWindows(Device& device, Scene& scene, float dt)
 {
-    //SceneHierarchy(scene);
+    SceneHierarchy(scene);
     TransformWindow(scene);
     FogWindow(device, scene);
     FPSWindow(device, dt);

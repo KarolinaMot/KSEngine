@@ -1,8 +1,8 @@
-#include <renderer/ShaderInputCollectionBuilder.hpp>
 #include <device/Device.hpp>
-#include "Helpers/DXIncludes.hpp"
+#include <renderer/DX12/Helpers/DXIncludes.hpp>
+#include <renderer/ShaderInputBlueprintBuilder.hpp>
 
-class KS::ShaderInputCollectionBuilder::Impl
+class KS::ShaderInputBlueprintBuilder::Impl
 {
 public:
     int mRangeCounter = 0;
@@ -20,15 +20,15 @@ public:
                     D3D12_COMPARISON_FUNC comparison = D3D12_COMPARISON_FUNC_NEVER);
 };
 
-KS::ShaderInputCollectionBuilder::ShaderInputCollectionBuilder()
+KS::ShaderInputBlueprintBuilder::ShaderInputBlueprintBuilder()
 {
     m_impl = std::make_unique<Impl>();
     m_impl->mRanges.resize(20);
 }
 
-KS::ShaderInputCollectionBuilder::~ShaderInputCollectionBuilder() {}
+KS::ShaderInputBlueprintBuilder::~ShaderInputBlueprintBuilder() {}
 
-void KS::ShaderInputCollectionBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
+void KS::ShaderInputBlueprintBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
 {
     D3D12_ROOT_DESCRIPTOR desc;
     desc.RegisterSpace = 0;
@@ -42,7 +42,7 @@ void KS::ShaderInputCollectionBuilder::Impl::AddCBuffer(const uint32_t shaderReg
     mParameters.push_back(par);
 }
 
-void KS::ShaderInputCollectionBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+void KS::ShaderInputBlueprintBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
                                              int numDescriptors, int shaderRegister)
 {
     D3D12_DESCRIPTOR_RANGE range;
@@ -66,7 +66,7 @@ void KS::ShaderInputCollectionBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY sh
     mParameters.push_back(par);
 }
 
-void KS::ShaderInputCollectionBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
+void KS::ShaderInputBlueprintBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
                                                D3D12_TEXTURE_ADDRESS_MODE mode, D3D12_FILTER filter,
                                                D3D12_STATIC_BORDER_COLOR color, D3D12_COMPARISON_FUNC comparison)
 {
@@ -88,8 +88,8 @@ void KS::ShaderInputCollectionBuilder::Impl::AddSampler(const uint32_t shaderReg
     mSamplers.push_back(sampler);
 }
 
-KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddUniform(
-    ShaderInputVisibility visibility,const std::initializer_list<std::string>& names)
+KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddUniform(ShaderInputVisibility visibility,
+                                                                             const std::initializer_list<std::string>& names)
 {
     KS::ShaderInputDesc input;
     input.rootIndex = m_input_counter;
@@ -109,7 +109,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddUniform(
     return *this;
 }
 
-KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
+KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
                                                                    std::string name, ShaderInputMod modifiable)
 {
     KS::ShaderInputDesc input;
@@ -136,7 +136,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStorageBu
     return *this;
 }
 
-KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
+KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
                                                              ShaderInputMod modifiable)
 {
     KS::ShaderInputDesc input;
@@ -162,10 +162,10 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddTexture(S
     return *this;
 }
 
-KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
+KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
 {
     std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
-    D3D12_TEXTURE_ADDRESS_MODE addressMode{};
+    D3D12_TEXTURE_ADDRESS_MODE addressMode;
 
     switch (sampler.second.addressMode)
     {
@@ -186,7 +186,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
             break;
     }
 
-    D3D12_FILTER filterMode{};
+    D3D12_FILTER filterMode;
     switch (sampler.second.filter)
     {
         case SamplerFilter::SF_NEAREST:
@@ -202,7 +202,7 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
             break;
     }
 
-    D3D12_STATIC_BORDER_COLOR borderColor{};
+    D3D12_STATIC_BORDER_COLOR borderColor;
     switch (sampler.second.borderColor)
     {
         case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
@@ -216,19 +216,13 @@ KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::AddStaticSam
             break;
     }
 
-    m_impl->AddSampler(static_cast<uint32_t>(m_sampler_inputs.size()), m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor);
+    m_impl->AddSampler(m_sampler_inputs.size(), m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor);
     m_sampler_inputs.push_back(sampler);
 
     return *this;
 }
 
-KS::ShaderInputCollectionBuilder& KS::ShaderInputCollectionBuilder::SetAsLocal()
-{ 
-    m_global = false;
-    return *this;
-}
-
-std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Build(const Device& device, std::string name)
+std::shared_ptr<KS::ShaderInputBlueprint> KS::ShaderInputBlueprintBuilder::Build(const Device& device, std::string name)
 {
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name.c_str(), -1, wString, 4096);
@@ -236,11 +230,11 @@ std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Bui
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(static_cast<UINT>(m_impl->mParameters.size()), m_impl->mParameters.data(),
                            static_cast<UINT>(m_impl->mSamplers.size()), m_impl->mSamplers.data(),
-                           m_global ? D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                                           D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                                           D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                                           D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
-                            : D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
+        m_local ? D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE :
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                                          D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                                          D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                                          D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
 
     ComPtr<ID3DBlob> serializedSignature;
     ComPtr<ID3DBlob> errBlob;
@@ -265,12 +259,12 @@ std::shared_ptr<KS::ShaderInputCollection> KS::ShaderInputCollectionBuilder::Bui
     }
     signature->SetName(wString);
 
-    return std::make_shared<ShaderInputCollection>(std::move(m_descriptors), signature.Get(), name, m_global);
+    return std::make_shared<ShaderInputBlueprint>(device, std::move(m_descriptors), signature.Get(), !m_local, name);
 }
 
-D3D12_SHADER_VISIBILITY KS::ShaderInputCollectionBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
+D3D12_SHADER_VISIBILITY KS::ShaderInputBlueprintBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
 {
-    D3D12_SHADER_VISIBILITY descVisibility{};
+    D3D12_SHADER_VISIBILITY descVisibility;
     switch (visibility)
     {
         case ShaderInputVisibility::PIXEL:

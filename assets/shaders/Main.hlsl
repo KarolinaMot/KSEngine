@@ -37,7 +37,7 @@ float Attenuation(float distance, float range);
     mat.occlusionColor = GBufferD.Load(DispatchThreadID.xy).a;
 
     float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
-    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    //mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
     
     float2 screenSize;
     FinalRes.GetDimensions(screenSize.x, screenSize.y);
@@ -81,7 +81,7 @@ float Attenuation(float distance, float range);
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;
-    FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
+    FinalRes[DispatchThreadID.xy] = float4(mat.normalColor, 1.f);
 
 }
 

@@ -1,12 +1,12 @@
 #pragma once
 #include <memory>
-#include <string>
 #include <renderer/InfoStructs.hpp>
+#include <string>
 
 namespace KS
 {
 class Device;
-class ShaderInputCollection;
+class ShaderInputBlueprint;
 
 enum class ShaderType
 {
@@ -19,15 +19,14 @@ enum class ShaderType
     ST_COMPUTE
 };
 
-
 class Shader
 {
 public:
-    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput,
+    Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputBlueprint> shaderInputs,
            std::initializer_list<std::string> paths, std::initializer_list<Formats> rtFormats, int flags = 0);
-    Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags = 0);
+    Shader(const Device& device, ShaderType shaderType, void* shaderInputs, std::string path, int flags = 0);
     ~Shader();
-    std::shared_ptr<ShaderInputCollection> GetShaderInput() const { return m_shader_input; };
+    std::shared_ptr<ShaderInputBlueprint> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
     ShaderType GetShaderType() const { return m_shader_type; }
     int GetFlags() const { return m_flags; }
@@ -42,8 +41,8 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
-    std::shared_ptr<ShaderInputCollection> m_shader_input;
+    std::shared_ptr<ShaderInputBlueprint> m_shader_input;
     ShaderType m_shader_type;
     int m_flags;
 };
-}
+}  // namespace KS

@@ -44,9 +44,8 @@ public:
 
     // Queries if the operation is finished (does not block)
     bool IsComplete() const;
-    
-    uint64_t GetFutureValue() { return future_value; }
 
+    uint64_t GetFutureValue() { return future_value; }
 private:
     std::weak_ptr<DXGPUFence> bound_fence {};
     uint64_t future_value {};

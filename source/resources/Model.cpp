@@ -5,10 +5,7 @@
 #include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
-#pragma warning(push, 0)
 #include <glm/gtc/type_ptr.hpp>
-#pragma warning(pop)
-
 #include <tools/Log.hpp>
 
 #include "Image.hpp"
@@ -23,7 +20,6 @@ MeshData ProcessMesh(const aiMesh* mesh)
 
     // Build Mesh
     MeshData new_mesh {};
-    new_mesh.m_name = std::string(mesh->mName.C_Str());
 
     // Indices
     if (mesh->HasFaces())
@@ -199,45 +195,25 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
     {
         out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
     }
-    else
-    {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/models/SanMiguel/textures/White.png"});
-    }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
     {
         out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
-    }
-    else
-    {
-        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.jpg"});
     }
 
     if (auto path = GetTexture(aiTextureType_LIGHTMAP))
     {
         out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
     }
-    else
-    {
-        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
-    }
 
     if (auto path = GetTexture(aiTextureType_METALNESS))
     {
         out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
     }
-    else
-    {
-        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
-    }
 
     if (auto path = GetTexture(aiTextureType_EMISSIVE))
     {
         out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
-    }
-    else
-    {
-        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
     }
 
     return out;
@@ -406,4 +382,6 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
         LOG(Log::Severity::WARN, "Failed to create output model file {}", out_model_file.string());
         return std::nullopt;
     }
+
+    return ResourceHandle<Model> { out_model_file.string() };
 }

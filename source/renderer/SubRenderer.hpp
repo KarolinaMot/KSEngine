@@ -12,17 +12,15 @@ class RenderTarget;
 class DepthStencil;
 class Texture;
 class Scene;
+struct ShaderInputBindDesc;
 class ShaderInput;
-struct ShaderInputDesc;
 
 struct SubRendererDesc
 {
-    std::shared_ptr<Shader> shader;
-    std::shared_ptr<RenderTarget> renderTarget;
-    std::shared_ptr<DepthStencil> depthStencil;
+    std::shared_ptr<Shader> shader = nullptr;
+    std::shared_ptr<RenderTarget> renderTarget = nullptr;
+    std::shared_ptr<DepthStencil> depthStencil = nullptr;
 };
-
-
 
 class SubRenderer
 {
@@ -31,8 +29,10 @@ public:
         : m_shader(desc.shader), m_renderTarget(desc.renderTarget), m_depthStencil(desc.depthStencil){};
     virtual ~SubRenderer() = default;
     virtual void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                        std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT) = 0;
+                        std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT) = 0;
     const Shader* GetShader() const { return m_shader.get(); }
+
+    void SetRenderTarget(std::shared_ptr<RenderTarget> rt) { m_renderTarget = rt; }
 
 protected:
     std::shared_ptr<Shader> m_shader;

@@ -26,39 +26,29 @@ public:
         DEPTH_TEXTURE = 1 << 3
     };
 
-    struct GenerateMipsInfo
-    {
-        uint32_t SrcMipLevel;   // Texture level of source mip
-        uint32_t NumMipLevels;  // Number of OutMips to write: [1-4]
-        uint32_t SrcDimension;  // Width and height of the source texture are even or odd.
-        uint32_t IsSRGB;        // Must apply gamma correction to sRGB textures.
-        glm::vec2 TexelSize;    // 1.0 / OutMip1.Dimensions
-    };
-
-
     Texture(Device& device, DXCommandList& commandList, const Image& image, int flags = 0);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
             uint16_t mipLevels = 1);
     Texture(void* resource, uint32_t width, uint32_t height, int type);
     Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
-        int srvAllocationSlot, int uavAllocationSlot);
+            int srvAllocationSlot, int uavAllocationSlot);
     ~Texture();
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex = 0) override;
+    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t offsetIndex = 0) override;
     void TransitionToRO(const Device& device, DXCommandList& commandList) const;
     void TransitionToRW(const Device& device, DXCommandList& commandList) const;
     inline int GetType() const { return m_flag; }
-    inline Formats GetFormat() const { return m_format;}
+    inline Formats GetFormat() const { return m_format; }
+    GenerateMipsInfo GetMipmapInfo() const;
 
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
     uint32_t GetHandleIndex(bool readOnly) const;
 
-    void GenerateMipmaps(const Device& device, DXCommandList& commandList);
-
+   // void GenerateMipmaps(const Device& device, DXCommandList& commandList);
 
 private:
-
     class Impl;
     Impl* m_impl;
     uint32_t m_width = 0;
@@ -69,4 +59,4 @@ private:
     Formats m_format;
     int m_flag;
 };
-} // namespace KS
+}  // namespace KS

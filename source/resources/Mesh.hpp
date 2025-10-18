@@ -1,13 +1,13 @@
 #pragma once
-#pragma warning(push, 0)
 #include <cereal/types/map.hpp>
 #include <cereal/types/string.hpp>
-#pragma warning(pop)
 #include <containers/ByteBuffer.hpp>
 #include <map>
 #include <memory>
 #include <renderer/StorageBuffer.hpp>
 
+class DXResource;
+class DXCommandList;
 namespace KS
 {
 
@@ -42,6 +42,7 @@ public:
     auto begin() const { return attribute_data.begin(); }
     auto end() const { return attribute_data.end(); }
     std::string m_name;
+
 
 private:
     friend class ::cereal::access;
@@ -81,28 +82,35 @@ inline void MeshData::load(A& ar, const uint32_t v)
     }
 }
 
+class Device;
 class Mesh
 {
 public:
     Mesh(const Device& device, DXCommandList& commandList, const MeshData& data);
     ~Mesh();
 
-    void SetTLASHandle(uint32_t handle) { m_TLASHandle = handle; }
+    Mesh(const Mesh&) = delete;
+    Mesh& operator=(const Mesh&) = delete;
+
+    Mesh(Mesh&& other) noexcept;
+
+    Mesh& operator=(Mesh&& other) noexcept;
 
     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
-    size_t BLASAddress() const; 
-    uint32_t GetTLASHandle() const { return m_TLASHandle; }
-    std::shared_ptr<void> GetBLASResource() const;
+    void SetTLASHandle(uint32_t handle) { m_TLASHandle = handle; }
+    uint32_t BLASAddress() const;
+    std::shared_ptr<DXResource> GetBLASRes() const;
 
 private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
-    std::string m_name;
     uint32_t m_TLASHandle = 0;
+    uint32_t m_BLASAddress = 0;
+
 
     class Impl;
-    Impl* m_impl;
+    std::unique_ptr<Impl> m_impl;
 };
 }
 

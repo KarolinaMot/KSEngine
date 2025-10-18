@@ -1,13 +1,14 @@
-#include <renderer/Shader.hpp>
-#include <renderer/ShaderInputCollection.hpp>
 #include <device/Device.hpp>
+#include <renderer/DX12/Helpers/DX12Conversion.hpp>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <renderer/DX12/Helpers/DXPipeline.hpp>
-#include <renderer/DX12/Helpers/DX12Conversion.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
+#include <renderer/Shader.hpp>
+#include <renderer/ShaderInputBlueprint.hpp>
 
 #pragma warning(push, 0)
 #include <DXR/DXRHelper.h>
+#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
 #pragma warning(pop)
 
 class KS::Shader::Impl
@@ -27,7 +28,6 @@ public:
         ~PipelineSet() {}
     } m_pipelineSet;
 
-
     struct DXRLibrary
     {
         D3D12_DXIL_LIBRARY_DESC libDesc{};
@@ -35,7 +35,6 @@ public:
         D3D12_STATE_SUBOBJECT subobject{};
     };
 
-    
     DXRLibrary MakeLibrarySO(IDxcBlob* dxil, const wchar_t* exportName, const wchar_t* toRename);
 };
 
@@ -70,10 +69,10 @@ std::wstring ConvertToWideString(const char* input)
     return wideStr;
 }
 
-KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputCollection> shaderInput,
+KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputBlueprint> ShaderInputs,
                    std::initializer_list<std::string> paths, std::initializer_list<Formats> rtFormats, int flags)
 {
-    m_shader_input = shaderInput;
+    m_shader_input = ShaderInputs;
     m_shader_type = shaderType;
     m_impl = std::make_unique<Impl>();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -98,25 +97,20 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             builder.AddRenderTarget(Conversion::KSFormatsToDXGI(format));
         }
 
-        m_impl->m_pipelineSet.m_pipeline =
-            builder.Build(engineDevice,
-                          signature, L"RENDER PIPELINE");
+        m_impl->m_pipelineSet.m_pipeline = builder.Build(engineDevice, signature, L"RENDER PIPELINE");
     }
     else if (shaderType == ShaderType::ST_COMPUTE)
     {
         ComPtr<ID3DBlob> v = DXPipelineBuilder::ShaderToBlob(paths.begin()->c_str(), "cs_5_0", "main");
         auto builder = DXPipelineBuilder().SetComputeShader(v->GetBufferPointer(), v->GetBufferSize());
-        m_impl->m_pipelineSet.m_pipeline =
-            builder.Build(engineDevice,
-                          signature, L"RENDER  COMPUTE PIPELINE");
+        m_impl->m_pipelineSet.m_pipeline = builder.Build(engineDevice, signature, L"RENDER  COMPUTE PIPELINE");
     }
     else if (shaderType == ShaderType::ST_RAYTRACER)
     {
         auto& rtPipeline = m_impl->m_pipelineSet.m_RTPipeline;
         rtPipeline = std::make_shared<DXRTPipeline>();
 
-        ComPtr<IDxcBlob> hitBlob =
-            nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString(paths.begin()->c_str()).c_str());
+        ComPtr<IDxcBlob> hitBlob = nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString(paths.begin()->c_str()).c_str());
         ComPtr<IDxcBlob> missBlob =
             nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString((paths.begin() + 1)->c_str()).c_str());
         ComPtr<IDxcBlob> rayGenBlob =
@@ -134,7 +128,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             .MaxAttributeSizeInBytes = 8,
         };
 
-        bool localSignature = !shaderInput->GetIsGlobal();
+        bool localSignature = !ShaderInputs->GetIsGlobal();
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 1};
 
@@ -159,11 +153,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipelineCfg});
 
         // Create a list of shader entry point names that use the payload.
-        const WCHAR* shaderPayloadExports[] = {
-            L"RayGen",
-            L"HitGroup",
-            L"Miss"
-        };
+        const WCHAR* shaderPayloadExports[] = {L"RayGen", L"HitGroup", L"Miss"};
 
         D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocShaderCfg = {};
         assocShaderCfg.NumExports = _countof(shaderPayloadExports);
@@ -178,7 +168,6 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
             assocLocalRS.pExports = shaderPayloadExports;
             assocLocalRS.pSubobjectToAssociate = &subs[5];  // local RS subobject
             subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocLocalRS});
-
         }
 
         D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
@@ -190,11 +179,45 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<
     }
 
     m_flags = flags;
+    //     auto& rtPipeline = m_impl->m_pipelineSet.m_RTPipeline;
+    //     rtPipeline = std::make_shared<DXRTPipeline>();
+
+    //    ComPtr<IDxcBlob> hitLibrary =
+    //    nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString(paths.begin()->c_str()).c_str()); ComPtr<IDxcBlob>
+    //    missLibrary =
+    //        nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString((paths.begin() + 1)->c_str()).c_str());
+    //    ComPtr<IDxcBlob> rayGenLibrary =
+    //        nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString((paths.begin() + 2)->c_str()).c_str());
+
+    //    nv_helpers_dx12::RayTracingPipelineGenerator pipeline(engineDevice);
+    //    pipeline.AddLibrary(rayGenLibrary.Get(), {L"RayGen"});
+    //    pipeline.AddLibrary(missLibrary.Get(), {L"Miss"});
+    //    pipeline.AddLibrary(hitLibrary.Get(), {L"ClosestHit"});
+
+    //    pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
+    //    pipeline.AddRootSignatureAssociation(reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature()),
+    //    {L"RayGen"});
+    //    pipeline.AddRootSignatureAssociation(reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature()),
+    //    {L"Miss"});
+    //    pipeline.AddRootSignatureAssociation(reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature()),
+    //    {L"HitGroup"});
+
+    //    pipeline.SetMaxPayloadSize(4 * sizeof(float));    // RGB + distance
+    //    pipeline.SetMaxAttributeSize(2 * sizeof(float));  // barycentric coordinates
+    //    pipeline.SetMaxRecursionDepth(1);
+
+    //    m_impl->m_pipelineSet.m_RTPipeline->m_pipeline = pipeline.Generate();
+
+    //    m_impl->m_pipelineSet.m_RTPipeline->m_pipeline->QueryInterface(
+    //        IID_PPV_ARGS(&m_impl->m_pipelineSet.m_RTPipeline->m_stateObjectProps));
+    //}
+
+    // m_flags = flags;
 }
 
-KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInput, std::string path, int flags)
+KS::Shader::Shader(const Device& device, ShaderType shaderType, void* ShaderInputs, std::string path, int flags)
 {
-    // m_shader_input = shaderInput;
+    // m_shader_input = ShaderInputs;
     m_shader_type = shaderType;
     m_impl = std::make_unique<Impl>();
 
@@ -210,7 +233,7 @@ KS::Shader::Shader(const Device& device, ShaderType shaderType, void* shaderInpu
     builder.AddRenderTarget(DXGI_FORMAT_R8G8B8A8_UNORM);
     builder.SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
     m_impl->m_pipelineSet.m_pipeline = builder.Build(reinterpret_cast<ID3D12Device5*>(device.GetDevice()),
-                                                     reinterpret_cast<ID3D12RootSignature*>(shaderInput), L"RENDER PIPELINE");
+                                                     reinterpret_cast<ID3D12RootSignature*>(ShaderInputs), L"RENDER PIPELINE");
 
     m_flags = flags;
 }
@@ -228,8 +251,7 @@ void* KS::Shader::GetPipeline() const
     }
 }
 
-KS::Shader::Impl::DXRLibrary KS::Shader::Impl::MakeLibrarySO(IDxcBlob* dxil, const wchar_t* exportName,
-                                                             const wchar_t* toRename)
+KS::Shader::Impl::DXRLibrary KS::Shader::Impl::MakeLibrarySO(IDxcBlob* dxil, const wchar_t* exportName, const wchar_t* toRename)
 {
     DXRLibrary out{};
     out.libDesc.DXILLibrary.pShaderBytecode = dxil->GetBufferPointer();

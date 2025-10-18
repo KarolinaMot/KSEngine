@@ -13,7 +13,6 @@ class Model;
 class CommandList;
 class Mesh;
 class Image;
-class TLAS;
 
 struct SBTInfo
 {
@@ -35,6 +34,7 @@ struct MeshSet
     std::shared_ptr<Texture> roughMetTex;
     std::shared_ptr<Texture> occlusionTex;
     int modelIndex;
+    glm::mat4x4 transform;
 };
 
 class Scene
@@ -58,17 +58,15 @@ public:
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
-    TLAS* GetBVH() { return m_BVH.get(); }
+    //TLAS* GetBVH() const;
     size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
 
 private:
     //void CreateBottomLevelAS(const Device& device, DXCommandList& commandList, const Mesh* mesh, int cpuFrame);
-    //void CreateBVHBotomLevelInstance(const Device& device, DXCommandList& commandList, const DrawEntry& draw_entry,
-    //                                 bool updateOnly, int entryIndex,
-    //                                 int cpuFrame);
-    //void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
+    void CreateBVHBotomLevelInstance(const DrawEntry& draw_entry, bool updateOnly);
+    void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
 
     const Model* GetModel(ResourceHandle<Model> model);
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
@@ -83,7 +81,7 @@ private:
     std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
-    std::unique_ptr<TLAS> m_BVH;
+    //std::unique_ptr<TLAS> m_BVH;
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);

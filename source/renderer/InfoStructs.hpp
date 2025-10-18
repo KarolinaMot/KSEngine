@@ -1,13 +1,15 @@
 #pragma once
 #include <resources/Material.hpp>
 #include <resources/Mesh.hpp>
-#pragma warning(push, 0)
 #include <glm/glm.hpp>
-#pragma warning(pop)
 
 #ifndef MAX_MESHES
 #define MAX_MESHES 2048
 #endif  // !MAX_MESHES
+
+#ifndef NUM_DRAW_THREAD
+#define NUM_DRAW_THREAD 4
+#endif  // !NUM_DRAW_THREAD
 
 namespace KS
 {
@@ -21,6 +23,7 @@ enum Subrenderers
     LIGHT_SHAFT_RENDER,
     UPSCALING_RENDER,
     RT_RENDER,
+    MIP_GEN,
     NUM_SUBRENDER
 };
 
@@ -38,7 +41,7 @@ enum UniformBuffers
     LIGHT_INFO_BUFFER,
     FOG_INFO_BUFFER,
     MODEL_INDEX_BUFFER,
-    //CAMERA_BUFFER,
+    MIP_GEN_INFO,
     NUM_UBUFFER
 };
 
@@ -62,11 +65,20 @@ enum Formats
 
 struct DrawEntry
 {
-    ResourceHandle<Mesh> meshHandle {};
-    std::shared_ptr<Mesh> mesh {};
-    Material material {};
+    ResourceHandle<Mesh> meshHandle{};
+    std::shared_ptr<Mesh> mesh{};
+    Material material{};
     int modelIndex;
     glm::mat4x4 modelMat;
+};
+
+struct GenerateMipsInfo
+{
+    uint32_t SrcMipLevel;   // Texture level of source mip
+    uint32_t NumMipLevels;  // Number of OutMips to write: [1-4]
+    uint32_t SrcDimension;  // Width and height of the source texture are even or odd.
+    uint32_t IsSRGB;        // Must apply gamma correction to sRGB textures.
+    glm::vec2 TexelSize;    // 1.0 / OutMip1.Dimensions
 };
 
 struct ModelMat
@@ -111,6 +123,16 @@ struct MaterialInfo
     uint32_t useOcclusionTex = 0;
 };
 
+struct CameraMats
+{
+    glm::mat4x4 m_proj = glm::mat4x4(1.f);
+    glm::mat4x4 m_invProj = glm::mat4x4(1.f);
+    glm::mat4x4 m_view = glm::mat4x4(1.f);
+    glm::mat4x4 m_invView = glm::mat4x4(1.f);
+    glm::mat4x4 m_camera = glm::mat4x4(1.f);
+    glm::vec4 m_cameraPos = glm::vec4(1.f);
+};
+
 struct FogInfo
 {
     glm::vec3 fogColor;
@@ -122,14 +144,4 @@ struct FogInfo
     float decay;
 };
 
-struct CameraMats
-{
-    glm::mat4x4 m_proj = glm::mat4x4(1.f);
-    glm::mat4x4 m_invProj = glm::mat4x4(1.f);
-    glm::mat4x4 m_view = glm::mat4x4(1.f);
-    glm::mat4x4 m_invView = glm::mat4x4(1.f);
-    glm::mat4x4 m_camera = glm::mat4x4(1.f);
-    glm::vec4 m_cameraPos = glm::vec4(1.f);
-    glm::vec4 m_cameraRight = glm::vec4(0.f);
-};
 };

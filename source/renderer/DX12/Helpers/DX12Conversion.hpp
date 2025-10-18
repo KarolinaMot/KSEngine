@@ -1,15 +1,16 @@
 #pragma once
-#include <renderer/InfoStructs.hpp>
+#include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <DirectXMath.h>
+#include <renderer/InfoStructs.hpp>
 
 namespace KS
 {
 namespace Conversion
 {
-    static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
+static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
+{
+    switch (format)
     {
-        switch (format)
-        {
         case R8G8B8A8_UNORM:
             return DXGI_FORMAT_R8G8B8A8_UNORM;
             break;
@@ -31,13 +32,13 @@ namespace Conversion
         default:
             return DXGI_FORMAT_R8G8B8A8_UNORM;
             break;
-        }
-    };
+    }
+};
 
-    static Formats DXGIFormatsToKS(DXGI_FORMAT format)
+static Formats DXGIFormatsToKS(DXGI_FORMAT format)
+{
+    switch (format)
     {
-        switch (format)
-        {
         case DXGI_FORMAT_R8G8B8A8_UNORM:
             return R8G8B8A8_UNORM;
             break;
@@ -59,18 +60,17 @@ namespace Conversion
         default:
             return R8G8B8A8_UNORM;
             break;
-        }
-    }
-
-    static DirectX::XMMATRIX GLMToXMMATRIX(const glm::mat4& glmMatrix)
-    {
-        // Create a DirectX::XMMATRIX from glm::mat4 by copying the data
-        return DirectX::XMMATRIX(
-            glmMatrix[0][0], glmMatrix[0][1], glmMatrix[0][2], glmMatrix[0][3],
-            glmMatrix[1][0], glmMatrix[1][1], glmMatrix[1][2], glmMatrix[1][3],
-            glmMatrix[2][0], glmMatrix[2][1], glmMatrix[2][2], glmMatrix[2][3],
-            glmMatrix[3][0], glmMatrix[3][1], glmMatrix[3][2], glmMatrix[3][3]);
     }
 }
 
-} // namespace KS
+static DirectX::XMMATRIX GLMToXMMATRIX(const glm::mat4& glmMatrix)
+{
+    // Create a DirectX::XMMATRIX from glm::mat4 by copying the data
+    return DirectX::XMMATRIX(glmMatrix[0][0], glmMatrix[0][1], glmMatrix[0][2], glmMatrix[0][3], glmMatrix[1][0],
+                             glmMatrix[1][1], glmMatrix[1][2], glmMatrix[1][3], glmMatrix[2][0], glmMatrix[2][1],
+                             glmMatrix[2][2], glmMatrix[2][3], glmMatrix[3][0], glmMatrix[3][1], glmMatrix[3][2],
+                             glmMatrix[3][3]);
+}
+}  // namespace Conversion
+
+}  // namespace KS

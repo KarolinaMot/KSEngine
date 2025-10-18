@@ -1,13 +1,13 @@
-#include <device/Device.hpp>
-#include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <renderer/DX12/Helpers/DXResource.hpp>
-#include <renderer/DX12/Helpers/DXHeapHandle.hpp>
-#include <renderer/DX12/Helpers/DXDescHeap.hpp>
-#include <renderer/StorageBuffer.hpp>
 #include <renderer/UploadArena.h>
-#include <renderer/ShaderInputCollection.hpp>
-#include <renderer/DX12/Helpers/DXCommandList.hpp>
+
+#include <device/Device.hpp>
 #include <iostream>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXDescHeap.hpp>
+#include <renderer/DX12/Helpers/DXHeapHandle.hpp>
+#include <renderer/DX12/Helpers/DXResource.hpp>
+#include <renderer/ShaderInputBlueprint.hpp>
+#include <renderer/StorageBuffer.hpp>
 
 class KS::StorageBuffer::Impl
 {
@@ -21,9 +21,7 @@ public:
 
 KS::StorageBuffer::StorageBuffer() { m_impl = new Impl(); }
 
-KS::StorageBuffer::~StorageBuffer() { 
-    delete m_impl;
-}
+KS::StorageBuffer::~StorageBuffer() { delete m_impl; }
 
 void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name,
                                      uint32_t numOfElements)
@@ -43,12 +41,11 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& comman
     m_impl->m_resource = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
 
     AllocateAsReadOnly(device);
-    if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
-        AllocateAsReadWrite(device);
-   
-   const UINT64 bytes = m_buffer_stride * numOfElements;
-   auto upl = device.GetUploadArena();
-   m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
+    if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) AllocateAsReadWrite(device);
+
+    const UINT64 bytes = m_buffer_stride * numOfElements;
+    auto upl = device.GetUploadArena();
+    m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
@@ -63,7 +60,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     D3D12_RESOURCE_STATES destState = D3D12_RESOURCE_STATE_GENERIC_READ;
     if (m_flags & StorageBufferFlags::INDEX_DATA_BUFFER)
         destState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
-    else if (m_flags & StorageBufferFlags::VERTEX_DATA_BUFFER) 
+    else if (m_flags & StorageBufferFlags::VERTEX_DATA_BUFFER)
         destState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 
     const UINT64 bytes = m_buffer_stride * numOfElements;
@@ -75,8 +72,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
 
     // Copy from arena into DEFAULT heap buffer
     commandList.GetCommandList()->CopyBufferRegion(m_impl->m_resource->GetResource().Get(), 0,
-                                                   uploadSource->GetResource().Get(), m_impl->m_slice.m_head,
-                                                   bytes);
+                                                   uploadSource->GetResource().Get(), m_impl->m_slice.m_head, bytes);
 
     commandList.TransitionResource(*m_impl->m_resource, destState);
 }
@@ -108,23 +104,22 @@ void KS::StorageBuffer::Bind(const Device&, DXCommandList& commandList, const Sh
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
-        commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
+        commandList.BindHeapResource(m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
     }
     else
     {
-        commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
+        commandList.BindHeapResource(m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
     }
 }
 
-void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot,
-                                         uint32_t elementOffset)
+void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset)
 {
-    commandList.BindVertexData(*m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
+    commandList.BindVertexData(m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
 }
 
 void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset)
 {
-    commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset);
+    commandList.BindIndexData(m_impl->m_resource, m_buffer_stride, elementOffset);
 }
 
 void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)
@@ -156,7 +151,6 @@ void KS::StorageBuffer::AllocateAsReadWrite(const Device& device, int slot)
     }
 
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;

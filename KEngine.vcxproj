@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -19,58 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.cpp">
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.cpp">
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.cpp">
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.cpp">
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.cpp">
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
-      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
-    </ClCompile>
-    <ClCompile Include="source\renderer\DX12\Helpers\DXCommandContextPool.cpp" />
-    <ClCompile Include="source\renderer\DX12\Helpers\DXShaderTable.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.cpp" />
+    <ClCompile Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.cpp" />
     <ClCompile Include="external\imgui\auto\auto.cpp" />
     <ClCompile Include="external\imgui\imgui.cpp" />
     <ClCompile Include="external\imgui\ImGuizmo.cpp" />
@@ -86,7 +39,6 @@
     <ClCompile Include="external\imgui\implot.cpp" />
     <ClCompile Include="external\imgui\implot_demo.cpp" />
     <ClCompile Include="external\imgui\implot_items.cpp" />
-    <ClCompile Include="source\renderer\DX12\TLASDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\RTRendererDX12.cpp" />
     <ClCompile Include="source\components\ComponentCamera.cpp" />
     <ClCompile Include="source\components\ComponentTransform.cpp" />
@@ -100,30 +52,31 @@
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\math\Geometry.cpp" />
     <ClCompile Include="source\renderer\DX12\ComputeRendererDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXCommandContextPool.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXCommandList.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXCommandQueue.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXDescHeap.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXGPUSync.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXPipeline.cpp" />
     <ClCompile Include="source\renderer\DX12\Helpers\DXResource.cpp" />
+    <ClCompile Include="source\renderer\DX12\Helpers\DXShaderTable.cpp" />
     <ClCompile Include="source\renderer\DX12\ModelRendererDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\RendererDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\ShaderDX12.cpp" />
-    <ClCompile Include="source\renderer\DX12\ShaderInputsBuilderDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\ShaderInputBlueprintBuilderDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\ShaderInputsDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\StorageBufferDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\TextureDX12.cpp" />
     <ClCompile Include="source\renderer\DX12\UniformBufferDX12.cpp" />
+    <ClCompile Include="source\renderer\DX12\UploadArenaDX12.cpp" />
     <ClCompile Include="source\resources\Image.cpp" />
     <ClCompile Include="source\resources\Material.cpp" />
     <ClCompile Include="source\resources\Mesh.cpp" />
     <ClCompile Include="source\resources\Model.cpp" />
+    <ClCompile Include="source\renderer\DX12\TLASDX12.cpp" />
     <ClCompile Include="source\scene\Scene.cpp" />
-    <ClCompile Include="source\renderer\DX12\UploadArenaDX12.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\renderer\DX12\Helpers\DXCommandContextPool.hpp" />
-    <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h" />
     <ClInclude Include="external\DXR\DXRHelper.h" />
     <ClInclude Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.h" />
     <ClInclude Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.h" />
@@ -185,11 +138,7 @@
     <ClInclude Include="external\imgui\imstb_rectpack.h" />
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
-    <ClInclude Include="source\renderer\TLAS.hpp" />
     <ClInclude Include="source\renderer\RTRenderer.hpp" />
-    <ClInclude Include="source\renderer\DX12\Helpers\DXRTPipeline.hpp" />
-    <ClInclude Include="source\editor\Editor.hpp" />
-    <ClInclude Include="source\renderer\ShaderInput.hpp" />
     <ClInclude Include="source\components\ComponentCamera.hpp" />
     <ClInclude Include="source\components\ComponentTransform.hpp" />
     <ClInclude Include="source\containers\ByteBuffer.hpp" />
@@ -197,6 +146,7 @@
     <ClInclude Include="source\device\Device.hpp" />
     <ClInclude Include="source\device\DX12\DXFactory.hpp" />
     <ClInclude Include="source\ecs\EntityComponentSystem.hpp" />
+    <ClInclude Include="source\editor\Editor.hpp" />
     <ClInclude Include="source\fileio\FileIO.hpp" />
     <ClInclude Include="source\fileio\ResourceHandle.hpp" />
     <ClInclude Include="source\fileio\Serialization.hpp" />
@@ -206,6 +156,8 @@
     <ClInclude Include="source\math\Geometry.hpp" />
     <ClInclude Include="source\renderer\ComputeRenderer.hpp" />
     <ClInclude Include="source\renderer\DepthStencil.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXCommandContextPool.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXRTPipeline.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DX12Common.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DX12Conversion.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandList.hpp" />
@@ -216,17 +168,20 @@
     <ClInclude Include="source\renderer\DX12\Helpers\DXIncludes.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXPipeline.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXResource.hpp" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.hpp" />
     <ClInclude Include="source\renderer\InfoStructs.hpp" />
     <ClInclude Include="source\renderer\ModelRenderer.hpp" />
     <ClInclude Include="source\renderer\Renderer.hpp" />
     <ClInclude Include="source\renderer\RenderTarget.hpp" />
     <ClInclude Include="source\renderer\Sampler.hpp" />
     <ClInclude Include="source\renderer\Shader.hpp" />
-    <ClInclude Include="source\renderer\ShaderInputCollection.hpp" />
-    <ClInclude Include="source\renderer\ShaderInputCollectionBuilder.hpp" />
+    <ClInclude Include="source\renderer\ShaderInput.hpp" />
+    <ClInclude Include="source\renderer\ShaderInputBlueprint.hpp" />
+    <ClInclude Include="source\renderer\ShaderInputBlueprintBuilder.hpp" />
     <ClInclude Include="source\renderer\StorageBuffer.hpp" />
     <ClInclude Include="source\renderer\SubRenderer.hpp" />
     <ClInclude Include="source\renderer\UniformBuffer.hpp" />
+    <ClInclude Include="source\renderer\UploadArena.h" />
     <ClInclude Include="source\resources\Image.hpp" />
     <ClInclude Include="source\resources\Material.hpp" />
     <ClInclude Include="source\resources\Mesh.hpp" />
@@ -236,7 +191,7 @@
     <ClInclude Include="source\tools\Log.hpp" />
     <ClInclude Include="source\tools\Profiler.hpp" />
     <ClInclude Include="source\tools\Timer.hpp" />
-    <ClInclude Include="source\renderer\UploadArena.h" />
+    <ClInclude Include="source\renderer\TLAS.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -292,15 +247,13 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -311,7 +264,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -320,8 +273,6 @@
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -334,15 +285,13 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -359,7 +308,7 @@ xcopy /Y /D "$(SolutionDir)external\assimp\Lib\Debug\assimp-vc143-mtd.dll" "$(Ta
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -368,8 +317,6 @@ xcopy /Y /D "$(SolutionDir)external\assimp\Lib\Debug\assimp-vc143-mtd.dll" "$(Ta
       <AdditionalIncludeDirectories>source;external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

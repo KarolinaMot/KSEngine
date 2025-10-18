@@ -41,7 +41,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     }
 }
 
-void key_callback(GLFWwindow* window, int key, int, int action, int)
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (auto* data = GetUser(window))
     {
@@ -59,7 +59,7 @@ void key_callback(GLFWwindow* window, int key, int, int action, int)
     }
 }
 
-void mousebutton_callback(GLFWwindow* window, int button, int action, int)
+void mousebutton_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (auto* data = GetUser(window))
     {

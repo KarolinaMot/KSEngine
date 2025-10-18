@@ -1,6 +1,5 @@
 #include "DXCommandQueue.hpp"
 #include "DXCommandList.hpp"
-#include "DXCommandContextPool.hpp"
 
 DXCommandQueue::DXCommandQueue(const ComPtr<ID3D12Device5>& device, const std::wstring& name)
 {
@@ -13,6 +12,11 @@ DXCommandQueue::DXCommandQueue(const ComPtr<ID3D12Device5>& device, const std::w
 }
 
 DXCommandQueue::~DXCommandQueue()
+{
+    Flush();
+}
+
+void DXCommandQueue::Flush()
 {
     m_fence->Signal(m_command_queue, ++m_next_fence_value);
     m_fence->WaitFor(m_next_fence_value);

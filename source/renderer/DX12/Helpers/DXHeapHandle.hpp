@@ -1,6 +1,7 @@
 #pragma once
-#include "DXDescHeap.hpp"
 #include <optional>
+
+#include "DXDescHeap.hpp"
 
 class DXHeapHandle
 {
@@ -21,8 +22,7 @@ public:
 
     DXHeapHandle& operator=(DXHeapHandle&& other) noexcept
     {
-        if (this == &other)
-            return *this;
+        if (this == &other) return *this;
         FreeResource();
 
         mIndex = other.mIndex;
@@ -48,10 +48,7 @@ public:
         return {};
     }
 
-    ~DXHeapHandle()
-    {
-        FreeResource();
-    }
+    ~DXHeapHandle() { FreeResource(); }
 
     // Delete the copy constructor
     DXHeapHandle(const DXHeapHandle&) = delete;
@@ -60,10 +57,8 @@ public:
     bool IsValid() const { return mIndex.has_value(); }
     uint32_t GetIndex() const { return mIndex.value(); }
 
-    private:
-    DXHeapHandle(uint32_t index, std::weak_ptr<DXDescHeap> descHeap)
-        : mIndex(index)
-        , mDescHeap(descHeap) {};
+private:
+    DXHeapHandle(uint32_t index, std::weak_ptr<DXDescHeap> descHeap) : mIndex(index), mDescHeap(descHeap){};
 
     void FreeResource()
     {

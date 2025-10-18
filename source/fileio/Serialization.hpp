@@ -1,6 +1,4 @@
 #pragma once
-#pragma warning(push, 0)
-
 #include <cereal/access.hpp>
 #include <cereal/cereal.hpp>
 
@@ -11,7 +9,6 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
-#pragma warning(pop)
 
 #include <math/Algebra.hpp>
 

@@ -1,33 +1,38 @@
 #pragma once
 #include "SubRenderer.hpp"
+#include <glm/glm.hpp>
+#include <vector>
+#include <memory>
+
+class DXCommandContext;
 
 namespace KS
 {
-class UniformBuffer;
-class Scene;
 class Device;
+class Scene;
+class Mesh;
+class ShaderInput;
+struct ShaderInputBindDesc;
+struct SubRendererDesc;
+class UniformBuffer;
 
-struct RTShaderInfo
-{
-    size_t GPUAddress = 0;
-    uint32_t RayGenSectionSize = 0;
-    uint32_t RayGenEntrySize = 0;
-    uint32_t MissSectionSize = 0;
-    uint32_t MissEntrySize = 0;
-    uint32_t HitGroupSectionSize = 0;
-    uint32_t HitGroupEntrySize = 0;
-};
+    class RTRenderer : public SubRenderer
+    {
+    public:
+        RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer* cameraBuffer);
+        ~RTRenderer();
 
-class RTRenderer : public SubRenderer
-{
-public:
-    RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer* cameraBuffer);
-    ~RTRenderer();
-    void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                std::vector<std::pair<ShaderInput*, ShaderInputDesc>>& inputs, bool clearRT) override;
+        void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
+                    std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT) override;
 
-private:
-    class Impl;
-    std::unique_ptr<Impl> m_impl;
-};
-}  // namespace KS
+    private:
+        class Impl;
+        std::unique_ptr<Impl> m_impl;
+
+        void CreateBVHBotomLevelInstance(const Device& device, const Mesh* mesh, const glm::mat4x4& modelMat, int cpuFrame);
+        void CreateTopLevelAS(const Device& device, DXCommandContext* commandContext, bool updateOnly, int cpuFrame);
+
+        bool m_raytraced = false;
+        int32_t m_frameCount = 0;
+    };
+}

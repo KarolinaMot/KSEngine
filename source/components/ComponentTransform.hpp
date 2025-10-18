@@ -1,9 +1,5 @@
-#pragma once
-
-#pragma warning(push, 0)
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#pragma warning(pop)
 
 namespace KS
 {
@@ -12,7 +8,8 @@ namespace KS
 class ComponentTransform
 {
 public:
-    ComponentTransform(const glm::vec3& translation = {0.0f, 0.0f, -5.f},
+    ComponentTransform(
+        const glm::vec3& translation = {},
         const glm::quat& rotation = { 1.0f, 0.0f, 0.0f, 0.0f },
         const glm::vec3& scale = { 1.0f, 1.0f, 1.0f })
         : m_Translation(translation)

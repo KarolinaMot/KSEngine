@@ -8,28 +8,22 @@ namespace KS
 class DepthStencil;
 class Texture;
 class Device;
-class CommandList;
 class RenderTarget
 {
 public:
     RenderTarget();
     ~RenderTarget();
 
-    void AddTexture(Device& device, DXCommandList& commandList, std::shared_ptr<Texture> texture1,
-                    std::shared_ptr<Texture> texture2, std::string name);
-    void AddTexture(Device& device, std::shared_ptr<Texture> texture1,
-                    std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2);
-    void Bind(Device& device, DXCommandList& commandList, const DepthStencil* depth) const;
-    void Clear(const Device& device, DXCommandList& commandList);
-    void CopyTo(Device& device, DXCommandList& commandList, std::shared_ptr<RenderTarget> sourceRT, int sourceRtIndex,
-                int dstRTIndex);
-    void SetCopyFrom(const Device& device, DXCommandList& commandList, int rtIndex);
-    void PrepareToPresent(const Device& device, DXCommandList& commandList);
-    void PrepareToRenderTo(const Device& device, DXCommandList& commandList);
-    std::shared_ptr<Texture> GetTexture(uint32_t frameIndex, uint32_t index) const;
+    void AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name);
+    void AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name, unsigned int slot1, unsigned int slot2);
 
-    uint32_t GetWidth() const;
-    uint32_t GetHeight() const;
+    void Bind(DXCommandList& commandList, uint32_t frameIndex, const DepthStencil* depth) const;
+    void Clear(DXCommandList& commandList, uint32_t frameIndex);
+    void CopyTo(DXCommandList& commandList, uint32_t frameIndex, std::shared_ptr<RenderTarget> sourceRT, int sourceRtIndex,
+                int dstRTIndex);
+    void SetCopyFrom(DXCommandList& commandList, uint32_t frameIndex, int rtIndex);
+    void PrepareToPresent(DXCommandList& commandList, uint32_t frameIndex);
+    std::shared_ptr<Texture> GetTexture(uint32_t frameIndex, int index);
 
 private:
     class Impl;
@@ -39,7 +33,6 @@ private:
     int m_textureCount = 0;
     glm::vec2 m_size {};
     Formats m_format {};
-    std::string m_name;
 };
 
 }
