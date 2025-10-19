@@ -24,12 +24,14 @@ class Shader
 public:
     Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputBlueprint> shaderInputs,
            std::initializer_list<std::string> paths, std::initializer_list<Formats> rtFormats, int flags = 0);
-    Shader(const Device& device, ShaderType shaderType, void* shaderInputs, std::string path, int flags = 0);
+
     ~Shader();
     std::shared_ptr<ShaderInputBlueprint> GetShaderInput() const { return m_shader_input; };
     void* GetPipeline() const;
     ShaderType GetShaderType() const { return m_shader_type; }
     int GetFlags() const { return m_flags; }
+    void Compile(const Device& device);
+
     enum MeshInputFlags
     {
         HAS_POSITIONS = 1 << 0,
@@ -39,9 +41,16 @@ public:
     };
 
 private:
+
+    void MeshRenderShader(const Device& device);
+    void ComputeShader(const Device& device);
+    void RTShader(const Device& device);
+
     class Impl;
     std::unique_ptr<Impl> m_impl;
     std::shared_ptr<ShaderInputBlueprint> m_shader_input;
+    std::vector<std::string> m_paths;
+    std::vector<Formats> m_formats;
     ShaderType m_shader_type;
     int m_flags;
 };

@@ -54,6 +54,7 @@ ComPtr<ID3D12PipelineState> DXPipelineBuilder::Build(ComPtr<ID3D12Device5> devic
     {
         MessageBox(NULL, L"Failed to create pipeline", L"FATAL ERROR!", MB_ICONERROR | MB_OK);
         ASSERT(false && "Failed to create pipeline");
+        return nullptr;
     }
     pipeline->SetName(name);
 
@@ -127,23 +128,64 @@ DXPipelineBuilder& DXPipelineBuilder::SetPrimitiveTopology(const D3D12_PRIMITIVE
     return *this;
 }
 
+static std::wstring AnsiToWide(const char* s)
+{
+    if (!s) return {};
+    int n = MultiByteToWideChar(CP_ACP, 0, s, -1, nullptr, 0);
+    std::wstring w(n ? n - 1 : 0, L'\0');
+    if (n > 1) MultiByteToWideChar(CP_ACP, 0, s, -1, w.data(), n);
+    return w;
+}
+
 ComPtr<ID3DBlob> DXPipelineBuilder::ShaderToBlob(const char* path, const char* shaderVersion, const char* functionName)
 {
-    ComPtr<ID3DBlob> shader; // d3d blob for holding vertex shader bytecode
-    ComPtr<ID3DBlob> errorBuff;
+    ComPtr<ID3DBlob> shader = nullptr; // d3d blob for holding vertex shader bytecode
+    ComPtr<ID3DBlob> errorBuff = nullptr;
 
     wchar_t* wString = new wchar_t[4096];
     MultiByteToWideChar(CP_ACP, 0, path, -1, wString, 4096);
     HRESULT hr;
 
-    if (functionName != nullptr)
-        hr = D3DCompileFromFile(wString, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, functionName, shaderVersion, D3DCOMPILE_DEBUG, 0, &shader, &errorBuff);
-    else
-        hr = D3DCompileFromFile(wString, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", shaderVersion, D3DCOMPILE_DEBUG, 0, &shader, &errorBuff);
-
-    if (FAILED(hr))
+    while (true)
     {
-        LOG(Log::Severity::FATAL, "Function {} in path {} could not compile. Error: {}", functionName, path, (const char*)errorBuff->GetBufferPointer());
+        if (functionName != nullptr)
+            hr = D3DCompileFromFile(wString, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, functionName, shaderVersion,
+                                    D3DCOMPILE_DEBUG, 0, &shader, &errorBuff);
+        else
+            hr = D3DCompileFromFile(wString, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", shaderVersion,
+                                    D3DCOMPILE_DEBUG, 0, &shader, &errorBuff);
+
+        if (FAILED(hr))
+        {
+            // error text from D3D is ANSI—convert to UTF-16
+            std::wstring err;
+            const char* p = static_cast<const char*>(errorBuff->GetBufferPointer());
+            size_t sz = errorBuff->GetBufferSize();
+            int needed = MultiByteToWideChar(CP_ACP, 0, p, static_cast<int>(sz), nullptr, 0);
+            err.resize(needed);
+            MultiByteToWideChar(CP_ACP, 0, p, static_cast<int>(sz), err.data(), needed);
+            std::wstring msg = std::format(L"Function {} in path {} could not compile.\nError:\n{} \n Recompile?",
+                                           AnsiToWide(functionName), AnsiToWide(path), err);
+
+            int r = MessageBox(nullptr, msg.c_str(), L"Shader compilation error", MB_ICONERROR | MB_RETRYCANCEL);
+
+            LOG(Log::Severity::FATAL, "Function {} in path {} could not compile. Error: {}", functionName, path,
+                (const char*)errorBuff->GetBufferPointer());
+
+            if (r == IDRETRY)
+            {
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+
     }
 
     delete[] wString;

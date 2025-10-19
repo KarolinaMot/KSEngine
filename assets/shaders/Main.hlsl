@@ -81,7 +81,7 @@ float Attenuation(float distance, float range);
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;
-    FinalRes[DispatchThreadID.xy] = float4(mat.normalColor, 1.f);
+    FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
 
 }
 

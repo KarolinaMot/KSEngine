@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-class DXCommandContext;
+struct DXCommandContext;
 
 namespace KS
 {
