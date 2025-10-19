@@ -19,12 +19,13 @@ KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, Scene& scene, float dt)
+void KS::Editor::RenderWindows(Device& device, Scene& scene, float dt, bool& recompileShaders)
 {
     SceneHierarchy(scene);
     TransformWindow(scene);
     FogWindow(device, scene);
     FPSWindow(device, dt);
+    RecompileWindow(recompileShaders);
 }
 
 void KS::Editor::SceneHierarchy(Scene& scene)
@@ -129,5 +130,17 @@ void KS::Editor::FPSWindow(Device&, float deltaTime)
     ImGui::Begin("DT window", &open); 
     ImGui::Text(("FPS: " + std::to_string(FPS)).c_str());
     ImGui::Text(("Ms: " + std::to_string(deltaTime)).c_str());
+    ImGui::End();
+}
+
+void KS::Editor::RecompileWindow(bool& recompileShaders)
+{
+    bool open = true;
+    ImGui::Begin("Recompile shaders window", &open);
+    recompileShaders = false;
+    if (ImGui::Button("Recompile"))
+    {
+        recompileShaders = true;
+    }
     ImGui::End();
 }

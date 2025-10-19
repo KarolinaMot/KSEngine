@@ -133,6 +133,7 @@ int main()
     //scene.QueueModel(*device, model, transform, "Damaged helmet3");
 
     device->EndFrame();
+    bool recomp = false;
 
     while (device->IsWindowOpen())
     {
@@ -154,8 +155,8 @@ int main()
         renderParams.cameraRight = camera.GetRight();
 
         scene.Tick(*device);
-        renderer.Render(*device, scene, renderParams, raytraced);
-        editor->RenderWindows(*device, scene, dt.count());
+        renderer.Render(*device, scene, renderParams, raytraced, recomp);
+        editor->RenderWindows(*device, scene, dt.count(), recomp);
         device->EndFrame();
 
     }

@@ -259,7 +259,7 @@ KS::Renderer::Renderer(Device& device)
 
 KS::Renderer::~Renderer() {}
 
-void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced)
+void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced, bool recompileShaders)
 {
     CameraMats cam{};
     cam.m_proj = params.projectionMatrix;
@@ -269,6 +269,14 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
     m_camera_buffer->Update(device, cam, 0);
+
+    if (recompileShaders)
+    {
+        for (int i = 0; i < NUM_SUBRENDER; i++)
+        {
+            m_subrenderers[i]->Recompile(device);
+        }
+    }
 
     GodRays(device, scene);
 

@@ -34,7 +34,7 @@ public:
     Renderer(Device& device);
     ~Renderer();
 
-    void Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced = false);
+    void Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced = false, bool recompileShaders = false);
 
 private:
     void GodRays(Device& device, Scene& scene);

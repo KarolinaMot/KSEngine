@@ -138,6 +138,7 @@
     <ClInclude Include="external\imgui\imstb_rectpack.h" />
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
+    <ClInclude Include="source\renderer\SubRenderer.hpp" />
     <ClInclude Include="source\renderer\RTRenderer.hpp" />
     <ClInclude Include="source\components\ComponentCamera.hpp" />
     <ClInclude Include="source\components\ComponentTransform.hpp" />
@@ -179,7 +180,6 @@
     <ClInclude Include="source\renderer\ShaderInputBlueprint.hpp" />
     <ClInclude Include="source\renderer\ShaderInputBlueprintBuilder.hpp" />
     <ClInclude Include="source\renderer\StorageBuffer.hpp" />
-    <ClInclude Include="source\renderer\SubRenderer.hpp" />
     <ClInclude Include="source\renderer\UniformBuffer.hpp" />
     <ClInclude Include="source\renderer\UploadArena.h" />
     <ClInclude Include="source\resources\Image.hpp" />

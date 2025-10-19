@@ -2,12 +2,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <renderer/Shader.hpp>
 
 struct DXCommandContext;
 namespace KS
 {
 class Device;
-class Shader;
 class RenderTarget;
 class DepthStencil;
 class Texture;
@@ -33,6 +33,8 @@ public:
     const Shader* GetShader() const { return m_shader.get(); }
 
     void SetRenderTarget(std::shared_ptr<RenderTarget> rt) { m_renderTarget = rt; }
+
+    void Recompile(const Device& device) { m_shader->Compile(device); }
 
 protected:
     std::shared_ptr<Shader> m_shader;
