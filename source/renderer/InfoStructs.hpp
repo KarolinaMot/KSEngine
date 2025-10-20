@@ -70,6 +70,7 @@ struct DrawEntry
     Material material{};
     int modelIndex;
     glm::mat4x4 modelMat;
+    uint32_t tlasHandle;
 };
 
 struct GenerateMipsInfo

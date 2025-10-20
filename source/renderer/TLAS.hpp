@@ -22,7 +22,7 @@ struct TLASInstance
     uint32_t id = 0;
     uint32_t hitgroupIndex = 0;
 
-    std::weak_ptr<Mesh> m_mesh;
+    DrawEntry* m_entry;
 };
 
 class TLAS : public ShaderInput
@@ -32,7 +32,7 @@ public:
     ~TLAS();
 
     // Ownership of instances lives here:
-    void AddInstance(const Device& device, DXCommandList& cmd, std::shared_ptr<Mesh>& mesh, glm::mat4x4 modelMat);
+    void AddInstance(const Device& device, DXCommandList& cmd, DrawEntry* entry, glm::mat4x4 modelMat);
     void RemoveInstance(uint32_t instanceHandle);
     void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
     void Clear();
@@ -57,7 +57,7 @@ private:
 
     void EnsureInstanceCapacity(const Device& device, DXCommandList& cmd,
                                 uint32_t count);  // grow buffers (and set m_dirtyStructure)
-    void WriteInstanceDescs();                    // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
+    void WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate);  // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
     void EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate);
     void EnsureScratch(const Device& device, uint64_t neededBytes);
 

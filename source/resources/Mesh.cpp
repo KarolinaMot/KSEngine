@@ -76,8 +76,6 @@ KS::Mesh::Mesh(Mesh&& other) noexcept
     m_impl = std::move(other.m_impl);
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
-    m_TLASHandle = other.m_TLASHandle;
-    m_BLASAddress = other.m_BLASAddress;
 }
 
 KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
@@ -85,8 +83,6 @@ KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
     m_impl = std::move(other.m_impl);
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
-    m_TLASHandle = other.m_TLASHandle;
-    m_BLASAddress = other.m_BLASAddress;
     return *this;
 }
 
@@ -173,7 +169,6 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
     build.ScratchAccelerationStructureData = scratch->Get()->GetGPUVirtualAddress();
     build.SourceAccelerationStructureData = 0;
 
-    m_BLASAddress = m_impl->m_BLAS->Get()->GetGPUVirtualAddress();
     auto vbResource = reinterpret_cast<DXResource*>(vb->GetRawResource());
     auto ibResource = reinterpret_cast<DXResource*>(ib->GetRawResource());
 

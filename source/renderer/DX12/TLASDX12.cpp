@@ -11,11 +11,13 @@
 struct KS::TLAS::Impl
 {
     std::shared_ptr<DXResource> m_scratch[FRAME_BUFFER_COUNT];
+    std::shared_ptr<DXResource> m_desc[FRAME_BUFFER_COUNT];
     std::shared_ptr<DXResource> m_tlas[FRAME_BUFFER_COUNT];
-    std::shared_ptr<DXResource> m_defaultPerFrame[FRAME_BUFFER_COUNT];
+    //std::shared_ptr<DXResource> m_defaultPerFrame[FRAME_BUFFER_COUNT];
     DXHeapHandle m_SRVHandle[FRAME_BUFFER_COUNT];
     bool m_updateStructure[FRAME_BUFFER_COUNT] = {true, true};     // add/remove/reorder → need rebuild
     bool m_updateTransforms[FRAME_BUFFER_COUNT] = {false, false};  // transforms changed → can refit
+    D3D12_RAYTRACING_INSTANCE_DESC* m_instanceDescs[FRAME_BUFFER_COUNT];
 };
 
 KS::TLASInstance::TLASInstance() {}
@@ -24,20 +26,19 @@ KS::TLAS::TLAS() { m_Impl = std::make_unique<Impl>(); }
 
 KS::TLAS::~TLAS() {}
 
-void KS::TLAS::AddInstance(const Device& device, DXCommandList& cmd, std::shared_ptr<Mesh>& mesh, glm::mat4x4 modelMat)
+void KS::TLAS::AddInstance(const Device& device, DXCommandList& cmd, DrawEntry* entry, glm::mat4x4 modelMat)
 {
     uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
     TLASInstance inst{};
-    inst.m_mesh = mesh;
+    inst.m_entry = entry;
     inst.modelMat = glm::transpose(modelMat);
     inst.id = instanceCount;
     m_instances.push_back(inst);
 
-    EnsureInstanceCapacity(device, cmd, instanceCount + 1);
     m_Impl->m_updateStructure[0] = true;
     m_Impl->m_updateStructure[1] = true;
 
-    mesh->SetTLASHandle(inst.id);
+    inst.m_entry->tlasHandle = inst.id;
 }
 
 void KS::TLAS::RemoveInstance(uint32_t instanceHandle)
@@ -48,14 +49,7 @@ void KS::TLAS::RemoveInstance(uint32_t instanceHandle)
 
     m_instances[instanceHandle] = std::move(m_instances.back());
     m_instances.pop_back();
-    if (auto m = m_instances[instanceHandle].m_mesh.lock())
-    {
-        m->SetTLASHandle(instanceHandle);
-    }
-    else
-    {
-        RemoveInstance(instanceHandle);
-    }
+    m_instances[instanceHandle].m_entry->tlasHandle = instanceHandle;
     m_Impl->m_updateStructure[0] = true;
     m_Impl->m_updateStructure[1] = true;
 }
@@ -65,7 +59,7 @@ void KS::TLAS::UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat)
     uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
 
     if (instanceHandle >= instanceCount) return;
-    m_instances[instanceHandle].modelMat = mat;
+    m_instances[instanceHandle].modelMat = glm::transpose(mat);
     m_Impl->m_updateTransforms[0] = true;  // safe; worst case we rebuild
     m_Impl->m_updateTransforms[1] = true;  // safe; worst case we rebuild
 }
@@ -90,42 +84,48 @@ size_t KS::TLAS::GetGPUAddress(int, int frameIndex) const
     return tlas->GetResource()->GetGPUVirtualAddress();
 }
 
+static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
+
 void KS::TLAS::EnsureInstanceCapacity(const Device& device, DXCommandList& cmd, uint32_t count)
 {
-    if (count < m_capacity) return;
-
     UINT newCap = m_capacity <= 1 ? 2 : m_capacity;
-    while (newCap < count) newCap *= newCap;
+    auto frameIndex = device.GetCPUFrameIndex();
 
-    const UINT64 bytes = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * UINT64(newCap);
-
-    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
-
-    auto upl = device.GetUploadArena();
-    m_slice = upl->Allocate(device, cmd, bytes, 255);
-
-    for (UINT i = 0; i < FRAME_BUFFER_COUNT; ++i)
+    if (count >= m_capacity)
     {
-        auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(bytes, D3D12_RESOURCE_FLAG_NONE);
-
-        m_Impl->m_defaultPerFrame[i] = std::make_shared<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr,
-                                                                    "TLAS default buffer", D3D12_RESOURCE_STATE_COMMON);
+        while (newCap < count) newCap *= newCap;
     }
 
-    m_capacity = newCap;
+    const UINT64 bytes = Align256(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * UINT64(newCap));
+
+    if (m_Impl->m_desc[frameIndex] && m_Impl->m_desc[frameIndex]->GetDesc().Width >= bytes) return;
+
+    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+    auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(bytes);
+
+    if (m_Impl->m_desc[frameIndex]) m_Impl->m_desc[frameIndex]->GetResource()->Unmap(0, nullptr);
+
+    m_Impl->m_desc[frameIndex] = std::make_shared<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, "TLAS desc",
+                                                              D3D12_RESOURCE_STATE_COMMON);
+
+    m_Impl->m_desc[frameIndex]->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&m_Impl->m_instanceDescs[frameIndex]));
 }
 
-void KS::TLAS::WriteInstanceDescs()
+void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate)
 {
     const UINT count = static_cast<UINT>(m_instances.size());
-    auto descs = reinterpret_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(m_slice.m_cpu);
-    std::memset(descs, 0, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * count);
+    auto& instanceDescs = m_Impl->m_instanceDescs[frameIndex];
+
+    if (!onlyUpdate)
+    {
+        std::memset(instanceDescs, 0, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * count);
+    }
 
     for (UINT i = 0; i < m_instances.size(); ++i)
     {
         const auto& s = m_instances[i];
-        if (auto m = s.m_mesh.lock())
+        if (s.m_entry->mesh)
         {
             D3D12_RAYTRACING_INSTANCE_DESC d{};
             std::memcpy(d.Transform, &s.modelMat[0], sizeof(float) * 12);
@@ -133,13 +133,12 @@ void KS::TLAS::WriteInstanceDescs()
             d.InstanceMask = 0xFF;
             d.InstanceContributionToHitGroupIndex = s.hitgroupIndex;
             d.Flags = D3D12_RAYTRACING_INSTANCE_FLAGS::D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
-            d.AccelerationStructure = m->BLASAddress();
-            descs[i] = d;
+            d.AccelerationStructure = s.m_entry->mesh->BLASAddress();
+            instanceDescs[i] = d;
         }
     }
-}
 
-static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
+}
 
 void KS::TLAS::EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate)
 {
@@ -179,49 +178,37 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     if (!m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex]) return;
 
     const UINT count = static_cast<UINT>(m_instances.size());
+    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
+
     if (count == 0)
     {
         return;
     }
     const bool doUpdate = m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex] &&
                           (m_Impl->m_tlas[frameIndex] != nullptr);
-    WriteInstanceDescs();
 
-    // Copy from arena into DEFAULT heap buffer
-    D3D12_GPU_VIRTUAL_ADDRESS instanceVA = 0;
-    auto& dst = m_Impl->m_defaultPerFrame[frameIndex];
-    const UINT64 bytes = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * UINT64(count);
+    auto descSize = Align256(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * static_cast<UINT64>(m_instances.size()));
 
-    cmd.TransitionResource(*dst, D3D12_RESOURCE_STATE_COPY_DEST);
-
-    auto upl = device.GetUploadArena();
-    auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_slice.m_pageID));
-
-    cmd.GetCommandList()->CopyBufferRegion(dst->GetResource().Get(), 0, uploadSource->GetResource().Get(), m_slice.m_head,
-                                           bytes);
-
-    cmd.TransitionResource(*dst, D3D12_RESOURCE_STATE_GENERIC_READ);
-
-    instanceVA = dst->GetResource()->GetGPUVirtualAddress();
+    EnsureInstanceCapacity(device, cmd, count);
+    WriteInstanceDescs(frameIndex, doUpdate);
 
     // Prebuild info
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
     inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
     inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     inputs.NumDescs = count;
-    inputs.InstanceDescs = instanceVA;
     inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE |
                    (doUpdate ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE
                              : D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE);
+    inputs.InstanceDescs = m_Impl->m_desc[frameIndex]->GetResource()->GetGPUVirtualAddress();
 
-    ID3D12Device5* engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO pre{};
     engineDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &pre);
 
     // Ensure TLAS and scratch
-    EnsureTLAS(device, pre.ResultDataMaxSizeInBytes, /*forceRecreate=*/!doUpdate);
+    EnsureTLAS(device, pre.ResultDataMaxSizeInBytes, !doUpdate);
     EnsureScratch(device, pre.ScratchDataSizeInBytes);
 
     cmd.TransitionResource(*m_Impl->m_scratch[frameIndex], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -232,7 +219,9 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     build.DestAccelerationStructureData = m_Impl->m_tlas[frameIndex]->GetResource()->GetGPUVirtualAddress();
     build.ScratchAccelerationStructureData = m_Impl->m_scratch[frameIndex]->GetResource()->GetGPUVirtualAddress();
     build.SourceAccelerationStructureData = doUpdate ? m_Impl->m_tlas[frameIndex]->GetResource()->GetGPUVirtualAddress() : 0;
+
     cmd.GetCommandList()->BuildRaytracingAccelerationStructure(&build, 0, nullptr);
+
     cmd.ResourceBarrier(*m_Impl->m_tlas[frameIndex], D3D12_RESOURCE_BARRIER_TYPE_UAV);
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV tlasSrv{};

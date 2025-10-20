@@ -96,9 +96,7 @@ public:
     Mesh& operator=(Mesh&& other) noexcept;
 
     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
-    void SetTLASHandle(uint32_t handle) { m_TLASHandle = handle; }
     uint32_t BLASAddress() const;
-    uint32_t GetTLASHandle() const { return m_TLASHandle; }
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
 
@@ -107,8 +105,6 @@ private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
-    uint32_t m_TLASHandle = 0;
-    uint32_t m_BLASAddress = 0;
     std::string m_name;
 
     class Impl;
