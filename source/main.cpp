@@ -127,8 +127,8 @@ int main()
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     scene.QueueModel(*device, model, transform, "Damaged helmet");
-    //transform = glm::translate(transform, glm::vec3(-2.f, 0.f, 0.f));
-    //scene.QueueModel(*device, model, transform, "Damaged helmet2");
+    transform = glm::translate(transform, glm::vec3(-2.f, 0.f, 0.f));
+    scene.QueueModel(*device, model, transform, "Damaged helmet2");
     //transform = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, 0.f, 0.f));
     //scene.QueueModel(*device, model, transform, "Damaged helmet3");
 

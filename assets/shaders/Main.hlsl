@@ -11,12 +11,30 @@ cbuffer LightInfoBuffer : register(b2)
     LightInfo lightInfo;
 };
 
+float2 SampleSphericalMap(float3 v)
+{
+    const float2 invAtan = float2(0.1591, 0.3183);
+    float3x3 rot = float3x3(
+    -1, 0, 0,
+    0, -1, 0,
+    0, 0, 1);
+    
+    v = mul(v, rot);
+    float2 uv = float2(atan2(v.z, v.x), asin(v.y));
+    uv *= invAtan;
+    uv += 0.5;
+    return uv;
+}
+
+
 Texture2D<float4> LightShafts : register(t0);
 RWTexture2D<float4> FinalRes : register(u0);
 RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
 RWTexture2D<float4> GBufferC : register(u3);
 RWTexture2D<float4> GBufferD : register(u4);
+Texture2D<float4> Skydome : register(t1);
+
 SamplerState mainSampler : register(s0);
 
 StructuredBuffer<DirLight> dirLights : register(t5);
@@ -24,6 +42,7 @@ StructuredBuffer<PointLight> pointLights : register(t6);
 
 float3 LinearToSRGB(float3 color);
 float Attenuation(float distance, float range);
+float3 ReconstructDirWS(uint2 pix, float2 size);
 
 [numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
@@ -45,6 +64,7 @@ float Attenuation(float distance, float range);
     float3 result = float4(0.25f, 0.25f, 0.25f, 1.f);
     float3 diffuse = 0.f;
     float3 specular = 0.f;
+    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - vertexPos.xyz);
 
     
     if (scalar != 0)
@@ -53,7 +73,6 @@ float Attenuation(float distance, float range);
         mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
         mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
 
-        float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - vertexPos.xyz);
 
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
@@ -78,10 +97,17 @@ float Attenuation(float distance, float range);
         result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
         result = LinearToSRGB(result);
     }
+    else
+    {
+        float3 dirWS = ReconstructDirWS(DispatchThreadID.xy, screenSize); // camera → world
+        float2 sampleUv = SampleSphericalMap(-viewDirection);
+        result = Skydome.SampleLevel(mainSampler, sampleUv, 0);
+
+    }
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;
-    FinalRes[DispatchThreadID.xy] = float4(mat.normalColor, 1.f);
+    FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
 
 }
 
@@ -96,4 +122,20 @@ float Attenuation(float distance, float range)
 {
     float distance2 = distance * distance;
     return max(min(1.0 - pow(distance / range, 4.0), 1.0), 0.0) / distance2;
+}
+
+float3 ReconstructDirWS(uint2 pix, float2 size)
+{
+    // Pixel center -> NDC
+    float2 ndc = ((pix + 0.5f) / size) * 2.0f - 1.0f;
+    // Note: D3D has y-down in screen space; flip to NDC y-up:
+    ndc.y = -ndc.y;
+
+    // View-space ray from inverse projection: (x,y,1) -> unproject -> view dir
+    float4 pVS = mul(cameraMats.mInvProjection, float4(ndc.x, ndc.y, 1.0f, 1.0f));
+    float3 dirVS = normalize(pVS.xyz / pVS.w);
+
+    // To world (ignore translation)
+    float3 dirWS = normalize(mul((float3x3) cameraMats.mInvView, dirVS));
+    return dirWS;
 }

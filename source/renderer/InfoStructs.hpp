@@ -23,6 +23,7 @@ enum Subrenderers
     LIGHT_SHAFT_RENDER,
     UPSCALING_RENDER,
     RT_RENDER,
+    CUBEMAP_RENDER,
     MIP_GEN,
     NUM_SUBRENDER
 };

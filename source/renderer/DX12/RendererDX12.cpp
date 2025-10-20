@@ -24,6 +24,7 @@
 #include <renderer/DX12/Helpers/DX12Common.hpp>
 
 #include <resources/Texture.hpp>
+#include <resources/Image.hpp>
 #include <scene/Scene.hpp>
 KS::Renderer::Renderer(Device& device)
 {
@@ -34,7 +35,7 @@ KS::Renderer::Renderer(Device& device)
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "base_tex")
-                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "normal_tex")
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "normal_tex")
                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
                        .AddTexture(KS::ShaderInputVisibility::PIXEL, "occlusion_tex")
@@ -224,7 +225,7 @@ KS::Renderer::Renderer(Device& device)
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
-    m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(9);
+    m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(10);
     m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(4);
     m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(1);
@@ -385,6 +386,7 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("light_info")));
     m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("dir_lights")));
     m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputBindDesc>(m_camera_buffer.get(), ShaderInputBindDesc(rootSignature->GetInput("camera_matrix")));
+    m_inputs[PBR_RENDER][9] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetSkydomeTex(device, *commandList).get(), ShaderInputBindDesc(rootSignature->GetInput("normal_tex")));
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 

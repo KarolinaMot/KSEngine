@@ -138,13 +138,13 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
     Material out;
 
     // Base colour factor
-    if (aiColor4D t {}; material->Get(AI_MATKEY_BASE_COLOR, t) == aiReturn_SUCCESS)
+    if (aiColor4D t{}; material->Get(AI_MATKEY_BASE_COLOR, t) == aiReturn_SUCCESS)
     {
-        out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4 { t.r, t.g, t.b, t.a });
+        out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4{t.r, t.g, t.b, t.a});
     }
     else
     {
-        out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4 { t.r, t.g, t.b, t.a });
+        out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4{t.r, t.g, t.b, t.a});
     }
 
     // Occlusion Roughness Metallic
@@ -174,9 +174,8 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 
     auto GetTexture = [&](aiTextureType type) -> std::optional<std::string>
     {
-        aiString texture_name {};
-        if (material->GetTexture(type, 0, &texture_name) != aiReturn_SUCCESS)
-            return {};
+        aiString texture_name{};
+        if (material->GetTexture(type, 0, &texture_name) != aiReturn_SUCCESS) return {};
 
         std::string name = std::string(texture_name.C_Str());
         if (name.front() == '*')
@@ -193,27 +192,47 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
 
     if (auto path = GetTexture(aiTextureType_BASE_COLOR))
     {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+    }
+    else
+    {
+        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/models/SanMiguel/textures/White.png"});
     }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
     {
-        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+    }
+    else
+    {
+        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.jpg"});
     }
 
     if (auto path = GetTexture(aiTextureType_LIGHTMAP))
     {
-        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+    }
+    else
+    {
+        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
     }
 
     if (auto path = GetTexture(aiTextureType_METALNESS))
     {
-        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+    }
+    else
+    {
+        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
     }
 
     if (auto path = GetTexture(aiTextureType_EMISSIVE))
     {
-        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture> { path.value() });
+        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+    }
+    else
+    {
+        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
     }
 
     return out;

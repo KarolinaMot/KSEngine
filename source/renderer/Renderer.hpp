@@ -16,6 +16,7 @@ class ShaderInputBlueprint;
 class ShaderInput;
 struct ShaderInputBindDesc;
 class Shader;
+class Texture;
 class UniformBuffer;
 class Scene;
 
@@ -49,7 +50,6 @@ private:
     std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>> m_inputs[NUM_SUBRENDER];
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
     std::shared_ptr<UniformBuffer> m_camera_buffer;
-
     std::shared_ptr<ShaderInputBlueprint> m_mipMapShaderInputs;
 };
 }  // namespace KS

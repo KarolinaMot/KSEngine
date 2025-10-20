@@ -62,6 +62,8 @@ public:
     size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
+    void SetSkydome(ResourceHandle<Texture> skydome) { m_skyDome = skydome; }
+    std::shared_ptr<Texture> GetSkydomeTex(Device& device, DXCommandList& commandList);
 
 private:
     const Model* GetModel(ResourceHandle<Model> model);
@@ -81,5 +83,6 @@ private:
     int32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
+    ResourceHandle<Texture> m_skyDome;
 };
 }  // namespace KS

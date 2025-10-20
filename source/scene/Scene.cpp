@@ -30,13 +30,14 @@ KS::Scene::Scene(const Device& device)
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
+    m_skyDome = ResourceHandle<Texture>("assets/textures/cubemap.hdr");
 
     mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
         device, *commandList, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
         device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
-        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES);
+        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
 
     GenerateMipsInfo mipInfo;
     mUniformBuffers[MIP_GEN_INFO] = std::make_unique<UniformBuffer>(device, "MIP GEN INFO", mipInfo, NUM_OF_TEXTURES);
@@ -197,6 +198,14 @@ void KS::Scene::Tick(Device& device)
     m_BVH->Build(device, *commandList);
 
     device.CloseCommandContext(std::move(commandContext));
+}
+
+std::shared_ptr<KS::Texture> KS::Scene::GetSkydomeTex(Device& device, DXCommandList& commandList)
+{ 
+    if (m_skyDome.path == "")
+        return nullptr;
+    else
+        return GetTexture(device, &commandList, m_skyDome);
 }
 
 const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
