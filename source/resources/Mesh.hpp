@@ -41,7 +41,6 @@ public:
 
     auto begin() const { return attribute_data.begin(); }
     auto end() const { return attribute_data.end(); }
-    std::string m_name;
 
 
 private:
@@ -86,7 +85,7 @@ class Device;
 class Mesh
 {
 public:
-    Mesh(const Device& device, DXCommandList& commandList, const MeshData& data);
+    Mesh(const Device& device, DXCommandList& commandList, const MeshData& data, const char* name);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;
@@ -101,6 +100,8 @@ public:
     uint32_t BLASAddress() const;
     uint32_t GetTLASHandle() const { return m_TLASHandle; }
     std::shared_ptr<DXResource> GetBLASRes() const;
+    std::string GetName() const { return m_name; }
+
 
 private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
@@ -108,7 +109,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     uint32_t m_TLASHandle = 0;
     uint32_t m_BLASAddress = 0;
-
+    std::string m_name;
 
     class Impl;
     std::unique_ptr<Impl> m_impl;

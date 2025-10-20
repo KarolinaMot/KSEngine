@@ -67,16 +67,22 @@ public:
 
 private:
     const Model* GetModel(ResourceHandle<Model> model);
+    const std::shared_ptr<Mesh> GetMesh(Device& device, DXCommandList* commandList, ResourceHandle<Mesh> mesh);
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
+    void CreateBVHBotomLevelInstance(const DrawEntry& draw_entry, bool updateOnly);
+    void CreateTopLevelAS(const Device& device, DXCommandList& commandList, bool updateOnly, int cpuFrame);
 
     std::unordered_map<std::string, DrawEntry> draw_queue{};
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
+    std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
     std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
     std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     std::unique_ptr<TLAS> m_BVH;
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);

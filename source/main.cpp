@@ -120,17 +120,15 @@ int main()
     bool raytraced = false;
 
     scene.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-    scene.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-    scene.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
+    //scene.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
+    //scene.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
 
     auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     scene.QueueModel(*device, model, transform, "Damaged helmet");
     transform = glm::translate(transform, glm::vec3(-2.f, 0.f, 0.f));
-    scene.QueueModel(*device, model, transform, "Damaged helmet2");
-    //transform = glm::translate(glm::mat4x4(1.f), glm::vec3(2.f, 0.f, 0.f));
-    //scene.QueueModel(*device, model, transform, "Damaged helmet3");
+    scene.QueueModel(*device, model, transform, "Damaged helmet");
 
     device->EndFrame();
     bool recomp = false;

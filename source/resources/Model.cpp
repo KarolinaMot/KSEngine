@@ -79,7 +79,6 @@ MeshData ProcessMesh(const aiMesh* mesh)
         auto buffer = ByteBuffer(texture_uvs.data(), texture_uvs.size());
         new_mesh.AddAttribute(ATTRIBUTE_TEXTURE_UVS_NAME, std::move(buffer));
     }
-
     return new_mesh;
 }
 

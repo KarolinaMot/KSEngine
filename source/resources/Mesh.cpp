@@ -39,7 +39,7 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
-KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData& data)
+KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData& data, const char* name)
 {
     m_impl = std::make_unique<Impl>();
 
@@ -58,6 +58,8 @@ KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData&
         m_data.emplace(name, buffer);
     }
 
+    m_name = name;
+
     BuildBLAS(device, commandList);
 
     if (!m_impl->m_BLAS)
@@ -72,9 +74,6 @@ KS::Mesh::~Mesh() {
 KS::Mesh::Mesh(Mesh&& other) noexcept 
 { 
     m_impl = std::move(other.m_impl);
-    //m_impl->m_BLAS = other.m_impl->m_BLAS;
-    //m_impl->m_BLASSize = other.m_impl->m_BLASSize;
-    //m_impl->m_geom = other.m_impl->m_geom;
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
     m_TLASHandle = other.m_TLASHandle;
@@ -84,9 +83,6 @@ KS::Mesh::Mesh(Mesh&& other) noexcept
 KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
 {
     m_impl = std::move(other.m_impl);
-    // m_impl->m_BLAS = other.m_impl->m_BLAS;
-    // m_impl->m_BLASSize = other.m_impl->m_BLASSize;
-    // m_impl->m_geom = other.m_impl->m_geom;
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
     m_TLASHandle = other.m_TLASHandle;

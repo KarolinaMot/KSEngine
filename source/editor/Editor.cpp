@@ -36,7 +36,7 @@ void KS::Editor::SceneHierarchy(Scene& scene)
     ImGui::Begin("Scene hierarchy", &open);
     for (const auto& drawObject : drawQueue)
     {
-        const auto& objectName = drawObject.first;
+        const auto& objectName = drawObject.second.mesh->GetName() + "##" + drawObject.first;
 
         const bool is_selected = (m_selectedObject == i);
         if (ImGui::Selectable(objectName.c_str(), is_selected)) m_selectedObject = i;
