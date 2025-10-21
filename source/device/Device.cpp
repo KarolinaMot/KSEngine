@@ -6,7 +6,7 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandQueue.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
-#include <renderer/DX12/Helpers/DX12Common.hpp>
+#include <renderer/InfoStructs.hpp>
 #include <renderer/UploadArena.h>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputBlueprint.hpp>

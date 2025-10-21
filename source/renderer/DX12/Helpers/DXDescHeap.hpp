@@ -1,7 +1,6 @@
 #pragma once
 #include "DXIncludes.hpp"
 #include "DXResource.hpp"
-#include "DX12Common.hpp"
 
 class DXHeapHandle;
 class DXDescHeap : public std::enable_shared_from_this<DXDescHeap>

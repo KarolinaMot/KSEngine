@@ -4,12 +4,19 @@
 #include <glm/glm.hpp>
 
 #ifndef MAX_MESHES
-#define MAX_MESHES 2048
+#define MAX_MESHES 500
 #endif  // !MAX_MESHES
 
 #ifndef NUM_DRAW_THREAD
 #define NUM_DRAW_THREAD 4
 #endif  // !NUM_DRAW_THREAD
+
+#define RAYTRACE_RT_SLOT 0
+#define BVH_SLOT 2
+#define NORMALS_SLOT 4
+#define OTHER_RESOURCES_START NORMALS_SLOT + MAX_MESHES
+#define NUM_OF_TEXTURES 400
+#define IMGUI_START OTHER_RESOURCES_START + NUM_OF_TEXTURES
 
 namespace KS
 {

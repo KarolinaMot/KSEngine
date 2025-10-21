@@ -1,6 +1,6 @@
 #include "Mesh.hpp"
 #include <device/Device.hpp>
-#include <renderer/DX12/Helpers/DX12Common.hpp>
+#include <renderer/InfoStructs.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 

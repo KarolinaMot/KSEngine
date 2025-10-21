@@ -161,7 +161,6 @@
     <ClInclude Include="source\renderer\DepthStencil.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandContextPool.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXRTPipeline.hpp" />
-    <ClInclude Include="source\renderer\DX12\Helpers\DX12Common.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DX12Conversion.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandList.hpp" />
     <ClInclude Include="source\renderer\DX12\Helpers\DXCommandQueue.hpp" />
