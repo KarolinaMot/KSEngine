@@ -66,6 +66,7 @@ public:
     void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
+
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
         if (auto lock = m_texWithoutMipmaps[index].lock())

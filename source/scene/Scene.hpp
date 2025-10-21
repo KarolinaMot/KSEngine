@@ -86,5 +86,9 @@ private:
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     ResourceHandle<Texture> m_skyDome;
+
+    uint32_t m_vDataOffset = 0;
+    uint32_t m_uvDataOffset = 0;
+    uint32_t m_indexDataOffset = 0;
 };
 }  // namespace KS

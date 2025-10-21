@@ -39,7 +39,7 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
-KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData& data, const char* name)
+KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, int meshIndex)
 {
     m_impl = std::make_unique<Impl>();
 
@@ -52,8 +52,13 @@ KS::Mesh::Mesh(const Device& device, DXCommandList& commandList, const MeshData&
         size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(name)->second;
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
-
+        
         auto buffer = std::make_shared<KS::StorageBuffer>(device, commandList, name, start, stride, size / stride, false);
+
+        if (name == MeshConstants::ATTRIBUTE_NORMALS_NAME) 
+            buffer->AllocateAsReadOnly(device, NORMALS_SLOT + meshIndex);
+        if (name == MeshConstants::ATTRIBUTE_INDICES_NAME)
+            buffer->AllocateAsReadOnly(device, INDICES_SLOT + meshIndex);
 
         m_data.emplace(name, buffer);
     }
@@ -76,6 +81,8 @@ KS::Mesh::Mesh(Mesh&& other) noexcept
     m_impl = std::move(other.m_impl);
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
+    m_index = other.m_index;
+    m_vDataOffset = other.m_vDataOffset;
 }
 
 KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
@@ -83,6 +90,8 @@ KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
     m_impl = std::move(other.m_impl);
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
+    m_index = other.m_index;
+    m_vDataOffset = other.m_vDataOffset;
     return *this;
 }
 
@@ -127,6 +136,7 @@ void KS::Mesh::BuildBLAS(const Device& device, DXCommandList& cmd)
         ibStride = ib->GetBufferStride();
         ibCount = ib->GetElementCount();
         ibRaw = ib.get();
+
         if (IndexFormatFromStride(ibStride) == DXGI_FORMAT_UNKNOWN)
             throw std::runtime_error("Mesh::BuildBLAS: index buffer must be 16 or 32-bit.");
     }

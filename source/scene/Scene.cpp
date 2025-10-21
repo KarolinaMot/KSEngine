@@ -111,6 +111,10 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 matInfo.useNormalTex = normalTex != nullptr;
                 matInfo.useOcclusionTex = occlusionTex != nullptr;
                 matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
+                matInfo.modelIndex = draw_queue[key].mesh->GetIndex();
+                matInfo.vDataOffset = draw_queue[key].mesh->GetVDataOffset();
+                matInfo.uvDataOffset = draw_queue[key].mesh->GetUVDataOffset();
+                matInfo.indexOffset = draw_queue[key].mesh->GetIndexDataOffset();
 
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
 
@@ -227,8 +231,27 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         std::filesystem::path p(meshHandle.path);
         std::string mesh_name_extracted = p.stem().string();
 
-        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str());
+        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
+        obj->second->SetVDataOffset(m_vDataOffset);
+        obj->second->SetIndexDataOffset(m_indexDataOffset);
+        obj->second->SetUVDataOffset(m_indexDataOffset);
+
+        auto view = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<uint8_t>();
+        size_t size = view.count();
+        size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_NORMALS_NAME)->second;
+        m_vDataOffset += size / stride;
+
+        view = data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME)->GetView<uint8_t>();
+        size = view.count();
+        stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_INDICES_NAME)->second;
+        m_indexDataOffset += size / stride;
+
+        view = data.GetAttribute(MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)->GetView<uint8_t>();
+        size = view.count();
+        stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)->second;
+        m_uvDataOffset += size / stride;
+
         return obj->second;
     }
     else

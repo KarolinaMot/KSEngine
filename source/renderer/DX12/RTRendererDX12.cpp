@@ -56,14 +56,27 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         tlasHandle.ptr += static_cast<uint64_t>((BVH_SLOT + i) * heap->GetDescriptorSize());
 
-       D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         materialHandle.ptr += static_cast<uint64_t>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER)->GetHandle(true)) * heap->GetDescriptorSize();
 
-        std::vector<void*> heapPointers(4);
+        D3D12_GPU_DESCRIPTOR_HANDLE normalsHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        normalsHandle.ptr += static_cast<uint64_t>(NORMALS_SLOT) * heap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE modelMatHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        modelMatHandle.ptr += static_cast<uint64_t>(scene.GetStorageBuffer(MODEL_MAT_BUFFER)->GetHandle(true)) * heap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE indexHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        indexHandle.ptr += static_cast<uint64_t>(INDICES_SLOT) * heap->GetDescriptorSize();
+
+
+        std::vector<void*> heapPointers(7);
         heapPointers[0] = reinterpret_cast<void*>(outputHandle.ptr);
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
         heapPointers[2] = reinterpret_cast<void*>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i));
         heapPointers[3] = reinterpret_cast<void*>(materialHandle.ptr);
+        heapPointers[4] = reinterpret_cast<void*>(normalsHandle.ptr);
+        heapPointers[5] = reinterpret_cast<void*>(modelMatHandle.ptr);
+        heapPointers[6] = reinterpret_cast<void*>(indexHandle.ptr);
 
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));

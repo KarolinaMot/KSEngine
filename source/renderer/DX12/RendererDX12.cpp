@@ -21,7 +21,7 @@
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/RTRenderer.hpp>
 #include <renderer/UniformBuffer.hpp>
-#include <renderer/DX12/Helpers/DX12Common.hpp>
+#include <renderer/InfoStructs.hpp>
 
 #include <resources/Texture.hpp>
 #include <resources/Image.hpp>
@@ -46,8 +46,8 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer4", KS::ShaderInputMod::READ_WRITE)
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "dir_lights")
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
-                       .AddStorageBuffer(KS::ShaderInputVisibility::VERTEX, 200, "model_matrix")
-                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 200, "material_info")
+                       .AddStorageBuffer(KS::ShaderInputVisibility::VERTEX, MAX_MESHES, "model_matrix")
+                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, MAX_MESHES, "material_info")
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
@@ -57,7 +57,10 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output_tex", ShaderInputMod::READ_WRITE)
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "BVH")
                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
-                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 200, "material_info")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "material_info")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "normals")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "modelMats")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "indices")
                     .SetLocal()
                     .Build(device, "RT SIGNATURE");
 

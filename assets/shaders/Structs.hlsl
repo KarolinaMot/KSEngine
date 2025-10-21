@@ -60,6 +60,10 @@ struct MaterialInfo
     uint useMetallicRoughnessTex;
     uint useNormalTex;
     uint useOcclusionTex;
+    uint modelIndex;
+    uint normalsOffset;
+    uint indexOffset;
+    uint padding[1];
 };
 
 struct LightInfo

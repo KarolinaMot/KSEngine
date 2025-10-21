@@ -85,7 +85,7 @@ class Device;
 class Mesh
 {
 public:
-    Mesh(const Device& device, DXCommandList& commandList, const MeshData& data, const char* name);
+    Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, int meshIndex);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;
@@ -99,13 +99,23 @@ public:
     uint32_t BLASAddress() const;
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
+    int GetIndex() const { return m_index; }
+    int GetVDataOffset() const { return m_vDataOffset; }
+    int GetIndexDataOffset() const { return m_indexDataOffset; }
+    int GetUVDataOffset() const { return m_uvDataOffset; }
+    void SetVDataOffset(uint32_t offset) { m_vDataOffset = offset; }
+    void SetUVDataOffset(uint32_t offset) { m_uvDataOffset = offset; }
+    void SetIndexDataOffset(uint32_t offset) { m_indexDataOffset = offset; }
 
-
-private:
+    private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
+    int m_index = 0;
+    uint32_t m_vDataOffset = 0;
+    uint32_t m_uvDataOffset = 0;
+    uint32_t m_indexDataOffset = 0;
 
     class Impl;
     std::unique_ptr<Impl> m_impl;

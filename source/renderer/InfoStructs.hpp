@@ -14,7 +14,8 @@
 #define RAYTRACE_RT_SLOT 0
 #define BVH_SLOT 2
 #define NORMALS_SLOT 4
-#define OTHER_RESOURCES_START NORMALS_SLOT + MAX_MESHES
+#define INDICES_SLOT NORMALS_SLOT + MAX_MESHES
+#define OTHER_RESOURCES_START INDICES_SLOT + MAX_MESHES
 #define NUM_OF_TEXTURES 400
 #define IMGUI_START OTHER_RESOURCES_START + NUM_OF_TEXTURES
 
@@ -130,6 +131,10 @@ struct MaterialInfo
     uint32_t useMetallicRoughnessTex = 0;
     uint32_t useNormalTex = 0;
     uint32_t useOcclusionTex = 0;
+    uint32_t modelIndex = 0;
+    uint32_t vDataOffset = 0;
+    uint32_t uvDataOffset = 0;
+    uint32_t indexOffset = 0;
 };
 
 struct CameraMats
