@@ -149,6 +149,7 @@ struct FogInfo
 struct HitInfo
 {
     glm::vec4 colorAndDistance = glm::vec4(1.f);
+    //int32_t index = -1;
 };
 
 

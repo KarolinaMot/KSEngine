@@ -57,6 +57,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                     .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output_tex", ShaderInputMod::READ_WRITE)
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "BVH")
                     .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 200, "material_info")
                     .SetLocal()
                     .Build(device, "RT SIGNATURE");
 

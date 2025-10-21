@@ -48,7 +48,6 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
         m_impl->m_shaderTable[i] = std::make_unique<DXShaderTable>();
-        m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup");
         m_impl->m_shaderTable[i]->AddMiss(L"Miss");
 
         D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
@@ -57,13 +56,20 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         tlasHandle.ptr += static_cast<uint64_t>((BVH_SLOT + i) * heap->GetDescriptorSize());
 
-        std::vector<void*> heapPointers(3);
+       D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        materialHandle.ptr += static_cast<uint64_t>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER)->GetHandle(true)) * heap->GetDescriptorSize();
+
+        std::vector<void*> heapPointers(4);
         heapPointers[0] = reinterpret_cast<void*>(outputHandle.ptr);
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
         heapPointers[2] = reinterpret_cast<void*>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i));
+        heapPointers[3] = reinterpret_cast<void*>(materialHandle.ptr);
 
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+
+        m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup", heapPointers.data(),
+                                              static_cast<UINT>(sizeof(void*) * heapPointers.size()));
 
         auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());

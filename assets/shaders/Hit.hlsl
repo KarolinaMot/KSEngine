@@ -1,4 +1,7 @@
 #include "Common.hlsl"
+#include "Structs.hlsl"
+
+StructuredBuffer<MaterialInfo> matInfos : register(t1);
 
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib) 
@@ -12,5 +15,5 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
     float3 hitColor = A * barycentrics.x + B * barycentrics.y + C * barycentrics.z;
 
-    payload.colorAndDistance = float4(hitColor, RayTCurrent());
+    payload.colorAndDistance = matInfos[InstanceID()].colorFactor;
 }

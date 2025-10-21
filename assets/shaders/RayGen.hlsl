@@ -2,10 +2,10 @@
 #include "Structs.hlsl"
 
 // Raytracing output texture, accessed as a UAV
-RWTexture2D<float4> gOutput[] : register(u0);
+RWTexture2D<float4> gOutput : register(u0);
 
 // Raytracing acceleration structure, accessed as a SRV
-RaytracingAccelerationStructure SceneBVH[] : register(t0);
+RaytracingAccelerationStructure SceneBVH : register(t0);
 
 cbuffer Camera : register(b0)
 {
@@ -17,7 +17,7 @@ void RayGen()
 {
     // Initialize the ray payload
     HitInfo payload;
-    payload.colorAndDistance = float4(0, 0, 0, 0);
+    payload.colorAndDistance = float4(0.f, 0.f, 0.f, 0.f);
 
     // Get the location within the dispatched 2D grid of work items
     // (often maps to pixels, so this could represent a pixel coordinate).
@@ -37,7 +37,7 @@ void RayGen()
     TraceRay(
       // Parameter name: AccelerationStructure
       // Acceleration structure
-      SceneBVH[0],
+      SceneBVH,
 
       // Parameter name: RayFlags
       // Flags can be used to specify the behavior upon hitting a surface
@@ -81,5 +81,9 @@ void RayGen()
       // shaders and the raygen
       payload);
     
-    gOutput[0][launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+    //float3 res = float3(0.2f, 0.2f, 0.8f);
+    //if (payload.instanceIndex >=0)
+    //    res = matInfos[payload.instanceIndex].colorFactor;
+    
+    gOutput[launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
 }
