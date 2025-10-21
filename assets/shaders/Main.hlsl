@@ -40,10 +40,6 @@ SamplerState mainSampler : register(s0);
 StructuredBuffer<DirLight> dirLights : register(t5);
 StructuredBuffer<PointLight> pointLights : register(t6);
 
-float3 LinearToSRGB(float3 color);
-float Attenuation(float distance, float range);
-float3 ReconstructDirWS(uint2 pix, float2 size);
-
 [numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
     PBRMaterial mat;
@@ -109,33 +105,4 @@ float3 ReconstructDirWS(uint2 pix, float2 size);
     result += lightShaftColor.rgb;
     FinalRes[DispatchThreadID.xy] = float4(mat.normalColor, 1.f);
 
-}
-
-// linear to sRGB approximation
-// see http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
-float3 LinearToSRGB(float3 color)
-{
-    return pow(color, float3(sInvGamma, sInvGamma, sInvGamma));
-}
-
-float Attenuation(float distance, float range)
-{
-    float distance2 = distance * distance;
-    return max(min(1.0 - pow(distance / range, 4.0), 1.0), 0.0) / distance2;
-}
-
-float3 ReconstructDirWS(uint2 pix, float2 size)
-{
-    // Pixel center -> NDC
-    float2 ndc = ((pix + 0.5f) / size) * 2.0f - 1.0f;
-    // Note: D3D has y-down in screen space; flip to NDC y-up:
-    ndc.y = -ndc.y;
-
-    // View-space ray from inverse projection: (x,y,1) -> unproject -> view dir
-    float4 pVS = mul(cameraMats.mInvProjection, float4(ndc.x, ndc.y, 1.0f, 1.0f));
-    float3 dirVS = normalize(pVS.xyz / pVS.w);
-
-    // To world (ignore translation)
-    float3 dirWS = normalize(mul((float3x3) cameraMats.mInvView, dirVS));
-    return dirWS;
 }

@@ -1,5 +1,6 @@
 #include "Common.hlsl"
 #include "Structs.hlsl"
+#include "PBR.hlsl"
 
 StructuredBuffer<MaterialInfo> matInfos : register(t1);
 StructuredBuffer<float3> normals : register(t2);
@@ -13,6 +14,11 @@ StructuredBuffer<PointLight> pointLights : register(t9);
 
 Texture2D<float4> textures[] : register(t10);
 SamplerState mainSampler : register(s0);
+
+cbuffer Camera : register(b0)
+{
+    CameraMats cameraMats;
+};
 
 cbuffer LightInfoBuffer : register(b1)
 {
@@ -55,9 +61,36 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
     PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal, TBN);
     
-    //payload.colorAndDistance = float4(NormalToColor(normal), 1.f);
-    payload.colorAndDistance = float4(NormalToColor(material.normalColor), 1.f);
-    //matInfos[InstanceID()].colorFactor;
+    float3 worldOrigin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldOrigin);
+    float3 diffuse = 0.f;
+    float3 specular = 0.f;
+    float3 result;
+
+    for (uint i = 0; i < lightInfo.numDirLight; i++)
+    {
+        DirLight light = dirLights[i];
+        GetBRDF(material, viewDirection, light.mDir.xyz * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
+    }
+    
+    for (uint j = 0; j < lightInfo.numPointLight; j++)
+    {
+        PointLight light = pointLights[j];
+
+        float3 lightDirection = light.mPosition.xyz - vertexPos.xyz;
+        float dist = length(lightDirection);
+        lightDirection /= dist;
+        float att = Attenuation(dist, light.mRadius);
+
+        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
+    }
+    
+    GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
+
+    result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
+    result = LinearToSRGB(result);
+
+    payload.colorAndDistance = float4(result, 1.f);
 }
 
 float3 NormalToColor(float3 normal)

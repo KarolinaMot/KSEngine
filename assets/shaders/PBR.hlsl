@@ -67,4 +67,17 @@ void GetBRDF(
     specular += colorIntensity * nDotL * specularBRDF;
 }
 
+float Attenuation(float distance, float range)
+{
+    float distance2 = distance * distance;
+    return max(min(1.0 - pow(distance / range, 4.0), 1.0), 0.0) / distance2;
+}
+
+// linear to sRGB approximation
+// see http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
+float3 LinearToSRGB(float3 color)
+{
+    return pow(color, float3(sInvGamma, sInvGamma, sInvGamma));
+}
+
 #endif
