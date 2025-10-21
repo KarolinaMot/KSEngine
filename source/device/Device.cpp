@@ -6,6 +6,7 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandQueue.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
+#include <renderer/DX12/Helpers/DX12Common.hpp>
 #include <renderer/UploadArena.h>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputBlueprint.hpp>
@@ -176,7 +177,7 @@ void KS::Device::InitializeSwapchain()
     }
 
     m_swapchainRT = std::make_shared<RenderTarget>();
-    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target", 0, 1);
+    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target");
 
     m_swapchainDepthTex = std::make_shared<Texture>(*this, m_width, m_height, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
     m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
@@ -376,9 +377,9 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
             L"MAIN RENDER TARGETS HEAP");
         m_descriptor_heaps[DEPTH_HEAP] = DXDescHeap::Construct(
             m_device, 2000, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
-        m_descriptor_heaps[RESOURCE_HEAP] = DXDescHeap::Construct(
-            m_device, 50000, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
-            D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+        m_descriptor_heaps[RESOURCE_HEAP] = DXDescHeap::Construct(m_device, 50000, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
+                                  OTHER_RESOURCES_START,
+                                  D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
         // CREATE DEPTH STENCIL
         D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};

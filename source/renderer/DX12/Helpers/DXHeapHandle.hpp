@@ -62,10 +62,10 @@ private:
 
     void FreeResource()
     {
-        if (!mIndex.has_value() || mIndex.value() < OTHER_RESOURCES_START) return;
-
         if (auto lock = mDescHeap.lock())
         {
+            if (!mIndex.has_value() || mIndex.value() < lock->GetHeapStart()) return;
+
             lock->DeallocateResource(mIndex.value());
         }
     };

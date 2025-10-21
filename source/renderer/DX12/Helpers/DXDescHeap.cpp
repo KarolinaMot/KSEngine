@@ -2,19 +2,18 @@
 #include "DXHeapHandle.hpp"
 #include "device/Device.hpp"
 
-DXDescHeap::DXDescHeap(ComPtr<ID3D12Device5> device, int numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, LPCWSTR name, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
+DXDescHeap::DXDescHeap(ComPtr<ID3D12Device5> device, int numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, LPCWSTR name, D3D12_DESCRIPTOR_HEAP_FLAGS flags, int heapStart)
 {
     D3D12_DESCRIPTOR_HEAP_DESC renderTargetDesc = {};
     renderTargetDesc.NumDescriptors = numDescriptors;
     renderTargetDesc.Type = type;
     renderTargetDesc.Flags = flags;
 
+    mHeapStart = heapStart;
+    mResourceCount = mHeapStart;
+
     mType = type;
     mMaxResources = numDescriptors;
-
-    // Leaving space for ImGUI resources
-    if (mType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-        mResourceCount = 4;
 
     HRESULT hr = device->CreateDescriptorHeap(&renderTargetDesc, IID_PPV_ARGS(&mDescriptorHeap));
     if (FAILED(hr))
