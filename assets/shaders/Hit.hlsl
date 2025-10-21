@@ -33,7 +33,7 @@ float3 GetPositionInVector(int instance, int index);
 float2 GetUVInVector(int instance, int index);
 float3 GetTangentInVector(int instance, int index);
 
-PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals);
+PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float3x3 tangentBasis);
 
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib) 
@@ -47,11 +47,16 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
     float3 tangent = GetTangent(instance, vertId, barycentrics);
+    tangent = normalize(tangent);
+    tangent = normalize(tangent - dot(tangent, normal) * normal);
+    float3 bitangent = cross(normal.xyz, tangent);
 
-    PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal);
+    float3x3 TBN = float3x3(tangent, bitangent, normal);
+
+    PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal, TBN);
     
     //payload.colorAndDistance = float4(NormalToColor(normal), 1.f);
-    payload.colorAndDistance = float4(material.baseColor, 1.f);
+    payload.colorAndDistance = float4(NormalToColor(material.normalColor), 1.f);
     //matInfos[InstanceID()].colorFactor;
 }
 
@@ -131,7 +136,7 @@ int GetIndex(int vertId, int instance, int offset)
     return indices[offs];
 }
 
-PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals)
+PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float3x3 tangentBasis)
 {
     PBRMaterial mat;
     mat.baseColor = pow(abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, 0).rgb), sGamma);
@@ -146,12 +151,13 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals)
 
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = textures[info.occlusionTexIndex].SampleLevel(mainSampler, uv, 0).r;
-
-     //mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
-     //mat.normalColor = mat.normalColor * 2.0 - 1.0;
-     //mat.normalColor = mul(mat.normalColor, input.tangentBasis);
-     //mat.normalColor = (mat.normalColor + 1) * 0.5f;
-    mat.normalColor = normals;
+    
+    mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, 0).rgb;
+    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = mul(mat.normalColor, tangentBasis);
+   // mat.normalColor = (mat.normalColor + 1) * 0.5f;
+    
+   // mat.normalColor = normals;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
