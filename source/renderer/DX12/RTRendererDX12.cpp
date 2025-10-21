@@ -68,8 +68,16 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         D3D12_GPU_DESCRIPTOR_HANDLE indexHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         indexHandle.ptr += static_cast<uint64_t>(INDICES_SLOT) * heap->GetDescriptorSize();
 
+        D3D12_GPU_DESCRIPTOR_HANDLE vPosHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        vPosHandle.ptr += static_cast<uint64_t>(VPOS_SLOT) * heap->GetDescriptorSize();
 
-        std::vector<void*> heapPointers(7);
+        D3D12_GPU_DESCRIPTOR_HANDLE uvHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        uvHandle.ptr += static_cast<uint64_t>(UVS_SLOT) * heap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE tanHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        tanHandle.ptr += static_cast<uint64_t>(TAN_SLOT) * heap->GetDescriptorSize();
+
+        std::vector<void*> heapPointers(10);
         heapPointers[0] = reinterpret_cast<void*>(outputHandle.ptr);
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
         heapPointers[2] = reinterpret_cast<void*>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i));
@@ -77,6 +85,9 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         heapPointers[4] = reinterpret_cast<void*>(normalsHandle.ptr);
         heapPointers[5] = reinterpret_cast<void*>(modelMatHandle.ptr);
         heapPointers[6] = reinterpret_cast<void*>(indexHandle.ptr);
+        heapPointers[7] = reinterpret_cast<void*>(vPosHandle.ptr);
+        heapPointers[8] = reinterpret_cast<void*>(uvHandle.ptr);
+        heapPointers[9] = reinterpret_cast<void*>(tanHandle.ptr);
 
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));

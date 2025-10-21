@@ -61,6 +61,9 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "normals")
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "modelMats")
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "indices")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "vertexPos")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "uvs")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "tangents")
                     .SetLocal()
                     .Build(device, "RT SIGNATURE");
 

@@ -63,7 +63,7 @@ struct MaterialInfo
     uint modelIndex;
     uint normalsOffset;
     uint indexOffset;
-    uint padding[1];
+    uint uvOffset;
 };
 
 struct LightInfo

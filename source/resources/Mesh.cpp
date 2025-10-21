@@ -57,8 +57,14 @@ KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data,
 
         if (name == MeshConstants::ATTRIBUTE_NORMALS_NAME) 
             buffer->AllocateAsReadOnly(device, NORMALS_SLOT + meshIndex);
-        if (name == MeshConstants::ATTRIBUTE_INDICES_NAME)
+        else if (name == MeshConstants::ATTRIBUTE_INDICES_NAME)
             buffer->AllocateAsReadOnly(device, INDICES_SLOT + meshIndex);
+        else if (name == MeshConstants::ATTRIBUTE_POSITIONS_NAME)
+            buffer->AllocateAsReadOnly(device, VPOS_SLOT + meshIndex);
+        else if (name == MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)
+            buffer->AllocateAsReadOnly(device, UVS_SLOT + meshIndex);
+        else if (name == MeshConstants::ATTRIBUTE_TANGENTS_NAME)
+            buffer->AllocateAsReadOnly(device, TAN_SLOT + meshIndex);
 
         m_data.emplace(name, buffer);
     }
