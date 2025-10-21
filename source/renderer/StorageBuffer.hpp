@@ -82,6 +82,7 @@ public:
     size_t GetBufferSize() const { return m_total_buffer_size; }
     uint32_t GetElementCount() const { return m_num_elements; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
+    uint32_t GetHandle(bool readOnly);
     bool IsReadWrite() const { return m_read_write; }
     void* GetRawRealResource() const;
     void* GetRawResource() const;

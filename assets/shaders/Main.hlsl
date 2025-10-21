@@ -73,7 +73,6 @@ float3 ReconstructDirWS(uint2 pix, float2 size);
         mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
         mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
 
-
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
@@ -94,16 +93,17 @@ float3 ReconstructDirWS(uint2 pix, float2 size);
 
         GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
 
-        result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
-        result = LinearToSRGB(result);
+        //result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+        //result = LinearToSRGB(result);
+        result = diffuse;
     }
-    else
-    {
-        float3 dirWS = ReconstructDirWS(DispatchThreadID.xy, screenSize); // camera → world
-        float2 sampleUv = SampleSphericalMap(-viewDirection);
-        result = Skydome.SampleLevel(mainSampler, sampleUv, 0);
+    //else
+    //{
+    //    float3 dirWS = ReconstructDirWS(DispatchThreadID.xy, screenSize); // camera → world
+    //    float2 sampleUv = SampleSphericalMap(-viewDirection);
+    //    result = Skydome.SampleLevel(mainSampler, sampleUv, 0);
 
-    }
+    //}
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;

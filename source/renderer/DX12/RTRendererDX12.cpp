@@ -30,15 +30,10 @@
 class KS::RTRenderer::Impl
 {
 public:
-    struct HitInfo
-    {
-        glm::vec4 colorAndDistance;
-    };
-
     std::unique_ptr<DXShaderTable> m_shaderTable[FRAME_BUFFER_COUNT];
 };
 
-KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer* cameraBuffer) : SubRenderer(device, desc)
+KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& desc) : SubRenderer(device, desc)
 {
     m_impl = std::make_unique<Impl>();
     auto engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
@@ -65,11 +60,11 @@ KS::RTRenderer::RTRenderer(const Device& device, SubRendererDesc& desc, UniformB
         std::vector<void*> heapPointers(3);
         heapPointers[0] = reinterpret_cast<void*>(outputHandle.ptr);
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
-        heapPointers[2] = reinterpret_cast<void*>(cameraBuffer->GetGPUAddress(0, i));
+        heapPointers[2] = reinterpret_cast<void*>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i));
 
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));
-        
+
         auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
     }

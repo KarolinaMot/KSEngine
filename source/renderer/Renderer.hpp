@@ -32,7 +32,7 @@ struct RenderTickParams
 class Renderer
 {
 public:
-    Renderer(Device& device);
+    Renderer(Device& device, Scene& scene);
     ~Renderer();
 
     void Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced = false, bool recompileShaders = false);
@@ -49,7 +49,6 @@ private:
     std::shared_ptr<RenderTarget> m_renderTargets[NUM_SUBRENDER];
     std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>> m_inputs[NUM_SUBRENDER];
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
-    std::shared_ptr<UniformBuffer> m_camera_buffer;
     std::shared_ptr<ShaderInputBlueprint> m_mipMapShaderInputs;
 };
 }  // namespace KS

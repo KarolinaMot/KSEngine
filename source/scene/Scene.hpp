@@ -64,7 +64,7 @@ public:
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
     void SetSkydome(ResourceHandle<Texture> skydome) { m_skyDome = skydome; }
     std::shared_ptr<Texture> GetSkydomeTex(Device& device, DXCommandList& commandList);
-
+    
 private:
     const Model* GetModel(ResourceHandle<Model> model);
     const std::shared_ptr<Mesh> GetMesh(Device& device, DXCommandList* commandList, ResourceHandle<Mesh> mesh);

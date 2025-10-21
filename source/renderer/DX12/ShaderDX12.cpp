@@ -5,7 +5,7 @@
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputBlueprint.hpp>
-
+#include <renderer/InfoStructs.hpp>
 #pragma warning(push, 0)
 #include <DXR/DXRHelper.h>
 #include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
@@ -189,7 +189,7 @@ void KS::Shader::RTShader(const Device& device)
         .HitGroupExport = L"HitGroup", .Type = D3D12_HIT_GROUP_TYPE_TRIANGLES, .ClosestHitShaderImport = L"ClosestHit"};
 
     D3D12_RAYTRACING_SHADER_CONFIG shaderCfg = {
-        .MaxPayloadSizeInBytes = 16,
+        .MaxPayloadSizeInBytes = sizeof(HitInfo),
         .MaxAttributeSizeInBytes = 8,
     };
 

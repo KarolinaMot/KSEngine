@@ -23,7 +23,7 @@ enum Subrenderers
     LIGHT_SHAFT_RENDER,
     UPSCALING_RENDER,
     RT_RENDER,
-    CUBEMAP_RENDER,
+    //CUBEMAP_RENDER,
     MIP_GEN,
     NUM_SUBRENDER
 };
@@ -43,6 +43,7 @@ enum UniformBuffers
     FOG_INFO_BUFFER,
     MODEL_INDEX_BUFFER,
     MIP_GEN_INFO,
+    CAMERA_MAT_BUFFER,
     NUM_UBUFFER
 };
 
@@ -144,5 +145,11 @@ struct FogInfo
     float weight;
     float decay;
 };
+
+struct HitInfo
+{
+    glm::vec4 colorAndDistance = glm::vec4(1.f);
+};
+
 
 };

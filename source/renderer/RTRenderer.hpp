@@ -19,7 +19,7 @@ class UniformBuffer;
     class RTRenderer : public SubRenderer
     {
     public:
-        RTRenderer(const Device& device, SubRendererDesc& desc, UniformBuffer* cameraBuffer);
+        RTRenderer(const Device& device, Scene& scene, SubRendererDesc& desc);
         ~RTRenderer();
 
         void Render(Device& device, DXCommandContext* commandContext, Scene& scene,

@@ -25,6 +25,7 @@ KS::Scene::Scene(const Device& device)
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
     m_skyDome = ResourceHandle<Texture>("assets/textures/cubemap.hdr");
+    CameraMats cam{};
 
     mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
         device, *commandList, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
@@ -32,6 +33,7 @@ KS::Scene::Scene(const Device& device)
         device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
+    mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
     GenerateMipsInfo mipInfo;
     mUniformBuffers[MIP_GEN_INFO] = std::make_unique<UniformBuffer>(device, "MIP GEN INFO", mipInfo, NUM_OF_TEXTURES);

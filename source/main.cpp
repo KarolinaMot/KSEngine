@@ -104,8 +104,8 @@ int main()
 
     device->NewFrame();
 
-    KS::Renderer renderer = KS::Renderer(*device);
     KS::Scene scene = KS::Scene(*device);
+    KS::Renderer renderer = KS::Renderer(*device, scene);
 
     // Scene Setup
     {

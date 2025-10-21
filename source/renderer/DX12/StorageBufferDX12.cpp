@@ -171,6 +171,32 @@ size_t KS::StorageBuffer::GetGPUAddress(int elementIndex, int) const
     return m_impl->m_resource->GetResource()->GetGPUVirtualAddress() + (m_buffer_stride * elementIndex);
 }
 
+uint32_t KS::StorageBuffer::GetHandle(bool readOnly)
+{ 
+    if (readOnly)
+    {
+        if (!m_impl->m_SRV_handle.IsValid())
+        {
+            LOG(Log::Severity::WARN, "Tried to get SRV index of storage buffer with no allocated SRV.");
+            assert(false);
+            return 0;
+        }
+
+        return static_cast<uint32_t>(m_impl->m_SRV_handle.GetIndex());
+    }
+    else
+    {
+        if (!m_impl->m_UAV_handle.IsValid())
+        {
+            LOG(Log::Severity::FATAL, "Tried to get UAV index of storage buffer with no allocated UAV.");
+            assert(false);
+            return 0;
+        }
+
+        return static_cast<uint64_t>(m_impl->m_UAV_handle.GetIndex());
+    }
+}
+
 void* KS::StorageBuffer::GetRawRealResource() const { return m_impl->m_resource->Get(); }
 
 void* KS::StorageBuffer::GetRawResource() const { return m_impl->m_resource.get(); }
