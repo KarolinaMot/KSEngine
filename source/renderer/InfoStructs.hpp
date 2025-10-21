@@ -129,11 +129,11 @@ struct MaterialInfo
     float metallicFactor = 1.f;
     float roughnessFactor = 0.f;
     float normalScale = 1.f;
-    uint32_t useColorTex = 0;
-    uint32_t useEmissiveTex = 0;
-    uint32_t useMetallicRoughnessTex = 0;
-    uint32_t useNormalTex = 0;
-    uint32_t useOcclusionTex = 0;
+    uint32_t colorTexIndex = 0;
+    uint32_t emissiveTexIndex = 0;
+    uint32_t metallicRoughnessTexIndex = 0;
+    uint32_t normalTexIndex = 0;
+    uint32_t occlusionTexIndex = 0;
     uint32_t modelIndex = 0;
     uint32_t vDataOffset = 0;
     uint32_t uvDataOffset = 0;

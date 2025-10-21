@@ -106,11 +106,12 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
                 auto occlusionTex = GetTexture(device, commandList, *occlusionHandle);
 
-                matInfo.useColorTex = baseTex != nullptr;
-                matInfo.useEmissiveTex = emissiveTex != nullptr;
-                matInfo.useNormalTex = normalTex != nullptr;
-                matInfo.useOcclusionTex = occlusionTex != nullptr;
-                matInfo.useMetallicRoughnessTex = roughMetTex != nullptr;
+                matInfo.colorTexIndex = baseTex->GetHandleIndex(true);
+                matInfo.emissiveTexIndex = emissiveTex->GetHandleIndex(true);
+                matInfo.normalTexIndex = normalTex->GetHandleIndex(true);
+                matInfo.occlusionTexIndex = occlusionTex->GetHandleIndex(true);
+                matInfo.metallicRoughnessTexIndex = roughMetTex->GetHandleIndex(true);
+
                 matInfo.modelIndex = draw_queue[key].mesh->GetIndex();
                 matInfo.vDataOffset = draw_queue[key].mesh->GetVDataOffset();
                 matInfo.uvDataOffset = draw_queue[key].mesh->GetUVDataOffset();

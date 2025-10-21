@@ -65,6 +65,16 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         D3D12_GPU_DESCRIPTOR_HANDLE modelMatHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         modelMatHandle.ptr += static_cast<uint64_t>(scene.GetStorageBuffer(MODEL_MAT_BUFFER)->GetHandle(true)) * heap->GetDescriptorSize();
 
+        D3D12_GPU_DESCRIPTOR_HANDLE dirLights = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        dirLights.ptr +=
+            static_cast<uint64_t>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER)->GetHandle(true)) * heap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE pointLights = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        pointLights.ptr +=
+            static_cast<uint64_t>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER)->GetHandle(true)) * heap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE textures = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+
         D3D12_GPU_DESCRIPTOR_HANDLE indexHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         indexHandle.ptr += static_cast<uint64_t>(INDICES_SLOT) * heap->GetDescriptorSize();
 
@@ -77,7 +87,7 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         D3D12_GPU_DESCRIPTOR_HANDLE tanHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         tanHandle.ptr += static_cast<uint64_t>(TAN_SLOT) * heap->GetDescriptorSize();
 
-        std::vector<void*> heapPointers(10);
+        std::vector<void*> heapPointers(14);
         heapPointers[0] = reinterpret_cast<void*>(outputHandle.ptr);
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
         heapPointers[2] = reinterpret_cast<void*>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i));
@@ -88,6 +98,10 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         heapPointers[7] = reinterpret_cast<void*>(vPosHandle.ptr);
         heapPointers[8] = reinterpret_cast<void*>(uvHandle.ptr);
         heapPointers[9] = reinterpret_cast<void*>(tanHandle.ptr);
+        heapPointers[10] = reinterpret_cast<void*>(dirLights.ptr);
+        heapPointers[11] = reinterpret_cast<void*>(pointLights.ptr);
+        heapPointers[12] = reinterpret_cast<void*>(textures.ptr);
+        heapPointers[13] = reinterpret_cast<void*>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER)->GetGPUAddress(0, i));
 
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));

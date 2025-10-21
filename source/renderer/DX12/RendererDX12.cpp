@@ -64,6 +64,11 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "vertexPos")
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "uvs")
                     .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "tangents")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "dir_lights")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "point_lights")
+                    .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "textures")
+                    .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
+                    .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                     .SetLocal()
                     .Build(device, "RT SIGNATURE");
 

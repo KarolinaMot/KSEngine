@@ -83,57 +83,24 @@ PSOutput mainPS(PS_INPUT input)
 PBRMaterial GenerateMaterial(PS_INPUT input)
 {
     PBRMaterial mat;
-    if (matInfos[meshIndex].useColorTex)
-    {
-        mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.baseColor *= matInfos[meshIndex].colorFactor.rgb;
-    }
-    else
-    {
-        mat.baseColor = float3(1.0, 1.0, 1.0);
-        mat.baseColor *= matInfos[meshIndex].colorFactor.rgb;
-    }
+    mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
+    mat.baseColor *= matInfos[meshIndex].colorFactor.rgb;
 
-    if (matInfos[meshIndex].useEmissiveTex)
-    {
-        mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
-        mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
-    }
-    else
-    {
-        mat.emissiveColor = float3(0.0, 0.0, 0.0);
-    }
+    mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
+    mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
 
-    if (matInfos[meshIndex].useMetallicRoughnessTex)
-    {
-        float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
-        mat.roughness = metallicRoughnessColor.g;
-        mat.metallic = metallicRoughnessColor.b;
-    }
-    else
-    {
-        mat.occlusionColor = 1.0;
-        mat.metallic = matInfos[meshIndex].metallicFactor;
-        mat.roughness = matInfos[meshIndex].roughnessFactor;
-    }
+    float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
+    mat.roughness = metallicRoughnessColor.g * matInfos[meshIndex].metallicFactor;
+    mat.metallic = metallicRoughnessColor.b * matInfos[meshIndex].roughnessFactor;
 
     // Occlusion if it is not in matallic roughness texture
-    if (matInfos[meshIndex].useOcclusionTex)
-    {
-        mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
-    }
+    mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
 
-    //if (matInfos[meshIndex].useNormalTex)
-    //{
-    //    mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
-    //    mat.normalColor = mat.normalColor * 2.0 - 1.0;
-    //    mat.normalColor = mul(mat.normalColor, input.tangentBasis);
-    //    mat.normalColor = (mat.normalColor + 1) * 0.5f;
-    //}
-    //else
-    //{
-    mat.normalColor = (input.normals.xyz + 1)*0.5f;
-   // }
+     //mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
+     //mat.normalColor = mat.normalColor * 2.0 - 1.0;
+     //mat.normalColor = mul(mat.normalColor, input.tangentBasis);
+     //mat.normalColor = (mat.normalColor + 1) * 0.5f;
+     mat.normalColor = (input.normals.xyz + 1)*0.5f;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);

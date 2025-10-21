@@ -8,6 +8,16 @@ StructuredBuffer<uint> indices : register(t4);
 StructuredBuffer<float3> vertexPositions : register(t5);
 StructuredBuffer<float2> uvs : register(t6);
 StructuredBuffer<float3> tangents : register(t7);
+StructuredBuffer<DirLight> dirLights : register(t8);
+StructuredBuffer<PointLight> pointLights : register(t9);
+
+Texture2D<float4> textures[] : register(t10);
+SamplerState mainSampler : register(s0);
+
+cbuffer LightInfoBuffer : register(b1)
+{
+    LightInfo lightInfo;
+};
 
 float3 NormalToColor(float3 normal);
 int GetIndex(int vertId, int instance, int offset);
@@ -23,6 +33,8 @@ float3 GetPositionInVector(int instance, int index);
 float2 GetUVInVector(int instance, int index);
 float3 GetTangentInVector(int instance, int index);
 
+PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals);
+
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib) 
 {
@@ -36,7 +48,10 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     float2 uv = GetUV(instance, vertId, barycentrics);
     float3 tangent = GetTangent(instance, vertId, barycentrics);
 
-    payload.colorAndDistance = float4(NormalToColor(normal), 1.f);
+    PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal);
+    
+    //payload.colorAndDistance = float4(NormalToColor(normal), 1.f);
+    payload.colorAndDistance = float4(material.baseColor, 1.f);
     //matInfos[InstanceID()].colorFactor;
 }
 
@@ -114,4 +129,36 @@ int GetIndex(int vertId, int instance, int offset)
 {
     int offs = matInfos[instance].indexOffset + vertId + offset;
     return indices[offs];
+}
+
+PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals)
+{
+    PBRMaterial mat;
+    mat.baseColor = pow(abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, 0).rgb), sGamma);
+    mat.baseColor *= info.colorFactor.rgb;
+
+    mat.emissiveColor = pow(abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, 0).rgb), sGamma);
+    mat.emissiveColor *= info.emissiveFactor.rgb;
+
+    float3 metallicRoughnessColor = textures[info.metallicRoughnessTexIndex].SampleLevel(mainSampler, uv, 0).rgb;
+    mat.roughness = metallicRoughnessColor.g * info.metallicFactor;
+    mat.metallic = metallicRoughnessColor.b * info.roughnessFactor;
+
+    // Occlusion if it is not in matallic roughness texture
+    mat.occlusionColor = textures[info.occlusionTexIndex].SampleLevel(mainSampler, uv, 0).r;
+
+     //mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
+     //mat.normalColor = mat.normalColor * 2.0 - 1.0;
+     //mat.normalColor = mul(mat.normalColor, input.tangentBasis);
+     //mat.normalColor = (mat.normalColor + 1) * 0.5f;
+    mat.normalColor = normals;
+
+    mat.F0 = float3(0.04, 0.04, 0.04);
+    mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
+
+    // To alpha roughness
+    mat.roughness = mat.roughness * mat.roughness;
+
+    return mat;
 }

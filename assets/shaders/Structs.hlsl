@@ -55,11 +55,11 @@ struct MaterialInfo
     float metallicFactor;
     float roughnessFactor;
     float normalScale;
-    uint useColorTex;
-    uint useEmissiveTex;
-    uint useMetallicRoughnessTex;
-    uint useNormalTex;
-    uint useOcclusionTex;
+    uint colorTexIndex;
+    uint emissiveTexIndex;
+    uint metallicRoughnessTexIndex;
+    uint normalTexIndex;
+    uint occlusionTexIndex;
     uint modelIndex;
     uint normalsOffset;
     uint indexOffset;
