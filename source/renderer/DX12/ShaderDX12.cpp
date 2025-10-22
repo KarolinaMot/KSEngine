@@ -144,7 +144,7 @@ void KS::Shader::MeshRenderShader(const Device& device)
     if (m_flags & MeshInputFlags::NO_CULLING)
     {
         CD3DX12_RASTERIZER_DESC rast = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        rast.CullMode = D3D12_CULL_MODE_NONE;
+        rast.CullMode = D3D12_CULL_MODE_FRONT;
         builder.SetRasterizer(rast);
     }
 

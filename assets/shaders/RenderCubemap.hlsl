@@ -16,12 +16,6 @@ cbuffer Camera : register(b0)
     CameraMats cameraMats;
 };
 
-cbuffer ModelIndex : register(b1)
-{
-    int meshIndex;
-};
-
-StructuredBuffer<ModelMat> modelMats : register(t7);
 
 TextureCube skyMap : register(t5);
 SamplerState samplr : register(s0);
