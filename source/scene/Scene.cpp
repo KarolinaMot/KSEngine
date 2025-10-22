@@ -13,18 +13,21 @@
 #include <renderer/TLAS.hpp>
 #include <resources/Model.hpp>
 #include <resources/Texture.hpp>
+#include <resources/Skydome.hpp>
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
 
 
-KS::Scene::Scene(const Device& device)
+KS::Scene::Scene(Device& device)
 {
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
-    m_skyDome = ResourceHandle<Texture>("assets/textures/cubemap.hdr");
+
+    SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
+
     CameraMats cam{};
 
     mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
@@ -186,12 +189,20 @@ void KS::Scene::Tick(Device& device)
     device.CloseCommandContext(std::move(commandContext));
 }
 
-std::shared_ptr<KS::Texture> KS::Scene::GetSkydomeTex(Device& device, DXCommandList& commandList)
+void KS::Scene::SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture)
 { 
-    if (m_skyDome.path == "")
-        return nullptr;
+    if (skydomeTexture.path == "")
+    {
+        LOG(Log::Severity::WARN, "Skydome texture handle was empty, so it won't be set.");
+    }
     else
-        return GetTexture(device, &commandList, m_skyDome);
+    {
+        auto skydomeTex = GetTexture(device, &commandList, skydomeTexture);
+        auto pair = std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>>();
+        pair.first = std::make_shared<Skydome>(device, commandList, *skydomeTex.get());
+        pair.second = skydomeTexture;
+        m_skyDome = pair;
+    }
 }
 
 const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)

@@ -24,6 +24,7 @@
 #include <renderer/InfoStructs.hpp>
 
 #include <resources/Texture.hpp>
+#include <resources/Skydome.hpp>
 #include <resources/Image.hpp>
 #include <scene/Scene.hpp>
 KS::Renderer::Renderer(Device& device, Scene& scene)
@@ -165,6 +166,11 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
          std::initializer_list<std::string>{"assets/shaders/Hit.hlsl", "assets/shaders/Miss.hlsl",
          "assets/shaders/RayGen.hlsl"}, std::initializer_list<Formats>{});
 
+    std::shared_ptr<Shader> skyboxShader = std::make_shared<Shader>(
+        device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/SkyboxGen.hlsl"},
+        std::initializer_list<Formats>{});
+
+
     m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
     for (int i = 0; i < 4; i++)
     {
@@ -233,6 +239,11 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     rtDesc.depthStencil = m_deferredRendererDepthStencil;
     m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, scene, rtDesc);
 
+    SubRendererDesc cubemapDesc;
+    cubemapDesc.shader = skyboxShader;
+    cubemapDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ComputeRenderer>(device, cubemapDesc);
+
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(10);
@@ -241,13 +252,14 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(1);
     m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(0);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
+    m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
 
-     KS::SamplerDesc desc{};
+    KS::SamplerDesc desc{};
      desc.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
      desc.borderColor = SamplerBorderColor::SBC_TRANSPARENT_BLACK;
      desc.filter = SamplerFilter::SF_LINEAR;
 
-     m_mipMapShaderInputs = KS::ShaderInputBlueprintBuilder()
+    m_mipMapShaderInputs = KS::ShaderInputBlueprintBuilder()
                                 .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"mipmap_info"})
                                 .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
                                 .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
@@ -285,11 +297,13 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     {
         for (int i = 0; i < NUM_SUBRENDER; i++)
         {
+            if (m_subrenderers[i])
             m_subrenderers[i]->Recompile(device);
         }
     }
 
     GodRays(device, scene);
+    GenCubemap(device, scene);
 
     GenerateMipmaps(device, scene);
 
@@ -392,13 +406,14 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     }
 
     auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(frameIndex, 0);
-    m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(),
-    rootSignature->GetInput("base_tex"));
+    m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("base_tex"));
     m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("point_lights")));
     m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("light_info")));
     m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("dir_lights")));
     m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("camera_matrix")));
-    m_inputs[PBR_RENDER][9] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetSkydomeTex(device, *commandList).get(), ShaderInputBindDesc(rootSignature->GetInput("normal_tex")));
+    m_inputs[PBR_RENDER][9] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+        reinterpret_cast<ShaderInput*>(scene.GetSkydome().first.get()),
+        ShaderInputBindDesc(rootSignature->GetInput("normal_tex")));
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
@@ -457,6 +472,27 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
 
     auto& boundRT = m_renderTargets[RT_RENDER];
     device.GetRenderTarget()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
+
+    device.CloseCommandContext(std::move(commandContext));
+}
+
+void KS::Renderer::GenCubemap(Device& device, Scene& scene) 
+{ 
+    auto skydome = scene.GetSkydome();
+    if (skydome.first->GetIsReady()) return;
+
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+    auto rootSignature = m_subrenderers[CUBEMAP_RENDER]->GetShader()->GetShaderInput();
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
+    m_inputs[CUBEMAP_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(scene.GetTexture(device, commandList.get(), skydome.second).get()), rootSignature->GetInput("base_tex"));
+    m_inputs[CUBEMAP_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()), rootSignature->GetInput("PBRRes"));
+
+    reinterpret_cast<ComputeRenderer*>(m_subrenderers[CUBEMAP_RENDER].get())
+        ->SetDispatchSize(skydome.first->GetWidth(), skydome.first->GetHeight(), 6);
+    m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_RENDER], false);
 
     device.CloseCommandContext(std::move(commandContext));
 }

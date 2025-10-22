@@ -9,6 +9,7 @@ class Device;
 class UniformBuffer;
 class StorageBuffer;
 class Texture;
+class Skydome;
 class Model;
 class CommandList;
 class TLAS;
@@ -41,7 +42,7 @@ struct MeshSet
 class Scene
 {
 public:
-    Scene(const Device& device);
+    Scene(Device& device);
     ~Scene();
 
     void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name);
@@ -62,13 +63,17 @@ public:
     size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
-    void SetSkydome(ResourceHandle<Texture> skydome) { m_skyDome = skydome; }
-    std::shared_ptr<Texture> GetSkydomeTex(Device& device, DXCommandList& commandList);
+    void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
+    std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const
+    {
+        return m_skyDome;
+    };
+    std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
+
     
 private:
     const Model* GetModel(ResourceHandle<Model> model);
     const std::shared_ptr<Mesh> GetMesh(Device& device, DXCommandList* commandList, ResourceHandle<Mesh> mesh);
-    std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
 
     std::unordered_map<std::string, DrawEntry> draw_queue{};
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
@@ -85,7 +90,7 @@ private:
     int32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
-    ResourceHandle<Texture> m_skyDome;
+    std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
 
     uint32_t m_vDataOffset = 0;
     uint32_t m_uvDataOffset = 0;

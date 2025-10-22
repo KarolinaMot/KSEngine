@@ -33,8 +33,6 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
             LOG(Log::Severity::WARN, "One of the inputs {} in a compute renderer was empty command will be ignored", i);
     }
 
-    uint32_t texWidth = 0;
-    uint32_t texHeight = 0;
 
     if (m_renderTarget)
     {
@@ -44,19 +42,17 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
             m_renderTarget->Clear(*commandList, frameIndex);
         }
         m_renderTarget->GetTexture(frameIndex, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("PBRRes"));
-        texWidth = m_renderTarget->GetTexture(frameIndex, 0)->GetWidth();
-        texHeight = m_renderTarget->GetTexture(frameIndex, 0)->GetHeight();
-    }
-    else
-    {
-        texWidth = m_dispatchWidth;
-        texHeight = m_dispatchHeight;
+        m_dispatchWidth = m_renderTarget->GetTexture(frameIndex, 0)->GetWidth();
+        m_dispatchHeight = m_renderTarget->GetTexture(frameIndex, 0)->GetHeight();
     }
     
-    if (texWidth == 0 || texHeight == 0)
+    if (m_dispatchWidth == 0 || m_dispatchHeight == 0 || m_dispatchDepth == 0)
     {
-        LOG(Log::Severity::WARN, "Trying to dispatch compute shader with invalid dispatch sizes. Did you forget to assign a render target or a dispatch size? Command ignored.");
+        LOG(Log::Severity::WARN,
+            "Trying to dispatch compute shader with invalid dispatch sizes [{}, {}, {}]. Did you forget to assign a render "
+            "target or a dispatch size? Command ignored.",
+            m_dispatchWidth, m_dispatchHeight, m_dispatchDepth);
         return;
     }
-    commandList->DispatchShader(texWidth / 8, texHeight / 8, 1);
+    commandList->DispatchShader(m_dispatchWidth / 8, m_dispatchHeight / 8, m_dispatchDepth);
 }

@@ -150,7 +150,7 @@ uint32_t KS::Texture::GetHandleIndex(bool readOnly) const
             return 0;
         }
 
-        return static_cast<uint32_t>(m_impl->mSRVHeapSlot.GetIndex());
+        return m_impl->mSRVHeapSlot.GetIndex();
     }
     else
     {
@@ -161,7 +161,7 @@ uint32_t KS::Texture::GetHandleIndex(bool readOnly) const
             return 0;
         }
 
-        return static_cast<uint64_t>(m_impl->mUAVHeapSlot[0].GetIndex());
+        return m_impl->mUAVHeapSlot[0].GetIndex();
     }
 }
 
@@ -192,7 +192,6 @@ void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const S
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
         TransitionToRO(device, commandList);
-        m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_COMMON);
         commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mSRVHeapSlot, desc.rootIndex);
     }
     else
@@ -205,7 +204,6 @@ void KS::Texture::Bind(const Device& device, DXCommandList& commandList, const S
         }
             
         TransitionToRW(device, commandList);
-        m_impl->mTextureBuffer->ChangeState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         uint32_t mipLevel = mip;
         if (mip > 0 && m_mipLevels == 0)
         {

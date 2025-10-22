@@ -18,8 +18,8 @@ float2 SampleSphericalMap(float3 v)
     return uv;
 }
 
-[numthreads(8, 8, 6)]
-void CSMain(uint3 DTid : SV_DispatchThreadID)
+[numthreads(8, 8, 1)]
+void main(uint3 DTid : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
 {
     
     uint3 dimensions;
@@ -31,9 +31,10 @@ void CSMain(uint3 DTid : SV_DispatchThreadID)
 
     // map pixel to NDC in [-1,1]
     float2 uv = (float2(pix) + 0.5) / dimensions.xy * 2.0 - 1.0;
+    uv.y *= -1;
 
     // get face index via root constants / dispatch loop
-    uint face = DTid.y;
+    uint face = DTid.z;
 
     // build direction per cube face
     float3 dir;
