@@ -183,6 +183,9 @@
     <ClCompile Include="source\renderer\DX12\RTRendererDX12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\resources\Skydome.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\components\ComponentCamera.hpp">
@@ -282,9 +285,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\DX12\Helpers\DXIncludes.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="source\renderer\DX12\Helpers\DX12Common.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\DX12\Helpers\DX12Conversion.hpp">
@@ -528,6 +528,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\RTRenderer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\resources\Skydome.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

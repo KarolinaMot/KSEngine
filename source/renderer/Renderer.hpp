@@ -43,6 +43,7 @@ private:
     void GenerateMipmaps(Device& device, Scene& scene);
     void Raytrace(Device& device, Scene& scene);
     void GenCubemap(Device& device, Scene& scene);
+    void RenderCubemap(Device& device, Scene& scene);
 
     std::shared_ptr<ShaderInputBlueprint> m_mainInputs;
     std::shared_ptr<ShaderInputBlueprint> m_rtInputs;

@@ -80,4 +80,69 @@ float3 LinearToSRGB(float3 color)
     return pow(color, float3(sInvGamma, sInvGamma, sInvGamma));
 }
 
+float3 DirToFaceUV(float3 dir)
+{
+    dir = normalize(dir);
+    float ax = abs(dir.x), ay = abs(dir.y), az = abs(dir.z);
+    int face;
+    float2 uv;
+    
+    float2 p; // in [-1, 1]
+    float inv; // 1 / dominant component magnitude
+
+    if (ax >= ay && ax >= az)
+    {
+        // ±X is dominant
+        if (dir.x > 0.0f)
+        {
+            face = 0;
+            inv = 1.0f / ax;
+            p = float2(-dir.z, -dir.y) * inv;
+        } // +X
+        else
+        {
+            face = 1;
+            inv = 1.0f / ax;
+            p = float2(dir.z, -dir.y) * inv;
+        } // -X
+    }
+    else if (ay >= ax && ay >= az)
+    {
+        // ±Y is dominant
+        if (dir.y > 0.0f)
+        {
+            face = 2;
+            inv = 1.0f / ay;
+            p = float2(dir.x, dir.z) * inv;
+        } // +Y
+        else
+        {
+            face = 3;
+            inv = 1.0f / ay;
+            p = float2(dir.x, -dir.z) * inv;
+        } // -Y
+    }
+    else
+    {
+        // ±Z is dominant
+        if (dir.z > 0.0f)
+        {
+            face = 4;
+            inv = 1.0f / az;
+            p = float2(dir.x, -dir.y) * inv;
+        } // +Z
+        else
+        {
+            face = 5;
+            inv = 1.0f / az;
+            p = float2(-dir.x, -dir.y) * inv;
+        } // -Z
+    }
+
+    // Map from [-1,1] to [0,1]; nudge to avoid sampling exactly on 1.0
+    const float eps = 1e-7f;
+    uv = saturate(p * 0.5f + 0.5f);
+    uv = clamp(uv, eps, 1.0f - eps);
+    return float3(uv, face);
+}
 #endif

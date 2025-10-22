@@ -38,6 +38,8 @@ public:
         HAS_NORMALS = 1 << 1,
         HAS_UVS = 1 << 2,
         HAS_TANGENTS = 1 << 3,
+        DEPTH_DISABLED = 1<<4,
+        NO_CULLING = 1 << 5
     };
 
 private:

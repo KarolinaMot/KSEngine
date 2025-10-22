@@ -34,6 +34,7 @@ enum Subrenderers
     LIGHT_SHAFT_RENDER,
     UPSCALING_RENDER,
     RT_RENDER,
+    CUBEMAP_GEN,
     CUBEMAP_RENDER,
     MIP_GEN,
     NUM_SUBRENDER
@@ -147,6 +148,7 @@ struct CameraMats
     glm::mat4x4 m_view = glm::mat4x4(1.f);
     glm::mat4x4 m_invView = glm::mat4x4(1.f);
     glm::mat4x4 m_camera = glm::mat4x4(1.f);
+    glm::mat4x4 m_cameraNoTranslation = glm::mat4x4(1.f);
     glm::vec4 m_cameraPos = glm::vec4(1.f);
 };
 

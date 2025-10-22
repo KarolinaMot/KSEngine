@@ -133,6 +133,8 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
 
     int fullInputFlags = Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS;
     int positionsInputFlags = Shader::HAS_POSITIONS;
+    int skyboxInputFlags = Shader::HAS_POSITIONS | Shader::DEPTH_DISABLED | Shader::NO_CULLING;
+
 
     std::shared_ptr<Shader> mainShader = std::make_shared<Shader>(
         device, ShaderType::ST_MESH_RENDER, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Deferred.hlsl"},
@@ -143,7 +145,12 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     std::shared_ptr<Shader> lightOccluderShader =
         std::make_shared<Shader>(device, ShaderType::ST_MESH_RENDER, m_mainInputs,
                                  std::initializer_list<std::string>{"assets/shaders/OccluderShader.hlsl"},
-                                 std::initializer_list<Formats>{Formats::R32G32B32A32_FLOAT}, positionsInputFlags);
+                                 std::initializer_list<Formats>{Formats::R8G8B8A8_UNORM}, positionsInputFlags);
+
+    std::shared_ptr<Shader> skyboxRenderShader =
+        std::make_shared<Shader>(device, ShaderType::ST_MESH_RENDER, m_mainInputs,
+                                 std::initializer_list<std::string>{"assets/shaders/RenderCubemap.hlsl"},
+                                 std::initializer_list<Formats>{Formats::R8G8B8A8_UNORM}, skyboxInputFlags);
 
     std::shared_ptr<Shader> computePBRShader = std::make_shared<Shader>(
         device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Main.hlsl"},
@@ -203,6 +210,12 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     defferedDesc.depthStencil = m_deferredRendererDepthStencil;
     m_subrenderers[DEFERRED_RENDER] = std::make_unique<ModelRenderer>(device, defferedDesc);
 
+    SubRendererDesc skyboxRenderDesc;
+    skyboxRenderDesc.shader = skyboxRenderShader;
+    skyboxRenderDesc.renderTarget = m_renderTargets[PBR_RENDER];
+    skyboxRenderDesc.depthStencil = m_deferredRendererDepthStencil;
+    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ModelRenderer>(device, skyboxRenderDesc);
+
     SubRendererDesc pbrDesc;
     pbrDesc.shader = computePBRShader;
     pbrDesc.renderTarget = m_renderTargets[PBR_RENDER];
@@ -242,17 +255,18 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     SubRendererDesc cubemapDesc;
     cubemapDesc.shader = skyboxShader;
     cubemapDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ComputeRenderer>(device, cubemapDesc);
+    m_subrenderers[CUBEMAP_GEN] = std::make_unique<ComputeRenderer>(device, cubemapDesc);
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
-    m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(10);
+    m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(9);
     m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(4);
     m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(1);
     m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(0);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
-    m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
+    m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
+    m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
 
     KS::SamplerDesc desc{};
      desc.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
@@ -290,6 +304,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_view = params.viewMatrix;
     cam.m_invView = glm::inverse(params.viewMatrix);
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
+    cam.m_cameraNoTranslation = params.projectionMatrix * glm::mat4(glm::mat3(params.viewMatrix));
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
     scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->Update(device, cam, 0);
 
@@ -311,6 +326,8 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
         Raytrace(device, scene);
     else
         Main(device, scene);
+
+    RenderCubemap(device, scene);
 }
 
 void KS::Renderer::GodRays(Device& device, Scene& scene)
@@ -411,13 +428,10 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("light_info")));
     m_inputs[PBR_RENDER][7] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetStorageBuffer(DIR_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("dir_lights")));
     m_inputs[PBR_RENDER][8] = std::pair<ShaderInput*, ShaderInputBindDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("camera_matrix")));
-    m_inputs[PBR_RENDER][9] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-        reinterpret_cast<ShaderInput*>(scene.GetSkydome().first.get()),
-        ShaderInputBindDesc(rootSignature->GetInput("normal_tex")));
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
-    m_subrenderers[PBR_RENDER]->Render(device, &commandContext, scene, m_inputs[PBR_RENDER], true);
+    m_subrenderers[PBR_RENDER]->Render(device, &commandContext, scene, m_inputs[PBR_RENDER], false);
 
     device.GetRenderTarget()->CopyTo(*commandList, frameIndex, m_renderTargets[PBR_RENDER], 0, 0);
 
@@ -483,16 +497,36 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
 
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
-    auto rootSignature = m_subrenderers[CUBEMAP_RENDER]->GetShader()->GetShaderInput();
+    auto rootSignature = m_subrenderers[CUBEMAP_GEN]->GetShader()->GetShaderInput();
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    m_inputs[CUBEMAP_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(scene.GetTexture(device, commandList.get(), skydome.second).get()), rootSignature->GetInput("base_tex"));
-    m_inputs[CUBEMAP_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()), rootSignature->GetInput("PBRRes"));
+    m_inputs[CUBEMAP_GEN][0] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(scene.GetTexture(device, commandList.get(), skydome.second).get()), rootSignature->GetInput("base_tex"));
+    m_inputs[CUBEMAP_GEN][1] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()), rootSignature->GetInput("PBRRes"));
 
-    reinterpret_cast<ComputeRenderer*>(m_subrenderers[CUBEMAP_RENDER].get())
+    reinterpret_cast<ComputeRenderer*>(m_subrenderers[CUBEMAP_GEN].get())
         ->SetDispatchSize(skydome.first->GetWidth(), skydome.first->GetHeight(), 6);
-    m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_RENDER], false);
+    m_subrenderers[CUBEMAP_GEN]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_GEN], false);
 
     device.CloseCommandContext(std::move(commandContext));
+}
+
+void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
+{
+    auto skydome = scene.GetSkydome();
+    if (!skydome.first->GetIsReady()) return;
+
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+    auto rootSignature = m_subrenderers[CUBEMAP_GEN]->GetShader()->GetShaderInput();
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
+    m_inputs[CUBEMAP_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
+                                                                            rootSignature->GetInput("camera_matrix"));
+    m_inputs[CUBEMAP_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER),
+                                                                            rootSignature->GetInput("model_matrix"));
+    m_inputs[CUBEMAP_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()),
+                                                                           rootSignature->GetInput("dir_lights"));
+    m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_RENDER], true);
 }

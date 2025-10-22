@@ -131,6 +131,23 @@ void KS::Shader::MeshRenderShader(const Device& device)
     if (m_flags & MeshInputFlags::HAS_UVS) builder.AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV);
     if (m_flags & MeshInputFlags::HAS_TANGENTS) builder.AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS);
 
+    if (m_flags & MeshInputFlags::DEPTH_DISABLED)
+    {
+        CD3DX12_DEPTH_STENCIL_DESC depth = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+        depth.DepthEnable = TRUE;  // <- no depth testing
+        depth.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+        depth.StencilEnable = FALSE;
+        depth.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        builder.SetDepthState(depth);
+    }
+
+    if (m_flags & MeshInputFlags::NO_CULLING)
+    {
+        CD3DX12_RASTERIZER_DESC rast = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        rast.CullMode = D3D12_CULL_MODE_NONE;
+        builder.SetRasterizer(rast);
+    }
+
     builder.SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
 
     for (const auto& format : m_formats)

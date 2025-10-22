@@ -38,6 +38,7 @@ struct CameraMats
     float4x4 mView;
     float4x4 mInvView;
     float4x4 mCamera;
+    float4x4 mCameraNoTranslation;
     float4 mCameraPos;
     float4 mCameraRight;
 };

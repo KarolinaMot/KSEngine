@@ -33,12 +33,12 @@ RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
 RWTexture2D<float4> GBufferC : register(u3);
 RWTexture2D<float4> GBufferD : register(u4);
-Texture2D<float4> Skydome : register(t1);
 
 SamplerState mainSampler : register(s0);
 
 StructuredBuffer<DirLight> dirLights : register(t5);
 StructuredBuffer<PointLight> pointLights : register(t6);
+float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 invView);
 
 [numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
@@ -61,7 +61,6 @@ StructuredBuffer<PointLight> pointLights : register(t6);
     float3 diffuse = 0.f;
     float3 specular = 0.f;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - vertexPos.xyz);
-
     
     if (scalar != 0)
     {
@@ -91,18 +90,11 @@ StructuredBuffer<PointLight> pointLights : register(t6);
 
         //result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
         //result = LinearToSRGB(result);
-        result = diffuse;
+        result = mat.baseColor;
+        FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
     }
-    //else
-    //{
-    //    float3 dirWS = ReconstructDirWS(DispatchThreadID.xy, screenSize); // camera → world
-    //    float2 sampleUv = SampleSphericalMap(-viewDirection);
-    //    result = Skydome.SampleLevel(mainSampler, sampleUv, 0);
-
-    //}
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
     result += lightShaftColor.rgb;
-    FinalRes[DispatchThreadID.xy] = float4(mat.normalColor, 1.f);
 
 }
