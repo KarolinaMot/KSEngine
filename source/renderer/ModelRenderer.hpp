@@ -26,7 +26,7 @@ struct DrawEntry;
 class ModelRenderer : public SubRenderer
 {
 public:
-    ModelRenderer(const Device& device, SubRendererDesc& desc, bool onlyCubemap = false);
+    ModelRenderer(const Device& device, SubRendererDesc& desc);
     ~ModelRenderer();
 
     void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
@@ -38,6 +38,5 @@ private:
 
     bool m_raytraced = false;
     int32_t m_frameCount = 0;
-    bool m_onlyCubemap = false;
 };
 } // namespace KS

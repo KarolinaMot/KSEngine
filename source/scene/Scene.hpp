@@ -64,8 +64,10 @@ public:
     LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
-    std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
-    std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
+    std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const
+    {
+        return m_skyDome;
+    };
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
 
     
@@ -89,7 +91,6 @@ private:
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
-    std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> m_skyDomeMesh;
 
     uint32_t m_vDataOffset = 0;
     uint32_t m_uvDataOffset = 0;
