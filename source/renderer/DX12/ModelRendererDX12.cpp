@@ -27,9 +27,10 @@
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
 
-KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc)
+KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc, bool onlyCubemap)
 : SubRenderer(device, desc)
 {
+    m_onlyCubemap = onlyCubemap;
 }
 
 KS::ModelRenderer::~ModelRenderer() {}
@@ -91,6 +92,22 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         m_renderTarget->Bind(*cmdList, frameIndex, m_depthStencil.get());
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
+
+    if (m_onlyCubemap)
+    {
+        BindDrawResources(commandList);
+        auto skydomeMesh = scene.GetSkydomeMesh().first;
+        using namespace MeshConstants;
+        auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+        auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+
+        positions->BindAsVertexData(*commandList, 0);
+        indices->BindAsIndexData(*commandList);
+
+        commandList->DrawIndexed(indices->GetElementCount());
+        device.CloseCommandContext(std::move(*commandContext));
+        return;
+    }
 
     device.CloseCommandContext(std::move(*commandContext));
 

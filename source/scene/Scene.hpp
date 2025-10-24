@@ -64,10 +64,8 @@ public:
     LightInfo GetLightInfo() { return m_lightInfo; }
     std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
-    std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const
-    {
-        return m_skyDome;
-    };
+    std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
+    std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
 
     
@@ -79,6 +77,7 @@ private:
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
+    std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> m_skyDomeMesh;
     std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
     std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
     std::vector<DirLightInfo> m_directionalLights;

@@ -214,7 +214,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     skyboxRenderDesc.shader = skyboxRenderShader;
     skyboxRenderDesc.renderTarget = m_renderTargets[PBR_RENDER];
     skyboxRenderDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ModelRenderer>(device, skyboxRenderDesc);
+    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ModelRenderer>(device, skyboxRenderDesc, true);
 
     SubRendererDesc pbrDesc;
     pbrDesc.shader = computePBRShader;

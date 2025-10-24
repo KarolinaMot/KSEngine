@@ -27,6 +27,8 @@ KS::Scene::Scene(Device& device)
     m_directionalLights = std::vector<DirLightInfo>(100);
 
     SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
+    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets/models/Cube/meshes/Cube.bin ");
+    m_skyDomeMesh.first = GetMesh(device, commandList.get(), m_skyDomeMesh.second);
 
     CameraMats cam{};
 
