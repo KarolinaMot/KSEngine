@@ -117,10 +117,9 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 matInfo.occlusionTexIndex = occlusionTex->GetHandleIndex(true);
                 matInfo.metallicRoughnessTexIndex = roughMetTex->GetHandleIndex(true);
 
-                matInfo.modelIndex = draw_queue[key].mesh->GetIndex();
-                matInfo.vDataOffset = draw_queue[key].mesh->GetVDataOffset();
-                matInfo.uvDataOffset = draw_queue[key].mesh->GetUVDataOffset();
-                matInfo.indexOffset = draw_queue[key].mesh->GetIndexDataOffset();
+                matInfo.modelIndex = draw_queue[key].mesh->GetMeshIndex();
+                matInfo.vOffset = draw_queue[key].mesh->GetVDataOffset();
+                matInfo.indexOffset = draw_queue[key].mesh->GetIDataOffset();
 
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
 
@@ -249,7 +248,6 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
         obj->second->SetVDataOffset(m_vDataOffset);
         obj->second->SetIndexDataOffset(m_indexDataOffset);
-        obj->second->SetUVDataOffset(m_indexDataOffset);
 
         auto view = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<uint8_t>();
         size_t size = view.count();
@@ -260,11 +258,6 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         size = view.count();
         stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_INDICES_NAME)->second;
         m_indexDataOffset += size / stride;
-
-        view = data.GetAttribute(MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)->GetView<uint8_t>();
-        size = view.count();
-        stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)->second;
-        m_uvDataOffset += size / stride;
 
         return obj->second;
     }

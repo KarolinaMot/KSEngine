@@ -70,7 +70,7 @@ KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data,
     }
 
     m_name = name;
-
+    m_meshIndex = meshIndex;
     BuildBLAS(device, commandList);
 
     if (!m_impl->m_BLAS)
@@ -87,7 +87,7 @@ KS::Mesh::Mesh(Mesh&& other) noexcept
     m_impl = std::move(other.m_impl);
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
-    m_index = other.m_index;
+    m_meshIndex = other.m_meshIndex;
     m_vDataOffset = other.m_vDataOffset;
 }
 
@@ -96,7 +96,7 @@ KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
     m_impl = std::move(other.m_impl);
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
-    m_index = other.m_index;
+    m_meshIndex = other.m_meshIndex;
     m_vDataOffset = other.m_vDataOffset;
     return *this;
 }

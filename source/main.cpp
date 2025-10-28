@@ -127,10 +127,10 @@ int main()
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
-    scene.QueueModel(*device, model, transform, "Damaged helmet");
-    transform = glm::translate(transform, glm::vec3(-5.f, 0.f, 0.f));
-    transform = glm::scale(transform, glm::vec3(10.f));
     scene.QueueModel(*device, cubeModel, transform, "Cube");
+    transform = glm::translate(transform, glm::vec3(-3.f, 0.f, 0.f));
+    transform = glm::scale(transform, glm::vec3(0.5f));
+    scene.QueueModel(*device, model, transform, "Damaged helmet");
 
     device->EndFrame();
     bool recomp = false;

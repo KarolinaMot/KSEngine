@@ -15,6 +15,7 @@ class CommandList;
 class TLAS;
 class Mesh;
 class Image;
+//class MeshPool;
 
 struct SBTInfo
 {
@@ -57,6 +58,7 @@ public:
     int32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
     MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
+    //MeshPool* GetMeshPool() const { return m_meshPool.get(); }
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
@@ -83,16 +85,14 @@ private:
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     std::unique_ptr<TLAS> m_BVH;
+    //std::unique_ptr<MeshPool> m_meshPool;
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);
     int32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
+    uint32_t m_vDataOffset = 0, m_indexDataOffset = 0;
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
-
-    uint32_t m_vDataOffset = 0;
-    uint32_t m_uvDataOffset = 0;
-    uint32_t m_indexDataOffset = 0;
 };
 }  // namespace KS

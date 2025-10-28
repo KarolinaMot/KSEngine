@@ -136,9 +136,9 @@ struct MaterialInfo
     uint32_t normalTexIndex = 0;
     uint32_t occlusionTexIndex = 0;
     uint32_t modelIndex = 0;
-    uint32_t vDataOffset = 0;
-    uint32_t uvDataOffset = 0;
+    uint32_t vOffset = 0;
     uint32_t indexOffset = 0;
+    uint32_t padding = 0;
 };
 
 struct CameraMats

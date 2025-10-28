@@ -30,7 +30,7 @@ public:
     {
     }
 
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, uint32_t stride,
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, uint32_t stride,
                   uint32_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
     {
         m_read_write = readWriteEnabled;
@@ -41,13 +41,21 @@ public:
         m_flags = flags;
 
         CreateBuffer(device, commandList, name, m_num_elements);
+    }
+
+
+    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, uint32_t stride,
+                  uint32_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
+        : StorageBuffer(device, commandList, name, stride, element_count, readWriteEnabled, flags)
+    {
         UploadDataBuffer(device, commandList, data, m_num_elements);
     }
 
+
     template <typename T>
-    void Update(const Device& device, DXCommandList& commandList, const T* data, uint32_t numElements)
+    void Update(const Device& device, DXCommandList& commandList, const T* data, uint32_t numElements, uint32_t offset = 0, bool ignoreStride =false)
     {
-        if (sizeof(T) != m_buffer_stride)
+        if (sizeof(T) != m_buffer_stride && !ignoreStride)
         {
             LOG(Log::Severity::WARN,
                 "StorageBuffer {} type on update does not fit the original format. Command has been ignored.", m_name);
@@ -61,7 +69,7 @@ public:
         }
 
         if (numElements > m_num_elements) Resize(device, commandList, numElements);
-        UploadDataBuffer(device, commandList, data, numElements);
+        UploadDataBuffer(device, commandList, data, numElements, offset);
     }
 
     template <typename T>
@@ -73,8 +81,9 @@ public:
     void Resize(const Device& device, DXCommandList& commandList, uint32_t newNumOfElements);
     virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
                       uint32_t offsetIndex = 0) override;
-    void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0);
-    void BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset = 0);
+    void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0,
+                          uint32_t count = 0);
+    void BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset = 0, uint32_t count = 0);
     void AllocateAsReadOnly(const Device& device, int slot = -1);
     void AllocateAsReadWrite(const Device& device, int slot = -1);
 
@@ -90,7 +99,8 @@ public:
 
 private:
     void CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name, uint32_t numOfElements);
-    void UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, uint32_t numOfElements);
+    void UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, uint32_t numOfElements,
+                          uint64_t dstOffset = 0);
 
     bool m_read_write = false;
     size_t m_total_buffer_size = 0;

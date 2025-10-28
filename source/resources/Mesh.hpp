@@ -21,6 +21,9 @@ namespace MeshConstants
     const std::string ATTRIBUTE_TANGENTS_NAME = "TANGENTS";
     const std::string ATTRIBUTE_BITANGENTS_NAME = "BITANGENTS";
 
+    const std::string ATTRIBUTE_ARRAY[6] = {ATTRIBUTE_INDICES_NAME, ATTRIBUTE_POSITIONS_NAME, ATTRIBUTE_NORMALS_NAME,
+                                      ATTRIBUTE_TEXTURE_UVS_NAME, ATTRIBUTE_TANGENTS_NAME,  ATTRIBUTE_BITANGENTS_NAME};
+
     const std::unordered_map<std::string, size_t> ATTRIBUTE_STRIDES {
         { ATTRIBUTE_INDICES_NAME, sizeof(uint32_t) },
         { ATTRIBUTE_POSITIONS_NAME, sizeof(float) * 3 },
@@ -99,12 +102,12 @@ public:
     uint32_t BLASAddress() const;
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
-    int GetIndex() const { return m_index; }
+    int GetMeshIndex() const { return m_meshIndex; }
+    int GetICount() const { return m_iCount; }
+    int GetVCount() const { return m_vCount; }
     int GetVDataOffset() const { return m_vDataOffset; }
-    int GetIndexDataOffset() const { return m_indexDataOffset; }
-    int GetUVDataOffset() const { return m_uvDataOffset; }
+    int GetIDataOffset() const { return m_indexDataOffset; }
     void SetVDataOffset(uint32_t offset) { m_vDataOffset = offset; }
-    void SetUVDataOffset(uint32_t offset) { m_uvDataOffset = offset; }
     void SetIndexDataOffset(uint32_t offset) { m_indexDataOffset = offset; }
 
     private:
@@ -112,9 +115,9 @@ public:
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
-    int m_index = 0;
+    int m_meshIndex = 0;
+    uint32_t m_vCount = 0, m_iCount = 0;
     uint32_t m_vDataOffset = 0;
-    uint32_t m_uvDataOffset = 0;
     uint32_t m_indexDataOffset = 0;
 
     class Impl;

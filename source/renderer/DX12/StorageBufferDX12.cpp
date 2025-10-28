@@ -49,7 +49,7 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& comman
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
-                                         uint32_t numOfElements)
+                                         uint32_t numOfElements, uint64_t dstOffset)
 {
     if (!data)
     {
@@ -71,7 +71,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     commandList.TransitionResource(*m_impl->m_resource, D3D12_RESOURCE_STATE_COPY_DEST);
 
     // Copy from arena into DEFAULT heap buffer
-    commandList.GetCommandList()->CopyBufferRegion(m_impl->m_resource->GetResource().Get(), 0,
+    commandList.GetCommandList()->CopyBufferRegion(m_impl->m_resource->GetResource().Get(), dstOffset,
                                                    uploadSource->GetResource().Get(), m_impl->m_slice.m_head, bytes);
 
     commandList.TransitionResource(*m_impl->m_resource, destState);
@@ -112,14 +112,15 @@ void KS::StorageBuffer::Bind(const Device&, DXCommandList& commandList, const Sh
     }
 }
 
-void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset)
+void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset,
+                                         uint32_t count)
 {
-    commandList.BindVertexData(*m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset);
+    commandList.BindVertexData(*m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset, count);
 }
 
-void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset)
+void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset, uint32_t count)
 {
-    commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset);
+    commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset, count);
 }
 
 void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)

@@ -227,7 +227,8 @@ void DXCommandList::ClearDepthStencils(const DXResource& depthResource, const DX
     m_allocator->TrackResource(depthResource.GetResource());
 }
 
-void DXCommandList::BindVertexData(DXResource& buffer, size_t bufferStride, int inputSlot, int elementOffset)
+void DXCommandList::BindVertexData(DXResource& buffer, size_t bufferStride, uint32_t inputSlot, uint32_t elementOffset,
+                                   uint32_t elementCount)
 {
     if (!m_isOpen)
     {
@@ -240,13 +241,13 @@ void DXCommandList::BindVertexData(DXResource& buffer, size_t bufferStride, int 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = buffer.Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
     vertexBufferView.StrideInBytes = bufferStride;
-    vertexBufferView.SizeInBytes = buffer.GetResourceSize();
+    vertexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
 
     m_command_list->IASetVertexBuffers(inputSlot, 1, &vertexBufferView);
     m_allocator->TrackResource(buffer.GetResource());
 }
 
-void DXCommandList::BindIndexData(DXResource& buffer, size_t bufferStride, int elementOffset)
+void DXCommandList::BindIndexData(DXResource& buffer, size_t bufferStride, uint32_t elementOffset, uint32_t elementCount)
 {
     if (!m_isOpen)
     {
@@ -256,7 +257,7 @@ void DXCommandList::BindIndexData(DXResource& buffer, size_t bufferStride, int e
 
     D3D12_INDEX_BUFFER_VIEW indexBufferView {};
     indexBufferView.BufferLocation = buffer.Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
-    indexBufferView.SizeInBytes = buffer.GetResourceSize();
+    indexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
 
     TransitionResource(buffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
