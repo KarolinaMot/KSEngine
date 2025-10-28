@@ -39,6 +39,7 @@
     <ClCompile Include="external\imgui\implot.cpp" />
     <ClCompile Include="external\imgui\implot_demo.cpp" />
     <ClCompile Include="external\imgui\implot_items.cpp" />
+    <ClCompile Include="source\renderer\DX12\MeshPool.cpp" />
     <ClCompile Include="source\resources\Skydome.cpp" />
     <ClCompile Include="source\renderer\DX12\RTRendererDX12.cpp" />
     <ClCompile Include="source\components\ComponentCamera.cpp" />
@@ -139,6 +140,7 @@
     <ClInclude Include="external\imgui\imstb_rectpack.h" />
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
+    <ClInclude Include="source\renderer\MeshPool.hpp" />
     <ClInclude Include="source\resources\Skydome.hpp" />
     <ClInclude Include="source\renderer\SubRenderer.hpp" />
     <ClInclude Include="source\renderer\RTRenderer.hpp" />

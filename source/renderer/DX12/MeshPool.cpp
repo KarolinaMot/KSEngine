@@ -49,6 +49,12 @@ KS::MeshPool::~MeshPool() {}
 std::shared_ptr<KS::Mesh> KS::MeshPool::AllocateMesh(Device& device, DXCommandList& commandList, const MeshData& data,
                                                  const char* meshName)
 {
+    if (m_meshCounter >= MAX_MESHES)
+    {
+        LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
+        return nullptr;
+    }
+
     for (const auto& [name, attributes] : data)
     {
         auto view = attributes.GetView<uint8_t>();
@@ -65,22 +71,23 @@ std::shared_ptr<KS::Mesh> KS::MeshPool::AllocateMesh(Device& device, DXCommandLi
         m_attributeBuffers[name]->Update(device, commandList, start, size/stride, elementOffset, true);
     }
 
-    auto vView = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<uint8_t>();
+    auto vView = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<glm::vec3>();
     size_t vSize = vView.count();
     size_t vStride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_NORMALS_NAME)->second;
 
-    auto iView = data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME)->GetView<uint8_t>();
+    auto iView = data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME)->GetView<uint32_t>();
     auto iSize = iView.count();
     auto iStride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_INDICES_NAME)->second;
 
-    auto blas = CreateBLAS(device, commandList);
-    //auto mesh = make_shared<Mesh>(meshName, m_vOffset, vSize / vStride, m_iOffset, iSize / iStride, blas);
+    auto blas = CreateBLAS(device, commandList, vSize, iSize);
+    auto mesh = make_shared<Mesh>(meshName, m_vOffset, vSize, m_iOffset, iSize, m_meshCounter, blas);
 
-    m_vOffset += vSize / vStride;
-    m_iOffset += iSize / iStride;
+    m_vOffset += vSize;
+    m_iOffset += iSize;
+    m_meshCounter++;
 
-   //return mesh;
-   return nullptr;
+    return mesh;
+    //return nullptr;
 }
 
 std::shared_ptr<KS::StorageBuffer> KS::MeshPool::GetAttribute(const std::string& name) const
@@ -125,7 +132,7 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
     return DXGI_FORMAT_UNKNOWN;
 }
 
-std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCommandList& commandList)
+std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCommandList& commandList, uint32_t vCount, uint32_t iCount)
 {
     auto vb = GetAttribute(MeshConstants::ATTRIBUTE_POSITIONS_NAME);
     if (!vb)
@@ -136,14 +143,12 @@ std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCom
     
     auto ib = GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME);
     const auto vbStride = vb->GetBufferStride();
-    const auto vbCount = vb->GetElementCount();
     
-    uint32_t ibStride = 0, ibCount = 0;
+    uint32_t ibStride = 0;
     KS::StorageBuffer* ibRaw = nullptr;
     if (ib)
     {
         ibStride = ib->GetBufferStride();
-        ibCount = ib->GetElementCount();
         ibRaw = ib.get();
     
         if (IndexFormatFromStride(ibStride) == DXGI_FORMAT_UNKNOWN)
@@ -153,7 +158,7 @@ std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCom
         }
     }
     
-    m_impl->FillGeometryDesc(*vb, vbStride, vbCount, ibRaw, ibStride, ibCount, D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
+    m_impl->FillGeometryDesc(*vb, vbStride, vCount, ibRaw, ibStride, iCount, D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
     
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     

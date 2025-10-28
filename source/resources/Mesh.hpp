@@ -88,7 +88,9 @@ class Device;
 class Mesh
 {
 public:
-    Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, int meshIndex);
+    //Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, int meshIndex);
+    Mesh(const char* name, uint32_t vOffset, uint32_t vCount, uint32_t iOffset, uint32_t iCount, uint32_t meshIndex,
+         std::shared_ptr<DXResource> bLAS);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;
@@ -98,27 +100,27 @@ public:
 
     Mesh& operator=(Mesh&& other) noexcept;
 
-    std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
+    //std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
     uint32_t BLASAddress() const;
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
-    int GetMeshIndex() const { return m_meshIndex; }
-    int GetICount() const { return m_iCount; }
-    int GetVCount() const { return m_vCount; }
-    int GetVDataOffset() const { return m_vDataOffset; }
-    int GetIDataOffset() const { return m_indexDataOffset; }
-    void SetVDataOffset(uint32_t offset) { m_vDataOffset = offset; }
-    void SetIndexDataOffset(uint32_t offset) { m_indexDataOffset = offset; }
+    uint32_t GetMeshIndex() const { return m_meshIndex; }
+    uint32_t GetICount() const { return m_iCount; }
+    uint32_t GetVCount() const { return m_vCount; }
+    uint32_t GetVDataOffset() const { return m_vOffset; }
+    uint32_t GetIDataOffset() const { return m_iOffset; }
+    //void SetVDataOffset(uint32_t offset) { m_vDataOffset = offset; }
+    //void SetIndexDataOffset(uint32_t offset) { m_indexDataOffset = offset; }
 
     private:
-    void BuildBLAS(const Device& device, DXCommandList& cmd);
+   // void BuildBLAS(const Device& device, DXCommandList& cmd);
 
-    std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
+    //std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
-    int m_meshIndex = 0;
+    uint32_t m_meshIndex = 0;
     uint32_t m_vCount = 0, m_iCount = 0;
-    uint32_t m_vDataOffset = 0;
-    uint32_t m_indexDataOffset = 0;
+    uint32_t m_vOffset = 0;
+    uint32_t m_iOffset = 0;
 
     class Impl;
     std::unique_ptr<Impl> m_impl;

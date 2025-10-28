@@ -10,6 +10,7 @@
 #include <device/Device.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
+#include <renderer/MeshPool.hpp>
 #include <renderer/TLAS.hpp>
 #include <resources/Model.hpp>
 #include <resources/Texture.hpp>
@@ -25,9 +26,10 @@ KS::Scene::Scene(Device& device)
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
+    m_meshPool = std::make_unique<MeshPool>(device, *commandList, MAX_MESHES, 30000, 30000);
 
     SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
-    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets/models/Cube/meshes/Cube.bin ");
+    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\meshes\\Cube.bin");
     m_skyDomeMesh.first = GetMesh(device, commandList.get(), m_skyDomeMesh.second);
 
     CameraMats cam{};
@@ -60,7 +62,6 @@ KS::Scene::Scene(Device& device)
         std::make_unique<StorageBuffer>(device, *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
 
     m_BVH = std::make_unique<TLAS>();
-
     device.CloseCommandContext(std::move(commandContext));
 }
 
@@ -84,6 +85,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                     LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
                     return;
                 }
+
                 auto meshHandle = ptr->meshes[mesh];
                 auto mat = ptr->materials[material];
 
@@ -91,7 +93,6 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 std::string key = name + std::to_string(m_modelCount);
 
                 draw_queue[key] = KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform);
-
 
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
@@ -185,7 +186,7 @@ void KS::Scene::Tick(Device& device)
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    m_BVH->Build(device, *commandList);
+    //m_BVH->Build(device, *commandList);
 
     device.CloseCommandContext(std::move(commandContext));
 }
@@ -244,10 +245,11 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         std::filesystem::path p(meshHandle.path);
         std::string mesh_name_extracted = p.stem().string();
 
-        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
+        //auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
+        auto meshPtr = m_meshPool->AllocateMesh(device, *commandList, data, mesh_name_extracted.c_str());
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
-        obj->second->SetVDataOffset(m_vDataOffset);
-        obj->second->SetIndexDataOffset(m_indexDataOffset);
+        //obj->second->SetVDataOffset(m_vDataOffset);
+        //obj->second->SetIndexDataOffset(m_indexDataOffset);
 
         auto view = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<uint8_t>();
         size_t size = view.count();

@@ -27,7 +27,7 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
-    std::shared_ptr<DXResource> CreateBLAS(const Device& device, DXCommandList& commandList);
+    std::shared_ptr<DXResource> CreateBLAS(const Device& device, DXCommandList& commandList, uint32_t vCount, uint32_t iCount);
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_attributeBuffers;
 
@@ -37,5 +37,6 @@ private:
     uint32_t m_maxVerticesPerMesh = 0;
     uint32_t m_maxIndicesPerMesh = 0;
     uint32_t m_maxMeshes = 0;
+    uint32_t m_meshCounter = 0;
 };
 }

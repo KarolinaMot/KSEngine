@@ -15,7 +15,7 @@ class CommandList;
 class TLAS;
 class Mesh;
 class Image;
-//class MeshPool;
+class MeshPool;
 
 struct SBTInfo
 {
@@ -58,7 +58,7 @@ public:
     int32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
     MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
-    //MeshPool* GetMeshPool() const { return m_meshPool.get(); }
+    MeshPool* GetMeshPool() const { return m_meshPool.get(); }
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
@@ -85,7 +85,7 @@ private:
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     std::unique_ptr<TLAS> m_BVH;
-    //std::unique_ptr<MeshPool> m_meshPool;
+    std::unique_ptr<MeshPool> m_meshPool;
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);

@@ -4,6 +4,7 @@
 #include <renderer/DX12/Helpers/DX12Conversion.hpp>
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/Shader.hpp>
+#include <renderer/MeshPool.hpp>
 #include <renderer/ShaderInputBlueprint.hpp>
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
@@ -98,13 +99,14 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         BindDrawResources(commandList);
         auto skydomeMesh = scene.GetSkydomeMesh().first;
         using namespace MeshConstants;
-        auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-        auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+        //auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+        //auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-        positions->BindAsVertexData(*commandList, 0);
-        indices->BindAsIndexData(*commandList);
-
-        commandList->DrawIndexed(indices->GetElementCount());
+        //positions->BindAsVertexData(*commandList, 0);
+        //indices->BindAsIndexData(*commandList);
+        int shaderFlags = m_shader->GetFlags();
+        scene.GetMeshPool()->BindMesh(*commandList, skydomeMesh.get(), shaderFlags);
+        commandList->DrawIndexed(skydomeMesh->GetICount());
         device.CloseCommandContext(std::move(*commandContext));
         return;
     }
@@ -150,29 +152,34 @@ void KS::ModelRenderer::DrawMesh(Device & device, Scene & scene, DXCommandList &
 
     using namespace MeshConstants;
 
-    auto positions = meshSet.mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-    auto normals = meshSet.mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
-    auto uvs = meshSet.mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
-    auto tangents = meshSet.mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
-    auto indices = meshSet.mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+    //auto positions = meshSet.mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+    //auto normals = meshSet.mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
+    //auto uvs = meshSet.mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
+    //auto tangents = meshSet.mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
+    //auto indices = meshSet.mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
     scene.GetUniformBuffer(MODEL_INDEX_BUFFER)
         ->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("model_index"), meshSet.modelIndex);
 
     int shaderFlags = m_shader->GetFlags();
 
-    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
+    //if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
+    //if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
+    //if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
+    //if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
 
-    indices->BindAsIndexData(commandList);
+    //indices->BindAsIndexData(commandList);
 
-    meshSet.baseTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("base_tex"));
-    meshSet.normalTex->Bind(device, commandList,m_shader->GetShaderInput()->GetInput("normal_tex"));
-    meshSet.emissiveTex->Bind(device,commandList, m_shader->GetShaderInput()->GetInput("emissive_tex"));
-    meshSet.roughMetTex->Bind(device, commandList,m_shader->GetShaderInput()->GetInput("roughmet_tex"));
-    meshSet.occlusionTex->Bind(device, commandList,m_shader->GetShaderInput()->GetInput("occlusion_tex"));
+    scene.GetMeshPool()->BindMesh(commandList, meshSet.mesh, shaderFlags);
 
-    commandList.DrawIndexed(indices->GetElementCount());
+    if (shaderFlags & Shader::MeshInputFlags::PBR_TEXTURES)
+    {
+        meshSet.baseTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("base_tex"));
+        meshSet.normalTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("normal_tex"));
+        meshSet.emissiveTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("emissive_tex"));
+        meshSet.roughMetTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("roughmet_tex"));
+        meshSet.occlusionTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("occlusion_tex"));
+    }
+
+    commandList.DrawIndexed(meshSet.mesh->GetICount());
 }

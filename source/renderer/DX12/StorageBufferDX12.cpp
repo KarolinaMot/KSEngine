@@ -65,14 +65,15 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
 
     const UINT64 bytes = m_buffer_stride * numOfElements;
     auto upl = device.GetUploadArena();
-    memcpy(m_impl->m_slice.m_cpu + m_impl->m_slice.m_head, data, size_t(bytes));
+    memcpy(m_impl->m_slice.m_cpu + m_impl->m_slice.m_head + dstOffset, data, size_t(bytes));
 
     auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_impl->m_slice.m_pageID));
     commandList.TransitionResource(*m_impl->m_resource, D3D12_RESOURCE_STATE_COPY_DEST);
 
     // Copy from arena into DEFAULT heap buffer
     commandList.GetCommandList()->CopyBufferRegion(m_impl->m_resource->GetResource().Get(), dstOffset,
-                                                   uploadSource->GetResource().Get(), m_impl->m_slice.m_head, bytes);
+                                                   uploadSource->GetResource().Get(), m_impl->m_slice.m_head + dstOffset,
+                                                   bytes);
 
     commandList.TransitionResource(*m_impl->m_resource, destState);
 }
