@@ -8,9 +8,10 @@
 class KS::MeshPool::Impl
 {
 public:
-    void FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UINT vbCount, const StorageBuffer* ib, UINT ibStride,
-                          UINT ibCount, D3D12_RAYTRACING_GEOMETRY_FLAGS flags);
-    D3D12_RAYTRACING_GEOMETRY_DESC m_geom{};
+    void FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UINT vbCount, UINT vbOffset, const StorageBuffer* ib,
+                          UINT ibStride, UINT ibCount, UINT ibOffset, D3D12_RAYTRACING_GEOMETRY_FLAGS flags,
+                          uint32_t meshIndex);
+    D3D12_RAYTRACING_GEOMETRY_DESC m_geom[MAX_MESHES]{};
 };
 
 KS::MeshPool::MeshPool(Device& device, DXCommandList& commandList, uint32_t maxMeshes, uint32_t maxVerticesPerMesh,
@@ -71,9 +72,9 @@ std::shared_ptr<KS::Mesh> KS::MeshPool::AllocateMesh(Device& device, DXCommandLi
         m_attributeBuffers[name]->Update(device, commandList, start, size/stride, elementOffset, true);
     }
 
-    auto vView = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<glm::vec3>();
+    auto vView = data.GetAttribute(MeshConstants::ATTRIBUTE_POSITIONS_NAME)->GetView<glm::vec3>();
     size_t vSize = vView.count();
-    size_t vStride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_NORMALS_NAME)->second;
+    size_t vStride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_POSITIONS_NAME)->second;
 
     auto iView = data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME)->GetView<uint32_t>();
     auto iSize = iView.count();
@@ -158,7 +159,7 @@ std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCom
         }
     }
     
-    m_impl->FillGeometryDesc(*vb, vbStride, vCount, ibRaw, ibStride, iCount, D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
+    m_impl->FillGeometryDesc(*vb, vbStride, vCount, m_vOffset, ibRaw, ibStride, iCount, m_iOffset, D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE, m_meshCounter);
     
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     
@@ -166,7 +167,7 @@ std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCom
     inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     inputs.NumDescs = 1;
-    inputs.pGeometryDescs = &m_impl->m_geom;
+    inputs.pGeometryDescs = &m_impl->m_geom[m_meshCounter];
     inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
     
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO pre{};
@@ -181,8 +182,7 @@ std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCom
     
     const UINT64 scratchSize = Align256(pre.ScratchDataSizeInBytes);
     std::shared_ptr<DXResource> scratch;
-    scratch =
-        std::make_shared<DXResource>(engineDevice, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    scratch = std::make_shared<DXResource>(engineDevice, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                         CD3DX12_RESOURCE_DESC::Buffer(scratchSize,
                                         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), nullptr, "Mesh BLAS scratch",
                                         D3D12_RESOURCE_STATE_COMMON);
@@ -208,27 +208,29 @@ std::shared_ptr<DXResource> KS::MeshPool::CreateBLAS(const Device& device, DXCom
     commandList.TransitionResource(*ibResource, D3D12_RESOURCE_STATE_INDEX_BUFFER);
     
     commandList.TrackResource(m_BLAS->GetResource());
+    commandList.TrackResource(scratch->GetResource());
 
     return m_BLAS;
 }
 
-void KS::MeshPool::Impl::FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UINT vbCount, const StorageBuffer* ib,
-                                      UINT ibStride, UINT ibCount, D3D12_RAYTRACING_GEOMETRY_FLAGS flags)
+void KS::MeshPool::Impl::FillGeometryDesc(const StorageBuffer& vb, UINT vbStride, UINT vbCount, UINT vbOffset,
+                                          const StorageBuffer* ib, UINT ibStride, UINT ibCount, UINT ibOffset,
+                                          D3D12_RAYTRACING_GEOMETRY_FLAGS flags, uint32_t meshIndex)
 {
-    m_geom = {};
-    m_geom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-    m_geom.Flags = flags;
+    auto& geom = m_geom[meshIndex];
+    geom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+    geom.Flags = flags;
 
-    auto& t = m_geom.Triangles;
+    auto& t = geom.Triangles;
     t.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;  // position format (assumed)
-    t.VertexBuffer.StartAddress = vb.GetGPUAddress(0, 0);
+    t.VertexBuffer.StartAddress = vb.GetGPUAddress(vbOffset, 0);
     t.VertexBuffer.StrideInBytes = vbStride;
     t.VertexCount = vbCount;
 
     if (ib && ibCount > 0)
     {
         t.IndexFormat = IndexFormatFromStride(ibStride);
-        t.IndexBuffer = ib->GetGPUAddress(0, 0);
+        t.IndexBuffer = ib->GetGPUAddress(ibOffset, 0);
         t.IndexCount = ibCount;
     }
     else

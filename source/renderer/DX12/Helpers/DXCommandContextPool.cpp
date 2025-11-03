@@ -33,13 +33,13 @@ void DXCommandContextPool::RetireCompleted()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    for (auto ctx : m_inFlight)
+    for (auto& ctx : m_inFlight)
     {
-        if (!ctx.m_future.IsComplete()) continue;
+        if (!ctx.m_future.IsComplete()) return;
 
         ctx.m_commandAllocator->Reset();
-        m_inFlight.pop_front();
         m_free.push(std::move(ctx));
+        m_inFlight.pop_front();
     }
 }
 
@@ -86,5 +86,21 @@ void DXCommandContextPool::CreateCommandSet(ComPtr<ID3D12Device5> device)
     context.m_commandAllocator = std::make_shared<DXCommandAllocator>(device, ("CommandAllocator" + std::to_string(m_free.size())).c_str());
     context.m_commandList = std::make_shared<DXCommandList>(device, context.m_commandAllocator,
                                                                 ("CommandList" + std::to_string(m_free.size())).c_str());
+    context.m_pool = shared_from_this();
+
 	m_free.push(std::move(context));
+}
+
+void DXCommandContext::Close()
+{
+    if (!m_commandAllocator || !m_commandList) return;
+    if (auto lock = m_pool.lock())
+    {
+        lock->Close(std::move(*this));
+    }
+
+    m_commandAllocator = nullptr;
+    m_commandList = nullptr;
+    m_future = {};
+    m_pool.reset();
 }

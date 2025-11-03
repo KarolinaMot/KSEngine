@@ -175,6 +175,7 @@ void KS::TLAS::EnsureScratch(const Device& device, uint64_t neededBytes)
 void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
 {
     auto frameIndex = device.GetCPUFrameIndex();
+    m_Impl->m_updateStructure[frameIndex] = true;
     if (!m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex]) return;
 
     const UINT count = static_cast<UINT>(m_instances.size());
@@ -186,7 +187,6 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     }
     const bool doUpdate = m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex] &&
                           (m_Impl->m_tlas[frameIndex] != nullptr);
-
     auto descSize = Align256(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * static_cast<UINT64>(m_instances.size()));
 
     EnsureInstanceCapacity(device, cmd, count);

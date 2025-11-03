@@ -62,7 +62,7 @@ KS::Scene::Scene(Device& device)
         std::make_unique<StorageBuffer>(device, *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
 
     m_BVH = std::make_unique<TLAS>();
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 KS::Scene::~Scene() {}
@@ -135,7 +135,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
     mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, &m_materialInstances[0], m_modelCount);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Scene::ApplyModelTransform(std::string name, const glm::mat4& transfrom)
@@ -186,9 +186,9 @@ void KS::Scene::Tick(Device& device)
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    //m_BVH->Build(device, *commandList);
+    m_BVH->Build(device, *commandList);
 
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Scene::SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture)

@@ -39,7 +39,6 @@ public:
 
     void* GetDevice() const;
     DXCommandContext GetCommandContext() const;
-    void CloseCommandContext(DXCommandContext&&) const;
     void* GetResourceHeap() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;

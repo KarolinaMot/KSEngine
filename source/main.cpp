@@ -128,9 +128,9 @@ int main()
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     scene.QueueModel(*device, cubeModel, transform, "Cube");
-    transform = glm::translate(transform, glm::vec3(-3.f, 0.f, 0.f));
-    transform = glm::scale(transform, glm::vec3(0.5f));
-    scene.QueueModel(*device, model, transform, "Damaged helmet");
+    //transform = glm::translate(transform, glm::vec3(-3.f, 0.f, 0.f));
+    //transform = glm::scale(transform, glm::vec3(0.5f));
+    //scene.QueueModel(*device, model, transform, "Damaged helmet");
 
     device->EndFrame();
     bool recomp = false;

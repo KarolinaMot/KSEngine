@@ -55,7 +55,7 @@ public:
     ComPtr<IDXGISwapChain3> m_swapchain;
 
     std::unique_ptr<DXCommandQueue> m_command_queue;
-    std::unique_ptr<DXCommandContextPool> m_commandPool;
+    std::shared_ptr<DXCommandContextPool> m_commandPool;
     DXGPUFuture m_fence_values[FRAME_BUFFER_COUNT];
     std::shared_ptr<UploadArena> m_uploadArena;
 
@@ -88,11 +88,6 @@ void* KS::Device::GetDevice() const
 DXCommandContext KS::Device::GetCommandContext() const
 { 
     return m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
-}
-
-void KS::Device::CloseCommandContext(DXCommandContext&& context) const 
-{ 
-    m_impl->m_commandPool->Close(std::move(context));
 }
 
 void* KS::Device::GetResourceHeap() const
@@ -133,7 +128,7 @@ void KS::Device::NewFrame()
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    m_impl->m_commandPool->Close(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Device::EndFrame()
@@ -150,7 +145,7 @@ void KS::Device::EndFrame()
 
     glfwSwapBuffers(m_impl->m_window);
     m_swapchainRT->PrepareToPresent(*commandList, m_cpu_frame);
-    m_impl->m_commandPool->Close(std::move(commandContext));
+    commandContext.Close();
 
     m_impl->EndFrame(m_cpu_frame);
 
@@ -429,5 +424,5 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
         tempSwapChain.As(&m_swapchain);
     }
 
-    m_commandPool = std::make_unique<DXCommandContextPool>();
+    m_commandPool = std::make_shared<DXCommandContextPool>();
 }

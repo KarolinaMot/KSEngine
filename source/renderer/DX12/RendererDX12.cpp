@@ -291,8 +291,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     mipGenDesc.shader = mipMapShader;
     m_subrenderers[MIP_GEN] = std::make_unique<ComputeRenderer>(device, mipGenDesc);
 
-
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 KS::Renderer::~Renderer() {}
@@ -388,7 +387,7 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
 
     m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, scene, m_inputs[UPSCALING_RENDER], true);
 
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Renderer::Main(Device& device, Scene& scene)
@@ -436,7 +435,7 @@ void KS::Renderer::Main(Device& device, Scene& scene)
 
     device.GetRenderTarget()->CopyTo(*commandList, frameIndex, m_renderTargets[PBR_RENDER], 0, 0);
 
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
@@ -471,7 +470,7 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
     }
 
     device.ClearMipmapQueue();
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Renderer::Raytrace(Device& device, Scene& scene)
@@ -488,7 +487,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto& boundRT = m_renderTargets[RT_RENDER];
     device.GetRenderTarget()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
 
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Renderer::GenCubemap(Device& device, Scene& scene) 
@@ -509,7 +508,7 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
         ->SetDispatchSize(skydome.first->GetWidth(), skydome.first->GetHeight(), 6);
     m_subrenderers[CUBEMAP_GEN]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_GEN], false);
 
-    device.CloseCommandContext(std::move(commandContext));
+    commandContext.Close();
 }
 
 void KS::Renderer::RenderCubemap(Device& device, Scene& scene)

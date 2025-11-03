@@ -107,11 +107,11 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         int shaderFlags = m_shader->GetFlags();
         scene.GetMeshPool()->BindMesh(*commandList, skydomeMesh.get(), shaderFlags);
         commandList->DrawIndexed(skydomeMesh->GetICount());
-        device.CloseCommandContext(std::move(*commandContext));
+        commandContext->Close();
         return;
     }
 
-    device.CloseCommandContext(std::move(*commandContext));
+    commandContext->Close();
 
     auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device)
     {
@@ -123,7 +123,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         {
             DrawMesh(device, scene, *context.m_commandList.get(), meshIndex);
         }
-        device.CloseCommandContext(std::move(context));
+        context.Close();
     };
 
     std::vector<std::thread> workerThreads;
