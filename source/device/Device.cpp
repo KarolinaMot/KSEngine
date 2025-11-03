@@ -67,8 +67,12 @@ KS::Device::Device(const DeviceInitParams& params)
 {
     m_impl = std::make_unique<Impl>();
     m_fullscreen = false;
-    m_width = params.window_width;
-    m_height = params.window_height;
+
+    m_swapchainWidth = params.window_width;
+    m_swapchainHeight = params.window_height;
+    m_windowHeight = params.window_height;
+    m_windowWidth = params.window_width;
+
     m_impl->InitializeWindow(params);
     m_window_open = true;
     m_clear_color = params.clear_color;
@@ -117,14 +121,21 @@ void KS::Device::NewFrame()
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
     m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
-    //m_swapchainRT->PrepareToRenderTo(*this, *commandList);
-    //m_swapchainDS->PrepareToUse(*commandList);
+
     m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
     m_swapchainRT->Clear(*commandList, m_cpu_frame);
     m_swapchainDS->Clear(*commandList);
+    glfwGetWindowSize(m_impl->m_window, &m_windowWidth, &m_windowHeight);
 
-    ImGui::GetIO().DisplaySize.x = static_cast<float>(m_width);
-    ImGui::GetIO().DisplaySize.y = static_cast<float>(m_height);
+    //ImGui::GetIO().DisplaySize.x = static_cast<float>(m_windowWidth);
+    //ImGui::GetIO().DisplaySize.y = static_cast<float>(m_windowHeight);
+    auto io = ImGui::GetIO();
+    io.DisplayFramebufferScale = ImVec2(m_windowWidth / (float)m_swapchainWidth, m_windowHeight / (float)m_swapchainHeight);
+    double mx, my;
+    glfwGetCursorPos(m_impl->m_window, &mx, &my);
+    ImGui::GetIO().MousePos = ImVec2((float)(mx), (float)(my));
+    //ImGui::GetIO().MousePos = ImVec2(mouse_x * io.DisplayFramebufferScale.x, mouse_y * io.DisplayFramebufferScale.y);
+
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -168,13 +179,13 @@ void KS::Device::InitializeSwapchain()
             LOG(Log::Severity::FATAL, "Failed to get swapchain buffer");
         }
 
-        m_swapchainTex[i] = std::make_shared<Texture>(res.Get(), m_width, m_height, Texture::RENDER_TARGET);
+        m_swapchainTex[i] = std::make_shared<Texture>(res.Get(), m_swapchainWidth, m_swapchainHeight, Texture::RENDER_TARGET);
     }
 
     m_swapchainRT = std::make_shared<RenderTarget>();
     m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target");
 
-    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_width, m_height, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
+    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
     m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
 }
 
@@ -195,8 +206,8 @@ void KS::Device::InitializeImGUI()
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable |
                                   ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::GetIO().ConfigViewportsNoDecoration = false;
-    ImGui::GetIO().DisplaySize.x = static_cast<float>(m_width);
-    ImGui::GetIO().DisplaySize.y = static_cast<float>(m_height);
+    ImGui::GetIO().DisplaySize.x = static_cast<float>(m_swapchainWidth);
+    ImGui::GetIO().DisplaySize.y = static_cast<float>(m_swapchainHeight);
 
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP];
 

@@ -8,6 +8,7 @@
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
 #include <resources/Texture.hpp>
+#include <resources/Skydome.hpp>
 #pragma warning(push, 0)
 #include <DXR/DXRHelper.h>
 #include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
@@ -48,7 +49,6 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
         m_impl->m_shaderTable[i] = std::make_unique<DXShaderTable>();
-        m_impl->m_shaderTable[i]->AddMiss(L"Miss");
 
         D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         outputHandle.ptr += static_cast<uint64_t>((RAYTRACE_RT_SLOT + i) * heap->GetDescriptorSize());
@@ -87,7 +87,11 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         D3D12_GPU_DESCRIPTOR_HANDLE tanHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
         tanHandle.ptr += static_cast<uint64_t>(TAN_SLOT) * heap->GetDescriptorSize();
 
-        std::vector<void*> heapPointers(14);
+        auto skyboxHandleID = scene.GetSkydome().first->GetHandleIndex(true);
+        D3D12_GPU_DESCRIPTOR_HANDLE skyboxHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+        skyboxHandle.ptr += static_cast<uint64_t>(skyboxHandleID) * heap->GetDescriptorSize();
+
+        std::vector<void*> heapPointers(15);
         heapPointers[0] = reinterpret_cast<void*>(outputHandle.ptr);
         heapPointers[1] = reinterpret_cast<void*>(tlasHandle.ptr);
         heapPointers[2] = reinterpret_cast<void*>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i));
@@ -102,12 +106,15 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
         heapPointers[11] = reinterpret_cast<void*>(pointLights.ptr);
         heapPointers[12] = reinterpret_cast<void*>(textures.ptr);
         heapPointers[13] = reinterpret_cast<void*>(scene.GetUniformBuffer(LIGHT_INFO_BUFFER)->GetGPUAddress(0, i));
+        heapPointers[14] = reinterpret_cast<void*>(skyboxHandle.ptr);
 
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
                                             static_cast<UINT>(sizeof(void*) * heapPointers.size()));
 
         m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup", heapPointers.data(),
                                               static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+
+        m_impl->m_shaderTable[i]->AddMiss(L"Miss", heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size()));
 
         auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
         m_impl->m_shaderTable[i]->Build(engineDevice, pipeline->m_stateObjectProps.Get());
@@ -125,7 +132,7 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Sc
     m_renderTarget->GetTexture(cpuFrameIndex, 0)->TransitionToRW(device, *commandList);
 
      D3D12_DISPATCH_RAYS_DESC desc =
-         m_impl->m_shaderTable[cpuFrameIndex]->FillDispatchDesc(device.GetWidth(), device.GetHeight(), 1);
+         m_impl->m_shaderTable[cpuFrameIndex]->FillDispatchDesc(device.GetSwapchainWidth(), device.GetSwapchainHeight(), 1);
      auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline())->m_pipeline.Get();
 
     // Bind the raytracing pipeline

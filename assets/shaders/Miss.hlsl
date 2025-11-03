@@ -1,8 +1,11 @@
 #include "Common.hlsl"
 
+TextureCube skyMap : register(t11);
+SamplerState mainSampler : register(s0);
+
 [shader("miss")]
 void Miss(inout HitInfo payload : SV_RayPayload)
 {
-    
-    payload.colorAndDistance = float4(0.2f, 0.2f, 0.8f, -1.f);
+    float3 dir = normalize(WorldRayDirection());
+    payload.colorAndDistance = skyMap.SampleLevel(mainSampler, dir, 0.f);
 }

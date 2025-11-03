@@ -53,8 +53,12 @@ public:
 
     unsigned int GetFrameIndex() const { return m_frame_index; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
-    int GetWidth() const { return m_width; }
-    int GetHeight() const { return m_height; }
+
+    int GetSwapchainWidth() const { return m_swapchainWidth; }
+    int GetSwapchainHeight() const { return m_swapchainHeight; }
+    int GetWindowWidth() const { return m_windowWidth; }
+    int GetWindowHeight() const { return m_windowHeight; }
+
     void TrackResource(::std::shared_ptr<void> buffer);
     std::shared_ptr<RenderTarget> GetRenderTarget() { return m_swapchainRT; };
     std::shared_ptr<Texture> GetRenderTargetTexture(int index) { return m_swapchainTex[index]; };
@@ -87,7 +91,8 @@ private:
     unsigned int m_frame_index = 0;
     unsigned int m_cpu_frame = 0;
     bool m_fullscreen = false;
-    int m_width, m_height;
+    int m_swapchainWidth, m_swapchainHeight;
+    int m_windowWidth, m_windowHeight;
     glm::vec4 m_clear_color;
     std::shared_ptr<RenderTarget> m_swapchainRT;
     std::shared_ptr<Texture> m_swapchainTex[2];
