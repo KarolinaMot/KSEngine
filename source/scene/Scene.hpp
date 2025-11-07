@@ -67,7 +67,7 @@ public:
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
-
+    TLAS* GetBVH() const { return m_BVH.get(); }
     
 private:
     const Model* GetModel(ResourceHandle<Model> model);

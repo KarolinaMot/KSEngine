@@ -146,11 +146,6 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                              .SetFlags(fullInputFlags)
                                              .SetGlobalSignature(m_mainInputs)
                                              .Build(device);
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_MESH_RENDER, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Deferred.hlsl"},
-        //std::initializer_list<Formats>{Formats::R8G8B8A8_UNORM, Formats::R32G32B32A32_FLOAT, Formats::R8G8B8A8_UNORM,
-        //                               Formats::R8G8B8A8_UNORM},
-        //fullInputFlags);
 
     std::shared_ptr<Shader> lightOccluderShader = ShaderBuilder()
                                                       .SetType(ShaderType::ST_MESH_RENDER)
@@ -159,9 +154,6 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                                       .SetFlags(positionsInputFlags)
                                                       .SetGlobalSignature(m_mainInputs)
                                                       .Build(device);
-        //std::make_shared<Shader>(device, ShaderType::ST_MESH_RENDER, m_mainInputs,
-        //                         std::initializer_list<std::string>{"assets/shaders/OccluderShader.hlsl"},
-        //                         std::initializer_list<Formats>{Formats::R8G8B8A8_UNORM}, positionsInputFlags);
 
     std::shared_ptr<Shader> skyboxRenderShader = ShaderBuilder()
                                                      .SetType(ShaderType::ST_MESH_RENDER)
@@ -171,46 +163,30 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                                      .SetGlobalSignature(m_mainInputs)
                                                      .Build(device);
 
-        //std::make_shared<Shader>(device, ShaderType::ST_MESH_RENDER, m_mainInputs,
-        //                         std::initializer_list<std::string>{"assets/shaders/RenderCubemap.hlsl"},
-        //                         std::initializer_list<Formats>{Formats::R8G8B8A8_UNORM}, skyboxInputFlags);
-
     std::shared_ptr<Shader> computePBRShader = ShaderBuilder()
                                                    .SetType(ShaderType::ST_COMPUTE)
                                                    .AddShaderPath("assets/shaders/Main.hlsl", L"main")
                                                    .SetGlobalSignature(m_mainInputs)
                                                    .Build(device);
         
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Main.hlsl"},
-        //std::initializer_list<Formats>{});
 
     std::shared_ptr<Shader> lightRendererShader = ShaderBuilder()
                                                       .SetType(ShaderType::ST_COMPUTE)
                                                       .AddShaderPath("assets/shaders/LightRenderer.hlsl", L"main")
                                                       .SetGlobalSignature(m_mainInputs)
                                                       .Build(device);
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/LightRenderer.hlsl"},
-        //std::initializer_list<Formats>{});
 
     std::shared_ptr<Shader> lightShaftShader = ShaderBuilder()
                                                    .SetType(ShaderType::ST_COMPUTE)
                                                    .AddShaderPath("assets/shaders/LightShaftShader.hlsl", L"main")
                                                    .SetGlobalSignature(m_mainInputs)
                                                    .Build(device);
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_COMPUTE, m_mainInputs,
-        //std::initializer_list<std::string>{"assets/shaders/LightShaftShader.hlsl"}, std::initializer_list<Formats>{});
 
     std::shared_ptr<Shader> upscalingShader = ShaderBuilder()
                                                   .SetType(ShaderType::ST_COMPUTE)
                                                   .AddShaderPath("assets/shaders/Upscaling.hlsl", L"main")
                                                   .SetGlobalSignature(m_mainInputs)
                                                   .Build(device);
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/Upscaling.hlsl"},
-        //std::initializer_list<Formats>{});
 
     std::shared_ptr<Shader> rtShader = ShaderBuilder()
                                            .SetType(ShaderType::ST_RAYTRACER)
@@ -218,21 +194,15 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                            .AddShaderPath("assets/shaders/Miss.hlsl", L"Miss")
                                            .AddShaderPath("assets/shaders/RayGen.hlsl", L"RayGen")
                                            .AddLocalShaderInputLink(m_rtInputs, std::initializer_list<LPCWSTR>{L"ClosestHit", L"Miss", L"RayGen"})
+                                           //.SetGlobalSignature(m_rtInputs)     
                                            .Build(device);
 
-    //std::make_shared<Shader>(
-    //    device, ShaderType::ST_RAYTRACER, m_rtInputs,
-    //    std::initializer_list<std::string>{"assets/shaders/Hit.hlsl", "assets/shaders/Miss.hlsl", "assets/shaders/RayGen.hlsl"},
-    //    std::initializer_list<Formats>{});
 
     std::shared_ptr<Shader> skyboxShader = ShaderBuilder()
                                                .SetType(ShaderType::ST_COMPUTE)
                                                .AddShaderPath("assets/shaders/SkyboxGen.hlsl", L"main")
                                                .SetGlobalSignature(m_mainInputs)
                                                .Build(device);
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_COMPUTE, m_mainInputs, std::initializer_list<std::string>{"assets/shaders/SkyboxGen.hlsl"},
-        //std::initializer_list<Formats>{});
 
     m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
     for (int i = 0; i < 4; i++)
@@ -316,7 +286,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(4);
     m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(1);
-    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(0);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(8);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
@@ -341,10 +311,6 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                                .SetGlobalSignature(m_mipMapShaderInputs)
                                                .Build(device);
         
-        //std::make_shared<Shader>(
-        //device, ShaderType::ST_COMPUTE, m_mipMapShaderInputs, std::initializer_list<std::string>{"assets/shaders/MipGen.hlsl"},
-        //std::initializer_list<Formats>{});
-
     SubRendererDesc mipGenDesc{};
     mipGenDesc.shader = mipMapShader;
     m_subrenderers[MIP_GEN] = std::make_unique<ComputeRenderer>(device, mipGenDesc);
@@ -549,6 +515,27 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
+    //auto rtRenderTarget = m_renderTargets[RT_RENDER]->GetTexture(frameIndex, 0);
+    //auto skydome = scene.GetSkydome();
+    //
+    //m_inputs[RT_RENDER][0] =
+    //    std::pair<ShaderInput*, ShaderInputDesc>(rtRenderTarget.get(), rootSignature->GetInput("output_tex"));
+    //m_inputs[RT_RENDER][1] =
+    //    std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(scene.GetBVH()), rootSignature->GetInput("BVH"));
+    //m_inputs[RT_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
+    //                                                                  rootSignature->GetInput("camera_buffer"));
+    //m_inputs[RT_RENDER][3] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+    //    scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("material_info")));
+    //m_inputs[RT_RENDER][4] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+    //    scene.GetStorageBuffer(MODEL_MAT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("modelMats")));
+    //m_inputs[RT_RENDER][5] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+    //    scene.GetStorageBuffer(POINT_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("point_lights")));
+    //m_inputs[RT_RENDER][6] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+    //    scene.GetStorageBuffer(DIR_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("dir_lights")));
+    //m_inputs[RT_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()),
+    //                                                                  rootSignature->GetInput("cubemap_tex"));
+
     m_subrenderers[RT_RENDER]->Render(device, &commandContext, scene, m_inputs[RT_RENDER], true);
 
     auto& boundRT = m_renderTargets[RT_RENDER];
