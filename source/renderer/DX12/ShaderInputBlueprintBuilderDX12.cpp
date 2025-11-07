@@ -11,13 +11,13 @@ public:
     std::vector<D3D12_STATIC_SAMPLER_DESC> mSamplers;
 
     D3D12_SHADER_VISIBILITY GetVisibility(ShaderInputVisibility visibility);
-    void AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader);
-    void AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType, int numDescriptors,
-                  int shaderRegister);
+    void AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader, int registerSpace=0);
+    void AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType, int numDescriptors, int shaderRegister,
+                  int registerSpace=0);
     void AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader, D3D12_TEXTURE_ADDRESS_MODE mode,
                     D3D12_FILTER filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,
                     D3D12_STATIC_BORDER_COLOR color = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-                    D3D12_COMPARISON_FUNC comparison = D3D12_COMPARISON_FUNC_NEVER);
+                    D3D12_COMPARISON_FUNC comparison = D3D12_COMPARISON_FUNC_NEVER, int registerSpace=0);
 };
 
 KS::ShaderInputBlueprintBuilder::ShaderInputBlueprintBuilder()
@@ -28,10 +28,11 @@ KS::ShaderInputBlueprintBuilder::ShaderInputBlueprintBuilder()
 
 KS::ShaderInputBlueprintBuilder::~ShaderInputBlueprintBuilder() {}
 
-void KS::ShaderInputBlueprintBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader)
+void KS::ShaderInputBlueprintBuilder::Impl::AddCBuffer(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
+                                                       int registerSpace)
 {
     D3D12_ROOT_DESCRIPTOR desc;
-    desc.RegisterSpace = 0;
+    desc.RegisterSpace = registerSpace;
     desc.ShaderRegister = shaderRegister;
 
     D3D12_ROOT_PARAMETER par;
@@ -43,13 +44,13 @@ void KS::ShaderInputBlueprintBuilder::Impl::AddCBuffer(const uint32_t shaderRegi
 }
 
 void KS::ShaderInputBlueprintBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY shader, D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-                                             int numDescriptors, int shaderRegister)
+                                             int numDescriptors, int shaderRegister, int registerSpace)
 {
     D3D12_DESCRIPTOR_RANGE range;
     range.RangeType = rangeType;
     range.NumDescriptors = numDescriptors;
     range.BaseShaderRegister = shaderRegister;
-    range.RegisterSpace = 0;
+    range.RegisterSpace = registerSpace;
     range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     mRanges[mRangeCounter] = range;
@@ -68,7 +69,8 @@ void KS::ShaderInputBlueprintBuilder::Impl::AddTable(D3D12_SHADER_VISIBILITY sha
 
 void KS::ShaderInputBlueprintBuilder::Impl::AddSampler(const uint32_t shaderRegister, D3D12_SHADER_VISIBILITY shader,
                                                D3D12_TEXTURE_ADDRESS_MODE mode, D3D12_FILTER filter,
-                                               D3D12_STATIC_BORDER_COLOR color, D3D12_COMPARISON_FUNC comparison)
+                                                       D3D12_STATIC_BORDER_COLOR color, D3D12_COMPARISON_FUNC comparison,
+                                                       int registerSpace)
 {
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter = filter;
@@ -82,25 +84,31 @@ void KS::ShaderInputBlueprintBuilder::Impl::AddSampler(const uint32_t shaderRegi
     sampler.MinLOD = 0.0f;
     sampler.MaxLOD = D3D12_FLOAT32_MAX;
     sampler.ShaderRegister = shaderRegister;
-    sampler.RegisterSpace = 0;
+    sampler.RegisterSpace = registerSpace;
     sampler.ShaderVisibility = shader;
 
     mSamplers.push_back(sampler);
 }
 
 KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddUniform(ShaderInputVisibility visibility,
-                                                                             const std::initializer_list<std::string>& names)
+                                                                             const std::initializer_list<std::string>& names,
+                                                                             uint32_t space)
 {
     KS::ShaderInputDesc input;
     input.rootIndex = m_input_counter;
     input.type = InputType::BUFFER;
-    input.typeIndex = m_buffer_counter;
-    input.visibility = visibility;
 
-    m_impl->AddCBuffer(m_buffer_counter, m_impl->GetVisibility(visibility));
+    auto& st = spaces[space];
+    auto k = (int)input.type;
+    uint32_t base = st.next[k];
+    input.typeIndex = base;
+    input.visibility = visibility;
+    input.spaceIndex = space;
+
+    m_impl->AddCBuffer(base, m_impl->GetVisibility(visibility), space);
 
     m_input_counter++;
-    m_buffer_counter++;
+    st.next[k]++;
 
     for (const auto& name : names)
     {
@@ -110,59 +118,66 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddUniform(Sha
 }
 
 KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
-                                                                   std::string name, ShaderInputMod modifiable)
+                                                                   std::string name, ShaderInputMod modifiable, uint32_t space)
 {
     KS::ShaderInputDesc input;
     input.modifications = modifiable;
     input.numberOfElements = numberOfElements;
     input.rootIndex = m_input_counter;
     input.type = modifiable == ShaderInputMod::READ_ONLY ? InputType::RO_DATA : InputType::RW_DATA;
-    input.typeIndex = modifiable == ShaderInputMod::READ_ONLY ? m_ro_array_counter : m_rw_array_counter;
+
+    auto& st = spaces[space];
+    auto k = (int)input.type;
+    uint32_t base = st.next[k];
+    input.typeIndex = base;
+
     input.visibility = visibility;
+    input.spaceIndex = space;
+
     m_descriptors[name] = input;
 
+    m_impl->AddTable(
+        m_impl->GetVisibility(visibility),
+        modifiable == ShaderInputMod::READ_ONLY ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, base,
+        space);
+
     m_input_counter++;
-    if (modifiable == ShaderInputMod::READ_ONLY)
-    {
-        m_impl->AddTable(m_impl->GetVisibility(visibility), D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, m_ro_array_counter);
-        m_ro_array_counter++;
-    }
-    else
-    {
-        m_impl->AddTable(m_impl->GetVisibility(visibility), D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, m_rw_array_counter);
-        m_rw_array_counter++;
-    }
+    st.next[k]++;
 
     return *this;
 }
 
 KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
-                                                             ShaderInputMod modifiable)
+                                                                             ShaderInputMod modifiable, uint32_t space)
 {
     KS::ShaderInputDesc input;
     input.modifications = modifiable;
     input.rootIndex = m_input_counter;
     input.type = modifiable == ShaderInputMod::READ_ONLY ? InputType::RO_DATA : InputType::RW_DATA;
-    input.typeIndex = modifiable == ShaderInputMod::READ_ONLY ? m_ro_array_counter : m_rw_array_counter;
+
+    auto& st = spaces[space];
+    auto k = (int)input.type;
+    uint32_t base = st.next[k];
+    input.typeIndex = base;
+
     input.visibility = visibility;
+    input.spaceIndex = space;
+
     m_descriptors[name] = input;
 
+    m_impl->AddTable(
+    m_impl->GetVisibility(visibility),
+    modifiable == ShaderInputMod::READ_ONLY ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, base,
+    space);
+
     m_input_counter++;
-    if (modifiable == ShaderInputMod::READ_ONLY)
-    {
-        m_impl->AddTable(m_impl->GetVisibility(visibility), D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, m_ro_array_counter);
-        m_ro_array_counter++;
-    }
-    else
-    {
-        m_impl->AddTable(m_impl->GetVisibility(visibility), D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, m_rw_array_counter);
-        m_rw_array_counter++;
-    }
+    st.next[k]++;
 
     return *this;
 }
 
-KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc)
+KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampler(ShaderInputVisibility visibility,
+                                                                                   SamplerDesc samplerDesc, uint32_t space)
 {
     std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
     D3D12_TEXTURE_ADDRESS_MODE addressMode;
@@ -216,8 +231,14 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampl
             break;
     }
 
-    m_impl->AddSampler(m_sampler_inputs.size(), m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor);
+    auto& st = spaces[space];
+    auto k = (int)InputType::SAMPLER;
+    uint32_t base = st.next[k];
+
+    m_impl->AddSampler(base, m_impl->GetVisibility(sampler.first), addressMode, filterMode, borderColor,
+                       D3D12_COMPARISON_FUNC_NEVER, space);
     m_sampler_inputs.push_back(sampler);
+    st.next[k]++;
 
     return *this;
 }

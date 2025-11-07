@@ -203,7 +203,7 @@ void KS::Device::InitializeImGUI()
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable |
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable |
                                   ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::GetIO().ConfigViewportsNoDecoration = false;
     ImGui::GetIO().DisplaySize.x = static_cast<float>(m_swapchainWidth);

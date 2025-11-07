@@ -3,16 +3,16 @@
 #include "PBR.hlsl"
 
 StructuredBuffer<MaterialInfo> matInfos : register(t1);
-StructuredBuffer<float3> normals : register(t2);
-StructuredBuffer<ModelMat> modelMats : register(t3);
-StructuredBuffer<uint> indices : register(t4);
-StructuredBuffer<float3> vertexPositions : register(t5);
-StructuredBuffer<float2> uvs : register(t6);
-StructuredBuffer<float3> tangents : register(t7);
-StructuredBuffer<DirLight> dirLights : register(t8);
-StructuredBuffer<PointLight> pointLights : register(t9);
+StructuredBuffer<ModelMat> modelMats : register(t2);
+StructuredBuffer<DirLight> dirLights : register(t3);
+StructuredBuffer<PointLight> pointLights : register(t4);
 
-Texture2D<float4> textures[] : register(t10);
+StructuredBuffer<float3> normals[] : register(t0, space1);
+StructuredBuffer<uint> indices[] : register(t0, space2);
+StructuredBuffer<float3> vertexPositions[] : register(t0, space3);
+StructuredBuffer<float2> uvs[] : register(t0, space4);
+StructuredBuffer<float3> tangents[] : register(t0, space5);
+Texture2D<float4> textures[] : register(t0, space6);
 SamplerState mainSampler : register(s0);
 
 cbuffer Camera : register(b0)
@@ -89,7 +89,6 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
     result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
     result = LinearToSRGB(result);
-
     payload.colorAndDistance = float4(result, 1.f);
 }
 
@@ -136,37 +135,37 @@ float3 GetTangent(int instance, int vertId, float3 barycentrics)
 
 float3 GetNormalInVector(int instance, int index)
 {
-    int id = matInfos[instance].normalsOffset + index;
-    float3 normal = normals[id].xyz;
+    int id = matInfos[instance].vOffset + index;
+    float3 normal = normals[instance][index].xyz;
     normal = normalize(mul(normal, (float3x3)modelMats[instance].mInvTransposeMat));
     return normal;
 }
 
 float3 GetTangentInVector(int instance, int index)
 {
-    int id = matInfos[instance].normalsOffset + index;
-    float3 tangent = tangents[id].xyz;
+    int id = matInfos[instance].vOffset + index;
+    float3 tangent = tangents[instance][index].xyz;
     return tangent;
 }
 
 float3 GetPositionInVector(int instance, int index)
 {
-    int id = matInfos[instance].normalsOffset + index;
-    float3 pos = vertexPositions[id].xyz;
+    int id = matInfos[instance].vOffset + index;
+    float3 pos = vertexPositions[instance][index].xyz;
     return pos;
 }
 
 float2 GetUVInVector(int instance, int index)
 {
-    int id = matInfos[instance].uvOffset + index;
-    float2 uv = uvs[id];
+    int id = matInfos[instance].vOffset + index;
+    float2 uv = uvs[instance][index];
     return uv;
 }
 
 int GetIndex(int vertId, int instance, int offset)
 {
-    int offs = matInfos[instance].indexOffset + vertId + offset;
-    return indices[offs];
+    int offs = vertId + offset;
+    return indices[instance][offs];
 }
 
 PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float3x3 tangentBasis)

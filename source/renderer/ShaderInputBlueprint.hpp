@@ -21,10 +21,11 @@ enum class ShaderInputMod
 
 enum class InputType
 {
-    BUFFER,
-    RW_DATA,
     RO_DATA,
-    RANGE
+    RW_DATA,
+    BUFFER,
+    SAMPLER,
+    Count
 };
 
 struct ShaderInputDesc
@@ -35,6 +36,7 @@ struct ShaderInputDesc
     int numberOfElements = 0;
     int rootIndex = 0;
     int typeIndex = 0;
+    int spaceIndex = 0;
 };
 
 struct ShaderInputBindDesc

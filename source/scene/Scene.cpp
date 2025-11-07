@@ -10,7 +10,6 @@
 #include <device/Device.hpp>
 #include <renderer/StorageBuffer.hpp>
 #include <renderer/UniformBuffer.hpp>
-#include <renderer/MeshPool.hpp>
 #include <renderer/TLAS.hpp>
 #include <resources/Model.hpp>
 #include <resources/Texture.hpp>
@@ -26,7 +25,6 @@ KS::Scene::Scene(Device& device)
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
-    m_meshPool = std::make_unique<MeshPool>(device, *commandList, MAX_MESHES, 30000, 30000);
 
     SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
     m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\meshes\\Cube.bin");
@@ -245,11 +243,11 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         std::filesystem::path p(meshHandle.path);
         std::string mesh_name_extracted = p.stem().string();
 
-        //auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
-        auto meshPtr = m_meshPool->AllocateMesh(device, *commandList, data, mesh_name_extracted.c_str());
+        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
+
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
-        //obj->second->SetVDataOffset(m_vDataOffset);
-        //obj->second->SetIndexDataOffset(m_indexDataOffset);
+        obj->second->SetVDataOffset(m_vDataOffset);
+        obj->second->SetIndexDataOffset(m_indexDataOffset);
 
         auto view = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<uint8_t>();
         size_t size = view.count();
