@@ -69,14 +69,16 @@ std::wstring ConvertToWideString(const char* input)
     return wideStr;
 }
 
-KS::Shader::Shader(const Device& device, ShaderType shaderType, std::shared_ptr<ShaderInputBlueprint> ShaderInputs,
-                   std::initializer_list<std::string> paths, std::initializer_list<Formats> rtFormats, int flags)
+KS::Shader::Shader(const Device& device, ShaderType shaderType, std::vector<std::pair<std::string, std::wstring>>&& shaders,
+                   std::vector<ShaderInputLink>&& links, std::shared_ptr<ShaderInputBlueprint>& globalSignature,
+                   std::vector<Formats>&& rtFormats, int flags)
 {
-    m_shader_input = ShaderInputs;
+    m_shaders = std::move(shaders);
+    m_links = std::move(links);
+    m_globalRoot = globalSignature;
     m_shader_type = shaderType;
     m_impl = std::make_unique<Impl>();
-    m_paths = paths;
-    m_formats = rtFormats;
+    m_formats = std::move(rtFormats);
     m_flags = flags;
 
     Compile(device);
@@ -114,10 +116,10 @@ void KS::Shader::Compile(const Device& device)
 void KS::Shader::MeshRenderShader(const Device& device)
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto signature = reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature());
+    auto signature = reinterpret_cast<ID3D12RootSignature*>(m_globalRoot->GetSignature());
 
-    auto v = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), L"vs_6_0", "mainVS");
-    auto p = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), L"ps_6_0", "mainPS");
+    auto v = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), L"vs_6_0", "mainVS");
+    auto p = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), L"ps_6_0", "mainPS");
 
     if (!v || !p)
     {
@@ -162,9 +164,9 @@ void KS::Shader::MeshRenderShader(const Device& device)
 void KS::Shader::ComputeShader(const Device& device) 
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto signature = reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature());
+    auto signature = reinterpret_cast<ID3D12RootSignature*>(m_globalRoot->GetSignature());
 
-    auto v = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), L"cs_6_0", "main");
+    auto v = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), L"cs_6_0", "main");
     
     if (!v)
     {
@@ -182,74 +184,81 @@ void KS::Shader::ComputeShader(const Device& device)
 void KS::Shader::RTShader(const Device& device)
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto signature = reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature());
+    auto globalSignature = m_globalRoot ? reinterpret_cast<ID3D12RootSignature*>(m_globalRoot->GetSignature()) : nullptr;
 
     auto& rtPipeline = m_impl->m_pipelineSet.m_RTPipeline;
     rtPipeline = std::make_shared<DXRTPipeline>();
 
-    ComPtr<IDxcBlob> hitBlob = nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString(m_paths.begin()->c_str()).c_str());
-    ComPtr<IDxcBlob> missBlob =
-        nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString((m_paths.begin() + 1)->c_str()).c_str());
-    ComPtr<IDxcBlob> rayGenBlob =
-        nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString((m_paths.begin() + 2)->c_str()).c_str());
-
-    if (!hitBlob || !missBlob || !rayGenBlob)
-    {
-        std::exit(EXIT_FAILURE);
-    }
-
-    Impl::DXRLibrary missLibrary = m_impl->MakeLibrarySO(missBlob.Get(), L"Miss", nullptr);
-    Impl::DXRLibrary rayGenLibrary = m_impl->MakeLibrarySO(rayGenBlob.Get(), L"RayGen", nullptr);
-    Impl::DXRLibrary hitLibrary = m_impl->MakeLibrarySO(hitBlob.Get(), L"ClosestHit", nullptr);
-
-    D3D12_HIT_GROUP_DESC hitGroup = {
-        .HitGroupExport = L"HitGroup", .Type = D3D12_HIT_GROUP_TYPE_TRIANGLES, .ClosestHitShaderImport = L"ClosestHit"};
+    D3D12_HIT_GROUP_DESC hitGroup = {.HitGroupExport = L"HitGroup",
+                                     .Type = D3D12_HIT_GROUP_TYPE_TRIANGLES,
+                                     .ClosestHitShaderImport = m_shaders[CLOSEST_HIT].second.c_str()};
 
     D3D12_RAYTRACING_SHADER_CONFIG shaderCfg = {
         .MaxPayloadSizeInBytes = sizeof(HitInfo),
         .MaxAttributeSizeInBytes = 8,
     };
 
-    bool localSignature = !m_shader_input->GetIsGlobal();
 
     D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 1};
 
+    std::vector<Impl::DXRLibrary> libraries;
+    libraries.reserve(m_shaders.size());
     std::vector<D3D12_STATE_SUBOBJECT> subs;
-    subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &missLibrary.libDesc});
-    subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &hitLibrary.libDesc});
-    subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &rayGenLibrary.libDesc});
+    subs.reserve(10);
+    std::vector<LPCWSTR> shaderPayloadExports;
+
+    for (int i = 0; i < m_shaders.size(); i++)
+    {
+        if (m_shaders[i].first == "") continue;
+        ComPtr<IDxcBlob> blob = nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString(m_shaders[i].first.c_str()).c_str());
+        if (!blob)
+        {
+            std::exit(EXIT_FAILURE);
+        }
+
+        libraries.push_back(m_impl->MakeLibrarySO(blob.Get(), m_shaders[i].second.c_str(), nullptr));
+        libraries[i].libDesc.pExports = &libraries[i].exports; 
+
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &libraries[i].libDesc});
+
+        if (i == CLOSEST_HIT) shaderPayloadExports.push_back(L"HitGroup");
+        else
+            shaderPayloadExports.push_back(libraries[i].exports.Name);
+    }
+
     subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &hitGroup});
     subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &shaderCfg});
+    auto  shaderConfigId = subs.size() - 1;
 
-    if (localSignature)
+    if (globalSignature)
     {
-        D3D12_LOCAL_ROOT_SIGNATURE localSig = {signature};
-        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSig});
-    }
-    else
-    {
-        D3D12_GLOBAL_ROOT_SIGNATURE globalSig = {signature};
+        D3D12_GLOBAL_ROOT_SIGNATURE globalSig = {globalSignature};
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &globalSig});
     }
 
     subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipelineCfg});
 
     // Create a list of shader entry point names that use the payload.
-    const WCHAR* shaderPayloadExports[] = {L"RayGen", L"HitGroup", L"Miss"};
 
     D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocShaderCfg = {};
-    assocShaderCfg.NumExports = _countof(shaderPayloadExports);
-    assocShaderCfg.pExports = shaderPayloadExports;
-    assocShaderCfg.pSubobjectToAssociate = &subs[4];  // shaderCfg subobject
+    assocShaderCfg.NumExports = shaderPayloadExports.size();
+    assocShaderCfg.pExports = shaderPayloadExports.data();
+    assocShaderCfg.pSubobjectToAssociate = &subs[shaderConfigId];  // shaderCfg subobject
     subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocShaderCfg});
 
-    if (localSignature)
+    for (int i = 0; i < m_links.size(); i++)
     {
+        auto localSignature = reinterpret_cast<ID3D12RootSignature*>(m_links[i].m_input->GetSignature());
+
+        D3D12_LOCAL_ROOT_SIGNATURE localSig = {localSignature};
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSig});
+
         D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocLocalRS = {};
-        assocLocalRS.NumExports = _countof(shaderPayloadExports);
-        assocLocalRS.pExports = shaderPayloadExports;
-        assocLocalRS.pSubobjectToAssociate = &subs[5];  // local RS subobject
+        assocLocalRS.NumExports = m_links[i].shaderNames.size();
+        assocLocalRS.pExports = m_links[i].shaderNames.data();
+        assocLocalRS.pSubobjectToAssociate = &subs[subs.size()-1];  // local RS subobject
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocLocalRS});
+
     }
 
     D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
@@ -283,12 +292,12 @@ void KS::Shader::RTShader(const Device& device)
 KS::Shader::Impl::DXRLibrary KS::Shader::Impl::MakeLibrarySO(IDxcBlob* dxil, const wchar_t* exportName, const wchar_t* toRename)
 {
     DXRLibrary out{};
-    out.libDesc.DXILLibrary.pShaderBytecode = dxil->GetBufferPointer();
-    out.libDesc.DXILLibrary.BytecodeLength = dxil->GetBufferSize();
     out.exports.Name = exportName;  // exported name
     out.exports.ExportToRename = toRename;
     out.exports.Flags = D3D12_EXPORT_FLAG_NONE;
 
+    out.libDesc.DXILLibrary.pShaderBytecode = dxil->GetBufferPointer();
+    out.libDesc.DXILLibrary.BytecodeLength = dxil->GetBufferSize();
     out.libDesc.NumExports = 1;
     out.libDesc.pExports = &out.exports;
 

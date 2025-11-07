@@ -507,6 +507,7 @@ RayTracingPipelineGenerator::RootSignatureAssociation::RootSignatureAssociation(
   {
     m_symbolPointers[i] = m_symbols[i].c_str();
   }
+
   m_rootSignaturePointer = m_rootSignature;
 }
 
