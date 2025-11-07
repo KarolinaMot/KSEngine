@@ -98,12 +98,6 @@ public:
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
     int GetMeshIndex() const { return m_meshIndex; }
-    int GetICount() const { return m_iCount; }
-    int GetVCount() const { return m_vCount; }
-    int GetVDataOffset() const { return m_vDataOffset; }
-    int GetIDataOffset() const { return m_indexDataOffset; }
-    void SetVDataOffset(uint32_t offset) { m_vDataOffset = offset; }
-    void SetIndexDataOffset(uint32_t offset) { m_indexDataOffset = offset; }
 
 private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
@@ -111,9 +105,6 @@ private:
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
     int m_meshIndex = 0;
-    uint32_t m_vCount = 0, m_iCount = 0;
-    uint32_t m_vDataOffset = 0;
-    uint32_t m_indexDataOffset = 0;
 
     class Impl;
     std::unique_ptr<Impl> m_impl;

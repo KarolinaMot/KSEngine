@@ -86,7 +86,6 @@ KS::Mesh::Mesh(Mesh&& other) noexcept
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
     m_meshIndex = other.m_meshIndex;
-    m_vDataOffset = other.m_vDataOffset;
 }
 
 KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
@@ -95,7 +94,6 @@ KS::Mesh& KS::Mesh::operator=(Mesh&& other) noexcept
     other.m_impl = nullptr;
     m_data = std::move(other.m_data);
     m_meshIndex = other.m_meshIndex;
-    m_vDataOffset = other.m_vDataOffset;
     return *this;
 }
 

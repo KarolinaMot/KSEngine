@@ -89,7 +89,6 @@ private:
     int32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
-    uint32_t m_vDataOffset = 0, m_indexDataOffset = 0;
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
 };
 }  // namespace KS

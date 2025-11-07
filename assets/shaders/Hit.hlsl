@@ -135,7 +135,6 @@ float3 GetTangent(int instance, int vertId, float3 barycentrics)
 
 float3 GetNormalInVector(int instance, int index)
 {
-    int id = matInfos[instance].vOffset + index;
     float3 normal = normals[instance][index].xyz;
     normal = normalize(mul(normal, (float3x3)modelMats[instance].mInvTransposeMat));
     return normal;
@@ -143,21 +142,18 @@ float3 GetNormalInVector(int instance, int index)
 
 float3 GetTangentInVector(int instance, int index)
 {
-    int id = matInfos[instance].vOffset + index;
     float3 tangent = tangents[instance][index].xyz;
     return tangent;
 }
 
 float3 GetPositionInVector(int instance, int index)
 {
-    int id = matInfos[instance].vOffset + index;
     float3 pos = vertexPositions[instance][index].xyz;
     return pos;
 }
 
 float2 GetUVInVector(int instance, int index)
 {
-    int id = matInfos[instance].vOffset + index;
     float2 uv = uvs[instance][index];
     return uv;
 }

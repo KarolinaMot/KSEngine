@@ -117,8 +117,6 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 matInfo.metallicRoughnessTexIndex = roughMetTex->GetHandleIndex(true);
 
                 matInfo.modelIndex = draw_queue[key].mesh->GetMeshIndex();
-                matInfo.vOffset = draw_queue[key].mesh->GetVDataOffset();
-                matInfo.indexOffset = draw_queue[key].mesh->GetIDataOffset();
 
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
 
@@ -246,18 +244,6 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
 
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
-        obj->second->SetVDataOffset(m_vDataOffset);
-        obj->second->SetIndexDataOffset(m_indexDataOffset);
-
-        auto view = data.GetAttribute(MeshConstants::ATTRIBUTE_NORMALS_NAME)->GetView<uint8_t>();
-        size_t size = view.count();
-        size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_NORMALS_NAME)->second;
-        m_vDataOffset += size / stride;
-
-        view = data.GetAttribute(MeshConstants::ATTRIBUTE_INDICES_NAME)->GetView<uint8_t>();
-        size = view.count();
-        stride = MeshConstants::ATTRIBUTE_STRIDES.find(MeshConstants::ATTRIBUTE_INDICES_NAME)->second;
-        m_indexDataOffset += size / stride;
 
         return obj->second;
     }

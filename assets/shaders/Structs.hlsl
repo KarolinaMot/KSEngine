@@ -62,9 +62,7 @@ struct MaterialInfo
     uint normalTexIndex;
     uint occlusionTexIndex;
     uint modelIndex;
-    uint vOffset;
-    uint indexOffset;
-    uint padding;
+    uint padding[3];
 };
 
 struct LightInfo
