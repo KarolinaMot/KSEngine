@@ -116,8 +116,8 @@ void KS::Shader::MeshRenderShader(const Device& device)
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     auto signature = reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature());
 
-    ComPtr<ID3DBlob> v = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), "vs_5_0", "mainVS");
-    ComPtr<ID3DBlob> p = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), "ps_5_0", "mainPS");
+    auto v = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), L"vs_6_0", "mainVS");
+    auto p = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), L"ps_6_0", "mainPS");
 
     if (!v || !p)
     {
@@ -164,7 +164,7 @@ void KS::Shader::ComputeShader(const Device& device)
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     auto signature = reinterpret_cast<ID3D12RootSignature*>(m_shader_input->GetSignature());
 
-    ComPtr<ID3DBlob> v = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), "cs_5_0", "main");
+    auto v = DXPipelineBuilder::ShaderToBlob(m_paths.begin()->c_str(), L"cs_6_0", "main");
     
     if (!v)
     {

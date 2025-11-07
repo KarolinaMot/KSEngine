@@ -141,7 +141,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     }
 }
 
-void KS::ModelRenderer::DrawMesh(Device & device, Scene & scene, DXCommandList & commandList, int index)
+void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index)
 {
     if (index >= scene.GetDrawQueueSize()) return;
 
@@ -167,12 +167,8 @@ void KS::ModelRenderer::DrawMesh(Device & device, Scene & scene, DXCommandList &
     if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
 
     indices->BindAsIndexData(commandList);
-
-    meshSet.baseTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("base_tex"));
-    meshSet.normalTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("normal_tex"));
-    meshSet.emissiveTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("emissive_tex"));
-    meshSet.roughMetTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("roughmet_tex"));
-    meshSet.occlusionTex->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("occlusion_tex"));
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    commandList.BindHeapSlot(*resourceHeap, 0, m_shader->GetShaderInput()->GetInput("textures").rootIndex);
 
     commandList.DrawIndexed(indices->GetElementCount());
 }

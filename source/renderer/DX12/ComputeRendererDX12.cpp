@@ -41,7 +41,7 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
             m_renderTarget->Bind(*commandList, frameIndex, m_depthStencil.get());
             m_renderTarget->Clear(*commandList, frameIndex);
         }
-        m_renderTarget->GetTexture(frameIndex, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("PBRRes"));
+        m_renderTarget->GetTexture(frameIndex, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("compute_res"));
         m_dispatchWidth = m_renderTarget->GetTexture(frameIndex, 0)->GetWidth();
         m_dispatchHeight = m_renderTarget->GetTexture(frameIndex, 0)->GetHeight();
     }

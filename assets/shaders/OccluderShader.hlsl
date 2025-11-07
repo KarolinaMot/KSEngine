@@ -22,7 +22,7 @@ cbuffer ModelIndex : register(b1)
     int meshIndex;
 };
 
-StructuredBuffer<ModelMat> modelMats : register(t7);
+StructuredBuffer<ModelMat> modelMats : register(t2);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
 

@@ -533,5 +533,8 @@
     <ClInclude Include="source\resources\Skydome.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

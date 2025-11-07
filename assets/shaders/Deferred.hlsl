@@ -36,14 +36,10 @@ cbuffer ModelIndex : register(b1)
 };
 
 SamplerState mainSampler : register(s0);
-Texture2D baseColorTex : register(t0);
-Texture2D normalTex : register(t1);
-Texture2D emissiveTex : register(t2);
-Texture2D metallicRoughnessTex : register(t3);
-Texture2D occlusionTex : register(t4);
 
-StructuredBuffer<ModelMat> modelMats : register(t7);
-StructuredBuffer<MaterialInfo> matInfos : register(t8);
+StructuredBuffer<ModelMat> modelMats : register(t2);
+StructuredBuffer<MaterialInfo> matInfos : register(t3);
+Texture2D<float4> textures[] : register(t0, space1);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
 
@@ -83,8 +79,15 @@ PSOutput mainPS(PS_INPUT input)
 PBRMaterial GenerateMaterial(PS_INPUT input)
 {
     PBRMaterial mat;
+    const MaterialInfo matInfo = matInfos[meshIndex];
+    Texture2D baseColorTex = textures[matInfo.colorTexIndex];
+    Texture2D emissiveTex = textures[matInfo.emissiveTexIndex];
+    Texture2D metallicRoughnessTex = textures[matInfo.metallicRoughnessTexIndex];
+    Texture2D occlusionTex = textures[matInfo.occlusionTexIndex];
+    Texture2D normalTex = textures[matInfo.normalTexIndex];
+
     mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-    mat.baseColor *= matInfos[meshIndex].colorFactor.rgb;
+    mat.baseColor *= matInfo.colorFactor.rgb;
 
     mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
     mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
@@ -96,11 +99,10 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
 
-     //mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
-     //mat.normalColor = mat.normalColor * 2.0 - 1.0;
-     //mat.normalColor = mul(mat.normalColor, input.tangentBasis);
-     //mat.normalColor = (mat.normalColor + 1) * 0.5f;
-     mat.normalColor = (input.normals.xyz + 1)*0.5f;
+    mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
+    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = mul(mat.normalColor, input.tangentBasis);
+    mat.normalColor = (mat.normalColor + 1) * 0.5f;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);

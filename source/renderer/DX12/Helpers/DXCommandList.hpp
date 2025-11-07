@@ -34,6 +34,7 @@ public:
     void BindRootSignature(ComPtr<ID3D12RootSignature> signature, bool computePipeline = false);
     void BindDescriptorHeaps(DXDescHeap* rscHeap, DXDescHeap* rtHeap, DXDescHeap* depthHeap);
     void BindHeapResource(const DXResource& resource, const DXHeapHandle& handle, int rootSlot);
+    void BindHeapSlot(const DXDescHeap& heap, const uint32_t heapHandle, int rootSlot);
     void BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles, std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle, unsigned int numRtv = 1);
     void BindRenderTargets(const DXResource& resource, const DXHeapHandle& rtvHeapSlot);
     void BindBuffer(const DXResource& resource, int rootParameter, size_t elementSize = 0, int offsetElement = 0);

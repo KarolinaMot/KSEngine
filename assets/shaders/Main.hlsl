@@ -27,7 +27,6 @@ float2 SampleSphericalMap(float3 v)
 }
 
 
-Texture2D<float4> LightShafts : register(t0);
 RWTexture2D<float4> FinalRes : register(u0);
 RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
@@ -36,8 +35,10 @@ RWTexture2D<float4> GBufferD : register(u4);
 
 SamplerState mainSampler : register(s0);
 
-StructuredBuffer<DirLight> dirLights : register(t5);
-StructuredBuffer<PointLight> pointLights : register(t6);
+StructuredBuffer<DirLight> dirLights : register(t0);
+StructuredBuffer<PointLight> pointLights : register(t1);
+Texture2D<float4> LightShafts : register(t2);
+
 float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 invView);
 
 [numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
@@ -91,6 +92,7 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
         //result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
         //result = LinearToSRGB(result);
         result = mat.baseColor;
+        
         FinalRes[DispatchThreadID.xy] = float4(result, 1.f);
     }
     

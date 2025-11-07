@@ -15,9 +15,10 @@ public:
     ~ShaderInputBlueprintBuilder();
     ShaderInputBlueprintBuilder& AddUniform(ShaderInputVisibility visibility, const std::initializer_list<std::string>& names,
                                             uint32_t space = 0);
-    ShaderInputBlueprintBuilder& AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements, std::string name,
+    ShaderInputBlueprintBuilder& AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
+                                                  const std::initializer_list<std::string>& names,
                                                   ShaderInputMod modifiable = ShaderInputMod::READ_ONLY, uint32_t space = 0);
-    ShaderInputBlueprintBuilder& AddTexture(ShaderInputVisibility visibility, std::string name,
+    ShaderInputBlueprintBuilder& AddTexture(ShaderInputVisibility visibility, const std::initializer_list<std::string>& names,
                                             ShaderInputMod modifiable = ShaderInputMod::READ_ONLY, uint32_t space = 0);
     ShaderInputBlueprintBuilder& AddStaticSampler(ShaderInputVisibility visibility, SamplerDesc samplerDesc,
                                                   uint32_t space = 0);

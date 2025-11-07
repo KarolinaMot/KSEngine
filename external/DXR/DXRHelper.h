@@ -83,7 +83,7 @@ inline IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
     while (true)
     {
         // Open and read the file
-            std::ifstream shaderFile(fileName);
+    std::ifstream shaderFile(fileName);
         if (shaderFile.good() == false)
         {
             throw std::logic_error("Cannot find shader file");

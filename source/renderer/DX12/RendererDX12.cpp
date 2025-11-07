@@ -35,20 +35,17 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     m_mainInputs = ShaderInputBlueprintBuilder()
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "base_tex")
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "normal_tex")
-                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "emissive_tex")
-                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "roughmet_tex")
-                       .AddTexture(KS::ShaderInputVisibility::PIXEL, "occlusion_tex")
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "PBRRes", KS::ShaderInputMod::READ_WRITE)
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer1", KS::ShaderInputMod::READ_WRITE)
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer2", KS::ShaderInputMod::READ_WRITE)
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer3", KS::ShaderInputMod::READ_WRITE)
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, "GBuffer4", KS::ShaderInputMod::READ_WRITE)
-                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "dir_lights")
-                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 100, "point_lights")
-                       .AddStorageBuffer(KS::ShaderInputVisibility::VERTEX, 1, "model_matrix")
-                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 1, "material_info")
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"textures"}, ShaderInputMod::READ_ONLY, 1)
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"compute_res"}, KS::ShaderInputMod::READ_WRITE)
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer1"}, KS::ShaderInputMod::READ_WRITE)
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer2"}, KS::ShaderInputMod::READ_WRITE)
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer3"}, KS::ShaderInputMod::READ_WRITE)
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer4"}, KS::ShaderInputMod::READ_WRITE)
+                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1,
+                                         {"dir_lights", "cubemap_src", "light_render_res"})
+                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights", "cubemap_tex"})
+                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"model_matrix", "light_shaft_res"})
+                       .AddStorageBuffer(KS::ShaderInputVisibility::PIXEL, 1, {"material_info"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
@@ -56,20 +53,20 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
 
     m_rtInputs =
         KS::ShaderInputBlueprintBuilder()
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, "output_tex", ShaderInputMod::READ_WRITE)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "BVH")
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "material_info")
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "modelMats")
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "dir_lights")
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, "point_lights")
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, "cubemap_tex")
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "normals", ShaderInputMod::READ_ONLY, 1)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "indices", ShaderInputMod::READ_ONLY, 2)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "vertexPos", ShaderInputMod::READ_ONLY, 3)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "uvs", ShaderInputMod::READ_ONLY, 4)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, "tangents", ShaderInputMod::READ_ONLY, 5)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, NUM_OF_TEXTURES, "textures", ShaderInputMod::READ_ONLY, 6)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"material_info"})
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"modelMats"})
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"dir_lights"})
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"cubemap_tex"})
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"normals"}, ShaderInputMod::READ_ONLY, 1)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"indices"}, ShaderInputMod::READ_ONLY, 2)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"vertexPos"}, ShaderInputMod::READ_ONLY, 3)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"uvs"}, ShaderInputMod::READ_ONLY, 4)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"tangents"}, ShaderInputMod::READ_ONLY, 5)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, NUM_OF_TEXTURES, {"textures"}, ShaderInputMod::READ_ONLY, 6)
             .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
             .SetLocal()
@@ -77,7 +74,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
 
     std::shared_ptr<Texture> deferredRendererTex[2][4];
     std::shared_ptr<Texture> deferredRendererDepthTex;
-    std::shared_ptr<Texture> pbrResTex[2];
+    std::shared_ptr<Texture> compute_resTex[2];
     std::shared_ptr<Texture> raytracingResTex[2];
     std::shared_ptr<Texture> lightRenderingTex[2];
     std::shared_ptr<Texture> lightShaftTex[2];
@@ -102,7 +99,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
                                       glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
 
-        pbrResTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+        compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                  Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
                                                  glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM);
         raytracingResTex[i] =
@@ -187,7 +184,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     }
 
     m_renderTargets[PBR_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[PBR_RENDER]->AddTexture(device, pbrResTex[0], pbrResTex[1], "PBR RENDER RES");
+    m_renderTargets[PBR_RENDER]->AddTexture(device, compute_resTex[0], compute_resTex[1], "PBR RENDER RES");
 
     m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
     m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
@@ -273,10 +270,10 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
 
     m_mipMapShaderInputs = KS::ShaderInputBlueprintBuilder()
                                .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"mipmap_info"})
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_1", KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_2", KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_3", KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, "mip_0", KS::ShaderInputMod::READ_ONLY)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_1"}, KS::ShaderInputMod::READ_WRITE)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_2"}, KS::ShaderInputMod::READ_WRITE)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_3"}, KS::ShaderInputMod::READ_WRITE)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_0"}, KS::ShaderInputMod::READ_ONLY)
                                .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, desc)
                                .Build(device, "MIPMAP SIGNATURE");
 
@@ -371,7 +368,7 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
     m_inputs[LIGHT_SHAFT_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
                                                                                rootSignature->GetInput("camera_matrix"));
     m_inputs[LIGHT_SHAFT_RENDER][4] =
-        std::pair<ShaderInput*, ShaderInputDesc>(lightRenderTex.get(), rootSignature->GetInput("base_tex"));
+        std::pair<ShaderInput*, ShaderInputDesc>(lightRenderTex.get(), rootSignature->GetInput("light_render_res"));
     m_subrenderers[LIGHT_SHAFT_RENDER]->Render(device, &commandContext, scene, m_inputs[LIGHT_SHAFT_RENDER], true);
 
     // LIGHT SHAFT UPSCALE
@@ -424,7 +421,7 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     }
 
     auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(frameIndex, 0);
-    m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("base_tex"));
+    m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("light_shaft_res"));
     m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputBindDesc>(
         scene.GetStorageBuffer(POINT_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("point_lights")));
     m_inputs[PBR_RENDER][6] = std::pair<ShaderInput*, ShaderInputBindDesc>(
@@ -509,9 +506,9 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
 
     m_inputs[CUBEMAP_GEN][0] = std::pair<ShaderInput*, ShaderInputDesc>(
         reinterpret_cast<ShaderInput*>(scene.GetTexture(device, commandList.get(), skydome.second).get()),
-        rootSignature->GetInput("base_tex"));
+        rootSignature->GetInput("cubemap_src"));
     m_inputs[CUBEMAP_GEN][1] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()),
-                                                                        rootSignature->GetInput("PBRRes"));
+                                                                        rootSignature->GetInput("compute_res"));
 
     reinterpret_cast<ComputeRenderer*>(m_subrenderers[CUBEMAP_GEN].get())
         ->SetDispatchSize(skydome.first->GetWidth(), skydome.first->GetHeight(), 6);
@@ -536,6 +533,6 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
     m_inputs[CUBEMAP_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER),
                                                                            rootSignature->GetInput("model_matrix"));
     m_inputs[CUBEMAP_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()),
-                                                                           rootSignature->GetInput("dir_lights"));
+                                                                           rootSignature->GetInput("cubemap_tex"));
     m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_RENDER], true);
 }

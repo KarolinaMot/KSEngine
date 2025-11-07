@@ -15,7 +15,7 @@ cbuffer LightInfoBuffer : register(b2)
     LightInfo lightInfo;
 };
 
-StructuredBuffer<PointLight> pointLights : register(t6);
+StructuredBuffer<PointLight> pointLights : register(t1);
 RWTexture2D<float4> FinalRes : register(u0);
 
 float2 GetScreenPosition(float4 worldPosition, float2 screenSize)

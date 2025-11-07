@@ -24,7 +24,7 @@ public:
 
     ComPtr<ID3D12PipelineState> Build(ComPtr<ID3D12Device5> device, const ComPtr<ID3D12RootSignature>& root, LPCWSTR name) const;
 
-    static ComPtr<ID3DBlob> ShaderToBlob(const char* path, const char* shaderVersion, const char* functionName = nullptr);
+    static ComPtr<IDxcBlob> ShaderToBlob(const char* path, const wchar_t* shaderVersion, const char* functionName = nullptr);
 
 private:
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputs;

@@ -118,8 +118,9 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddUniform(Sha
 }
 
 KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStorageBuffer(ShaderInputVisibility visibility, int numberOfElements,
-                                                                   std::string name, ShaderInputMod modifiable, uint32_t space)
+                                                                   const std::initializer_list<std::string>& names, ShaderInputMod modifiable, uint32_t space)
 {
+
     KS::ShaderInputDesc input;
     input.modifications = modifiable;
     input.numberOfElements = numberOfElements;
@@ -134,7 +135,10 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStorageBuff
     input.visibility = visibility;
     input.spaceIndex = space;
 
-    m_descriptors[name] = input;
+    for (const auto& name : names)
+    {
+        m_descriptors[name] = input;
+    }
 
     m_impl->AddTable(
         m_impl->GetVisibility(visibility),
@@ -147,33 +151,11 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStorageBuff
     return *this;
 }
 
-KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddTexture(ShaderInputVisibility visibility, std::string name,
+KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddTexture(ShaderInputVisibility visibility,
+                                                                             const std::initializer_list<std::string>& names,
                                                                              ShaderInputMod modifiable, uint32_t space)
 {
-    KS::ShaderInputDesc input;
-    input.modifications = modifiable;
-    input.rootIndex = m_input_counter;
-    input.type = modifiable == ShaderInputMod::READ_ONLY ? InputType::RO_DATA : InputType::RW_DATA;
-
-    auto& st = spaces[space];
-    auto k = (int)input.type;
-    uint32_t base = st.next[k];
-    input.typeIndex = base;
-
-    input.visibility = visibility;
-    input.spaceIndex = space;
-
-    m_descriptors[name] = input;
-
-    m_impl->AddTable(
-    m_impl->GetVisibility(visibility),
-    modifiable == ShaderInputMod::READ_ONLY ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, base,
-    space);
-
-    m_input_counter++;
-    st.next[k]++;
-
-    return *this;
+    return AddStorageBuffer(visibility, 1, names, modifiable, space);
 }
 
 KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampler(ShaderInputVisibility visibility,

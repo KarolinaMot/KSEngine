@@ -139,6 +139,7 @@
     <ClInclude Include="external\imgui\imstb_rectpack.h" />
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
+    <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h" />
     <ClInclude Include="source\resources\Skydome.hpp" />
     <ClInclude Include="source\renderer\SubRenderer.hpp" />
     <ClInclude Include="source\renderer\RTRenderer.hpp" />

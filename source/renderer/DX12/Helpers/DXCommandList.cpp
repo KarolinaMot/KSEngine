@@ -105,6 +105,28 @@ void DXCommandList::BindDescriptorHeaps(DXDescHeap* rscHeap, DXDescHeap* rtHeap,
     m_command_list->SetDescriptorHeaps(heapCount, descriptorHeaps);
 }
 
+void DXCommandList::BindHeapSlot(const DXDescHeap& heap, const uint32_t heapHandle, int rootSlot)
+{
+    if (!m_isOpen)
+    {
+        LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
+        return;
+    }
+
+    if (m_boundSignature == nullptr)
+    {
+        LOG(Log::Severity::WARN, "Cannot bind resource because there is no bound signature. Command has been ignored");
+        return;
+    }
+
+    auto handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap.Get()->GetGPUDescriptorHandleForHeapStart(), heapHandle, heap.GetDescriptorSize());
+
+    if (m_isBoundSignatureCompute)
+        m_command_list->SetComputeRootDescriptorTable(rootSlot, handle);
+    else
+        m_command_list->SetGraphicsRootDescriptorTable(rootSlot, handle);
+}
+
 void DXCommandList::BindHeapResource(const DXResource& resource, const DXHeapHandle& handle, int rootSlot)
 {
     if (!m_isOpen)
@@ -112,6 +134,7 @@ void DXCommandList::BindHeapResource(const DXResource& resource, const DXHeapHan
         LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
         return;
     }
+
     if (m_boundSignature == nullptr)
     {
         LOG(Log::Severity::WARN, "Cannot bind resource because there is no bound signature. Command has been ignored");
