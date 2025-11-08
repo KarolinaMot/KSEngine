@@ -2,19 +2,20 @@
 
 #include <code_utility.hpp>
 #include <iostream>
-
+#include <cassert>
 #include "DXCommandList.hpp"
 
 DXResource::DXResource(const ComPtr<ID3D12Device5>& device, const CD3DX12_HEAP_PROPERTIES& heapProperties,
                        const CD3DX12_RESOURCE_DESC& descr, D3D12_CLEAR_VALUE* clearValue, const char* name,
                        D3D12_RESOURCE_STATES state)
 {
-    HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &descr, state, clearValue,
+    [[maybe_unused]] HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &descr, state,
+                                                                  clearValue,
                                                  IID_PPV_ARGS(&mResource));
     mState = state;
     mDesc = descr;
 
-    if (FAILED(hr)) ASSERT(false && "Resource creation failed");
+    assert(SUCCEEDED(hr) && "Resource creation failed");
 
     size_t size;
     device->GetCopyableFootprints(&descr, 0, 1, 0, nullptr, nullptr, nullptr, &size);

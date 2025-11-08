@@ -3,6 +3,7 @@
 #include <renderer/DX12/Helpers/DXResource.hpp>
 #include <renderer/ShaderInputBlueprint.hpp>
 #include <renderer/UniformBuffer.hpp>
+#include <cassert>
 
 class KS::UniformBuffer::Impl
 {
@@ -30,9 +31,9 @@ void KS::UniformBuffer::CreateUniformBuffer(const Device& device)
                                                                m_name.c_str(), D3D12_RESOURCE_STATE_GENERIC_READ);
 
             CD3DX12_RANGE readRange(0, 0);
-            HRESULT hr =
+            [[maybe_unused]] HRESULT hr =
                 m_impl->mBuffers[i]->GetResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_buffer_GPU_Address[i]));
-            if (FAILED(hr)) ASSERT(false && "Buffer mapping failed");
+            assert(SUCCEEDED(hr) && "Buffer mapping failed");
         }
     }
     else
@@ -41,8 +42,9 @@ void KS::UniformBuffer::CreateUniformBuffer(const Device& device)
                                                            D3D12_RESOURCE_STATE_GENERIC_READ);
 
         CD3DX12_RANGE readRange(0, 0);
-        HRESULT hr = m_impl->mBuffers[0]->GetResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_buffer_GPU_Address[0]));
-        if (FAILED(hr)) ASSERT(false && "Buffer mapping failed");
+        [[maybe_unused]] HRESULT hr =
+            m_impl->mBuffers[0]->GetResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_buffer_GPU_Address[0]));
+        assert(SUCCEEDED(hr) && "Buffer mapping failed");
     }
 }
 

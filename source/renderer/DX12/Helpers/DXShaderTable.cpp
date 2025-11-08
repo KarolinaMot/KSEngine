@@ -1,5 +1,5 @@
 #include "DXShaderTable.hpp"
-
+#include <cassert>
 #include <code_utility.hpp>
 
 void DXShaderTable::AddRayGen(const std::wstring& exportName, const void* localData, UINT localSize)
@@ -74,8 +74,9 @@ void DXShaderTable::Build(const ComPtr<ID3D12Device5>& device, ID3D12StateObject
 
     uint8_t* base = nullptr;
 
-    HRESULT hr = m_upl->GetResource()->Map(0, nullptr, (void**)&base);
-    if (FAILED(hr)) ASSERT(false && "Failed to map shader table");
+    [[maybe_unused]] HRESULT hr = m_upl->GetResource()->Map(0, nullptr, (void**)&base);
+
+    assert(SUCCEEDED(hr) && "Failed to map shader table");
 
     WriteTable(base + m_offRG, m_raygen, props);
     if (countMS) WriteTable(base + m_offMS, m_miss, m_strideMS, props);
