@@ -142,11 +142,12 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStorageBuff
 
     m_impl->AddTable(
         m_impl->GetVisibility(visibility),
-        modifiable == ShaderInputMod::READ_ONLY ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, base,
+        modifiable == ShaderInputMod::READ_ONLY ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+        numberOfElements, base,
         space);
 
     m_input_counter++;
-    st.next[k]++;
+    st.next[k] += numberOfElements;
 
     return *this;
 }

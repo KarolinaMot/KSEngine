@@ -4,7 +4,7 @@
 #include <filesystem>
 
 #ifdef _MSC_VER
-#pragma comment(lib, "d3dcompiler") // Automatically link with d3dcompiler.lib as we are using D3DCompile() below.
+#pragma comment(lib, "d3dcompiler")  // Automatically link with d3dcompiler.lib as we are using D3DCompile() below.
 #endif
 
 ComPtr<ID3D12PipelineState> DXPipelineBuilder::Build(ComPtr<ID3D12Device5> device, const ComPtr<ID3D12RootSignature>& root, LPCWSTR name) const
@@ -12,16 +12,20 @@ ComPtr<ID3D12PipelineState> DXPipelineBuilder::Build(ComPtr<ID3D12Device5> devic
     HRESULT hr;
     ComPtr<ID3D12PipelineState> pipeline;
 
-    if (mComputeShaderBuffer == nullptr)
+    if (!mCSBlob)
     {
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout.NumElements = static_cast<UINT>(mInputs.size());
         psoDesc.InputLayout.pInputElementDescs = mInputs.data();
         psoDesc.pRootSignature = root.Get();
-        psoDesc.VS.BytecodeLength = mVertexShaderSize;
-        psoDesc.VS.pShaderBytecode = mVertexShaderBuffer;
-        psoDesc.PS.BytecodeLength = mFragmentShaderSize;
-        psoDesc.PS.pShaderBytecode = mFragmentShaderBuffer;
+        psoDesc.VS.BytecodeLength = mVSBlob->GetBufferSize();
+        psoDesc.VS.pShaderBytecode = mVSBlob->GetBufferPointer();
+        psoDesc.PS.BytecodeLength = mPSBlob->GetBufferSize();
+        psoDesc.PS.pShaderBytecode = mPSBlob->GetBufferPointer();
+
+        assert(psoDesc.VS.pShaderBytecode && psoDesc.VS.BytecodeLength > 16);
+        assert(psoDesc.PS.pShaderBytecode && psoDesc.PS.BytecodeLength > 16);
+
         psoDesc.PrimitiveTopologyType = mTopology;
         psoDesc.SampleDesc.Count = mMsaaCount;
         psoDesc.SampleDesc.Quality = mMsaaQuality;
@@ -47,7 +51,7 @@ ComPtr<ID3D12PipelineState> DXPipelineBuilder::Build(ComPtr<ID3D12Device5> devic
     {
         D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.pRootSignature = root.Get();
-        psoDesc.CS = { reinterpret_cast<UINT8*>(mComputeShaderBuffer), mComputeShaderSize };
+        psoDesc.CS = {reinterpret_cast<UINT8*>(mCSBlob->GetBufferPointer()), mCSBlob->GetBufferSize()};
         hr = device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipeline));
     }
 
@@ -94,19 +98,17 @@ DXPipelineBuilder& DXPipelineBuilder::SetDepthFormat(const DXGI_FORMAT& format)
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetVertexAndPixelShaders(LPVOID vsBuffer, SIZE_T vsSize, LPVOID psBuffer, SIZE_T psSize)
+DXPipelineBuilder& DXPipelineBuilder::SetVertexAndPixelShaders(ID3DBlob* vBlob, ID3DBlob* pBlob)
 {
-    mVertexShaderBuffer = vsBuffer;
-    mVertexShaderSize = vsSize;
-    mFragmentShaderBuffer = psBuffer;
-    mFragmentShaderSize = psSize;
+    mPSBlob = pBlob;
+    mVSBlob = vBlob;
+
     return *this;
 }
 
-DXPipelineBuilder& DXPipelineBuilder::SetComputeShader(LPVOID computeShaderB, SIZE_T computeShaderS)
+DXPipelineBuilder& DXPipelineBuilder::SetComputeShader(ID3DBlob* cBlob)
 {
-    mComputeShaderBuffer = computeShaderB;
-    mComputeShaderSize = computeShaderS;
+    mCSBlob = cBlob;
     return *this;
 }
 
@@ -139,100 +141,59 @@ static std::wstring AnsiToWide(const char* s)
 }
 
 static bool IsLibraryProfile(std::wstring_view p) { return p.rfind(L"lib_", 0) == 0; }
-ComPtr<IDxcBlob> DXPipelineBuilder::ShaderToBlob(const char* path, const wchar_t* shaderVersion, const char* functionName)
+ComPtr<ID3DBlob> DXPipelineBuilder::ShaderToBlob(const char* path, const char* shaderVersion, const char* functionName)
 {
-    ComPtr<IDxcUtils> utils;
-    ComPtr<IDxcCompiler3> compiler;
-    CheckDX(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils)));
-    CheckDX(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler)));
+    ComPtr<ID3DBlob> shader = nullptr;  // d3d blob for holding vertex shader bytecode
+    ComPtr<ID3DBlob> errorBuff = nullptr;
 
-    ComPtr<IDxcIncludeHandler> includeHandler;
-    CheckDX(utils->CreateDefaultIncludeHandler(&includeHandler));
+    wchar_t* wString = new wchar_t[4096];
+    MultiByteToWideChar(CP_ACP, 0, path, -1, wString, 4096);
+    HRESULT hr;
 
-    std::wstring wPath = AnsiToWide(path);
-    ComPtr<IDxcBlobEncoding> sourceBlob;
-    CheckDX(utils->LoadFile(wPath.c_str(), nullptr, &sourceBlob));
+    while (true)
 
-    std::filesystem::path p(wPath);
-    std::wstring inc = p.parent_path().c_str();
-
-    DxcBuffer src{};
-    src.Ptr = sourceBlob->GetBufferPointer();
-    src.Size = sourceBlob->GetBufferSize();
-    src.Encoding = DXC_CP_ACP;
-
-    std::wstring wEntry = functionName ? AnsiToWide(functionName) : L"";
-    std::vector<LPCWSTR> args;
-
-    if (!IsLibraryProfile(shaderVersion))
     {
-        args = {L"-E",
-                wEntry.c_str(),  // entry point
-                L"-T",
-                shaderVersion,     // target, e.g. L"vs_6_8", L"ps_6_8", L"lib_6_8" (for DXR)
-                L"-Zi",            // debug info
-                L"-Qembed_debug",  // embed debug info in DXIL
-                L"-Od",            // disable optimizations (debug parity with FXC D3DCOMPILE_DEBUG)
-                L"-I",
-                inc.c_str()};
+        if (functionName != nullptr)
+            hr = D3DCompileFromFile(wString, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, functionName, shaderVersion,
+                                    D3DCOMPILE_DEBUG, 0, &shader, &errorBuff);
+        else
+            hr = D3DCompileFromFile(wString, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", shaderVersion,
+                                    D3DCOMPILE_DEBUG, 0, &shader, &errorBuff);
 
-    }
-    else
-    {
-        args = {
-                L"-T",
-                shaderVersion,     // target, e.g. L"vs_6_8", L"ps_6_8", L"lib_6_8" (for DXR)
-                L"-Zi",            // debug info
-                L"-Qembed_debug",  // embed debug info in DXIL
-                L"-Od",            // disable optimizations (debug parity with FXC D3DCOMPILE_DEBUG)
-                L"-I",
-                inc.c_str()};
+        if (FAILED(hr))
 
-
-    }
-
-    ComPtr<IDxcResult> result;
-    ComPtr<IDxcBlob> dxil;
-
-    // Retry loop on compile errors
-    for (;;)
-    {
-        result.Reset();
-        dxil.Reset();
-
-        HRESULT hrCompile =
-            compiler->Compile(&src, args.data(), (UINT)args.size(), includeHandler.Get(), IID_PPV_ARGS(&result));
-        if (FAILED(hrCompile))
         {
-            std::wstring msg = std::format(L"DXC invocation failed for {}.", wPath);
-            MessageBox(nullptr, msg.c_str(), L"Shader compilation error", MB_ICONERROR | MB_OK);
-            CheckDX(hrCompile);
-        }
-
-        HRESULT status = S_OK;
-        CheckDX(result->GetStatus(&status));
-
-        ComPtr<IDxcBlobUtf8> errors;
-        (void)result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
-
-        if (FAILED(status))
-        {
-            std::string errStr = errors ? std::string((const char*)errors->GetBufferPointer(), errors->GetBufferSize())
-                                        : std::string("Unknown error");
-            std::wstring errW = AnsiToWide(errStr.c_str());
-
-            std::wstring msg = std::format(L"Function {} in path {} could not compile.\nError:\n{}\nRecompile?",
-                                           AnsiToWide(functionName ? functionName : "main"), wPath, errW);
-
-            LOG(Log::Severity::FATAL, "Function {} in path {} could not compile. Error: {}",
-                (functionName ? functionName : "main"), path, errStr.c_str());
+            // error text from D3D is ANSI—convert to UTF-16
+            std::wstring err;
+            const char* p = static_cast<const char*>(errorBuff->GetBufferPointer());
+            size_t sz = errorBuff->GetBufferSize();
+            int needed = MultiByteToWideChar(CP_ACP, 0, p, static_cast<int>(sz), nullptr, 0);
+            err.resize(needed);
+            MultiByteToWideChar(CP_ACP, 0, p, static_cast<int>(sz), err.data(), needed);
+            std::wstring msg = std::format(L"Function {} in path {} could not compile.\nError:\n{} \n Recompile?",
+                                           AnsiToWide(functionName), AnsiToWide(path), err);
 
             int r = MessageBox(nullptr, msg.c_str(), L"Shader compilation error", MB_ICONERROR | MB_RETRYCANCEL);
-            if (r == IDRETRY) continue;
-            return nullptr;
-        }
 
-        CheckDX(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&dxil), nullptr));
-        return dxil;
+            LOG(Log::Severity::FATAL, "Function {} in path {} could not compile. Error: {}", functionName, path,
+                (const char*)errorBuff->GetBufferPointer());
+
+            if (r == IDRETRY)
+            {
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
     }
+
+    delete[] wString;
+
+    return shader;
 }

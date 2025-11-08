@@ -39,7 +39,7 @@ SamplerState mainSampler : register(s0);
 
 StructuredBuffer<ModelMat> modelMats : register(t2);
 StructuredBuffer<MaterialInfo> matInfos : register(t3);
-Texture2D<float4> textures[] : register(t0, space1);
+Texture2D<float4> textures[50000] : register(t0, space1);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
 

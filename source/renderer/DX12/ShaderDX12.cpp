@@ -117,8 +117,8 @@ void KS::Shader::MeshRenderShader(const Device& device)
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     auto signature = reinterpret_cast<ID3D12RootSignature*>(m_globalRoot->GetSignature());
 
-    auto v = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), L"vs_6_0", "mainVS");
-    auto p = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), L"ps_6_0", "mainPS");
+    auto v = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), "vs_5_1", "mainVS");
+    auto p = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), "ps_5_1", "mainPS");
 
     if (!v || !p)
     {
@@ -126,6 +126,7 @@ void KS::Shader::MeshRenderShader(const Device& device)
     }
 
     auto builder = DXPipelineBuilder();
+    builder.SetVertexAndPixelShaders(v.Get(), p.Get());
 
     if (m_flags & MeshInputFlags::HAS_POSITIONS) builder.AddInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, VDS_POSITIONS);
     if (m_flags & MeshInputFlags::HAS_NORMALS) builder.AddInput("NORMALS", DXGI_FORMAT_R32G32B32_FLOAT, VDS_NORMALS);
@@ -149,7 +150,6 @@ void KS::Shader::MeshRenderShader(const Device& device)
         builder.SetRasterizer(rast);
     }
 
-    builder.SetVertexAndPixelShaders(v->GetBufferPointer(), v->GetBufferSize(), p->GetBufferPointer(), p->GetBufferSize());
 
     for (const auto& format : m_formats)
     {
@@ -165,14 +165,14 @@ void KS::Shader::ComputeShader(const Device& device)
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
     auto signature = reinterpret_cast<ID3D12RootSignature*>(m_globalRoot->GetSignature());
 
-    auto v = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), L"cs_6_0", "main");
+    auto v = DXPipelineBuilder::ShaderToBlob(m_shaders[0].first.c_str(), "cs_5_1", "main");
     
     if (!v)
     {
         std::exit(EXIT_FAILURE);
     }
 
-    auto builder = DXPipelineBuilder().SetComputeShader(v->GetBufferPointer(), v->GetBufferSize());
+    auto builder = DXPipelineBuilder().SetComputeShader(v.Get());
 
     auto testPipeline = builder.Build(engineDevice, signature, L"RENDER  COMPUTE PIPELINE");
 
