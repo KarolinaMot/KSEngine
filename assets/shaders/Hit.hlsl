@@ -89,7 +89,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
     result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
     result = LinearToSRGB(result);
-    payload.colorAndDistance = float4(result, 1.f);
+    payload.colorAndDistance = float4(float3(uv, 1.f), 1.f);
 }
 
 float3 NormalToColor(float3 normal)

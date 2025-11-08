@@ -379,11 +379,12 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
         m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
 
         // CREATE DESCRIPTOR HEAPS
-        m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 20, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             L"MAIN RENDER TARGETS HEAP");
         m_descriptor_heaps[DEPTH_HEAP] = DXDescHeap::Construct(
-            m_device, 20, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
-        m_descriptor_heaps[RESOURCE_HEAP] = DXDescHeap::Construct(m_device, 50000, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
+            m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
+        m_descriptor_heaps[RESOURCE_HEAP] =
+            DXDescHeap::Construct(m_device, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
                                   OTHER_RESOURCES_START,
                                   D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 

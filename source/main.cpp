@@ -109,13 +109,13 @@ int main()
     //scene.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
     //scene.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
 
-    //auto model = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
-    auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
+    auto model = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
+    //auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    //auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
-    scene.QueueModel(*device, cubeModel, transform, "Cube");
-    transform = glm::translate(transform, glm::vec3(-3.f, 0.f, 0.f));
+    //scene.QueueModel(*device, cubeModel, transform, "Cube");
+    transform = glm::rotate(transform, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     transform = glm::scale(transform, glm::vec3(0.5f));
     scene.QueueModel(*device, model, transform, "Damaged helmet");
 

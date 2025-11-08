@@ -105,6 +105,9 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
                 MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
                 auto baseTex = GetTexture(device, commandList, *baseTexHandle);
+                if (!baseTex)
+                    LOG(Log::Severity::WARN, "Empty texture warning.");
+
                 auto normalTex = GetTexture(device, commandList, *normalTexHandle);
                 auto emissiveTex = GetTexture(device, commandList, *emissiveTexHandle);
                 auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);

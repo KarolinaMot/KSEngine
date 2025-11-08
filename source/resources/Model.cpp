@@ -198,7 +198,7 @@ Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMa
     }
     else
     {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/models/SanMiguel/textures/White.png"});
+        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
     }
 
     if (auto path = GetTexture(aiTextureType_NORMALS))
@@ -245,6 +245,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 {
     Assimp::Importer importer;
     const aiScene* scene = nullptr;
+    LOG(Log::Severity::INFO, "Importing model file: {}", source_model.string());
 
     // Read Scene File
     {
@@ -269,7 +270,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
     // Validation
     if (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
     {
-        LOG(Log::Severity::WARN, "Imported Model is incomplete");
+        LOG(Log::Severity::WARN, "Importing Model file is incomplete");
     }
 
     auto source = source_model;
@@ -280,7 +281,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
     FileIO::MakeDirectory(out_dir.string());
 
     std::vector<ResourceHandle<Mesh>> mesh_paths;
-
+    auto totalObjects = scene->mNumMeshes + scene->mNumTextures + scene->mNumMaterials;
     // Process all meshes
     {
         auto mesh_out = out_dir / "meshes";
@@ -313,6 +314,8 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
             }
 
             mesh_paths.emplace_back(output_path);
+            LOG(Log::Severity::INFO, "Processed mesh {}/{}, object {}/{}", i + 1, scene->mNumMeshes, i + 1, totalObjects);
+
         }
     }
 
@@ -359,6 +362,10 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
             }
 
             image_paths.emplace_back(output_path);
+            LOG(Log::Severity::INFO, "Processed image {}/{}, object {}/{}", i + 1, scene->mNumTextures,
+                i + 1 + scene->mNumMeshes,
+                totalObjects);
+
         }
     }
 
@@ -372,6 +379,8 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
             auto material = detail::ProcessMaterial(image_paths, m);
 
             materials.emplace_back(material);
+            LOG(Log::Severity::INFO, "Processed material {}/{}, object {}/{}", i + 1, scene->mNumMaterials,
+                i + 1 + scene->mNumMeshes + scene->mNumTextures, totalObjects);
         }
     }
 

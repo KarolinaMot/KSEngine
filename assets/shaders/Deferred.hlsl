@@ -39,7 +39,7 @@ SamplerState mainSampler : register(s0);
 
 StructuredBuffer<ModelMat> modelMats : register(t2);
 StructuredBuffer<MaterialInfo> matInfos : register(t3);
-Texture2D<float4> textures[50000] : register(t0, space1);
+Texture2D<float4> textures[65536] : register(t0, space1);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
 
@@ -86,8 +86,9 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     Texture2D occlusionTex = textures[matInfo.occlusionTexIndex];
     Texture2D normalTex = textures[matInfo.normalTexIndex];
 
-    mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
-    mat.baseColor *= matInfo.colorFactor.rgb;
+    //mat.baseColor = pow(abs(baseColorTex.SampleLevel(mainSampler, input.uv, 0.f).rgb), sGamma);
+    //mat.baseColor *= matInfo.colorFactor.rgb;
+    mat.baseColor = float3(input.uv, 1.f);
 
     mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
     mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
