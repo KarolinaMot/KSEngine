@@ -1,8 +1,11 @@
 #pragma once
 
 #include <array>
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#pragma warning(pop)
+
 #include <vector>
 
 namespace KS

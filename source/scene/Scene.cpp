@@ -122,7 +122,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
                 m_materialInstances[m_modelCount] = matInfo;
                 m_modelCount++;
-                m_BVH->AddInstance(device, *commandList, &draw_queue[key], modelMat.mModel);
+                m_BVH->AddInstance(&draw_queue[key], modelMat.mModel);
             }
         }
     }
@@ -197,7 +197,7 @@ void KS::Scene::SetSkydome(Device& device, DXCommandList& commandList, ResourceH
     {
         auto skydomeTex = GetTexture(device, &commandList, skydomeTexture);
         auto pair = std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>>();
-        pair.first = std::make_shared<Skydome>(device, commandList, *skydomeTex.get());
+        pair.first = std::make_shared<Skydome>(device, *skydomeTex.get());
         pair.second = skydomeTexture;
         m_skyDome = pair;
     }
@@ -241,7 +241,8 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         std::filesystem::path p(meshHandle.path);
         std::string mesh_name_extracted = p.stem().string();
 
-        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(), mesh_cache.size());
+        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(),
+                                              static_cast<uint32_t>(mesh_cache.size()));
 
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
 
@@ -252,8 +253,6 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         LOG(Log::Severity::WARN, "Model path ( {} ) was not found.", meshHandle.path);
         return nullptr;
     }
-
-    return nullptr;
 }
 
 std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath)

@@ -138,6 +138,7 @@ static std::wstring AnsiToWide(const char* s)
     return w;
 }
 
+static bool IsLibraryProfile(std::wstring_view p) { return p.rfind(L"lib_", 0) == 0; }
 ComPtr<IDxcBlob> DXPipelineBuilder::ShaderToBlob(const char* path, const wchar_t* shaderVersion, const char* functionName)
 {
     ComPtr<IDxcUtils> utils;
@@ -160,18 +161,35 @@ ComPtr<IDxcBlob> DXPipelineBuilder::ShaderToBlob(const char* path, const wchar_t
     src.Size = sourceBlob->GetBufferSize();
     src.Encoding = DXC_CP_ACP;
 
-    std::wstring wEntry = functionName ? AnsiToWide(functionName) : L"main";
-    std::vector<LPCWSTR> args{
-        L"-E",
-        wEntry.c_str(),  // entry point
-        L"-T",
-        shaderVersion,     // target, e.g. L"vs_6_8", L"ps_6_8", L"lib_6_8" (for DXR)
-        L"-Zi",            // debug info
-        L"-Qembed_debug",  // embed debug info in DXIL
-        L"-Od",            // disable optimizations (debug parity with FXC D3DCOMPILE_DEBUG)
-        L"-I",
-        inc.c_str()
-    };
+    std::wstring wEntry = functionName ? AnsiToWide(functionName) : L"";
+    std::vector<LPCWSTR> args;
+
+    if (!IsLibraryProfile(shaderVersion))
+    {
+        args = {L"-E",
+                wEntry.c_str(),  // entry point
+                L"-T",
+                shaderVersion,     // target, e.g. L"vs_6_8", L"ps_6_8", L"lib_6_8" (for DXR)
+                L"-Zi",            // debug info
+                L"-Qembed_debug",  // embed debug info in DXIL
+                L"-Od",            // disable optimizations (debug parity with FXC D3DCOMPILE_DEBUG)
+                L"-I",
+                inc.c_str()};
+
+    }
+    else
+    {
+        args = {
+                L"-T",
+                shaderVersion,     // target, e.g. L"vs_6_8", L"ps_6_8", L"lib_6_8" (for DXR)
+                L"-Zi",            // debug info
+                L"-Qembed_debug",  // embed debug info in DXIL
+                L"-Od",            // disable optimizations (debug parity with FXC D3DCOMPILE_DEBUG)
+                L"-I",
+                inc.c_str()};
+
+
+    }
 
     ComPtr<IDxcResult> result;
     ComPtr<IDxcBlob> dxil;

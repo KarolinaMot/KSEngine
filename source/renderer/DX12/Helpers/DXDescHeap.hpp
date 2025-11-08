@@ -26,25 +26,23 @@ public:
     DXHeapHandle AllocateResource(DXResource* resource, D3D12_SHADER_RESOURCE_VIEW_DESC* desc, unsigned int index);
     DXHeapHandle AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, DXResource* counterResource = nullptr);
     DXHeapHandle AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, unsigned int index, DXResource* counterResource = nullptr);
-    DXHeapHandle AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc);
     DXHeapHandle AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc, unsigned int index);
-    DXHeapHandle AllocateRenderTarget(DXResource* resource, ID3D12Device5* device, D3D12_RENDER_TARGET_VIEW_DESC* desc);
+    DXHeapHandle AllocateRenderTarget(DXResource* resource, D3D12_RENDER_TARGET_VIEW_DESC* desc);
     DXHeapHandle AllocateDepthStencil(DXResource* resource, D3D12_DEPTH_STENCIL_VIEW_DESC* desc);
-    DXHeapHandle AllocateDepthStencil(DXResource* resource, ID3D12Device5* device, D3D12_DEPTH_STENCIL_VIEW_DESC* desc);
     
     ID3D12DescriptorHeap* Get() const { return mDescriptorHeap.Get(); }
-    const int GetDescriptorSize() const { return mDescriptorSize; }
-    int GetHeapStart() const { return mHeapStart; }
+    const uint32_t GetDescriptorSize() const { return mDescriptorSize; }
+    uint32_t GetHeapStart() const { return mHeapStart; }
 
     private:
-    void DeallocateResource(int slot);
+    void DeallocateResource(uint32_t slot);
 
     ComPtr<ID3D12DescriptorHeap> mDescriptorHeap;
-    int mDescriptorSize;
+    uint32_t mDescriptorSize;
     D3D12_DESCRIPTOR_HEAP_TYPE mType;
     ComPtr<ID3D12Device5> m_device;
-    int mMaxResources;
-    int mResourceCount = 0;
-    int mHeapStart = 0;
-    std::vector<int> mClearList;
+    uint32_t mMaxResources;
+    uint32_t mResourceCount = 0;
+    uint32_t mHeapStart = 0;
+    std::vector<uint32_t> mClearList;
 };

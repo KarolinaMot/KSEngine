@@ -1,7 +1,9 @@
 #pragma once
 #include <resources/Material.hpp>
 #include <resources/Mesh.hpp>
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
+#pragma warning(pop)
 
 #ifndef MAX_MESHES
 #define MAX_MESHES 500

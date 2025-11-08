@@ -16,7 +16,9 @@ DXResource::DXResource(const ComPtr<ID3D12Device5>& device, const CD3DX12_HEAP_P
 
     if (FAILED(hr)) ASSERT(false && "Resource creation failed");
 
-    device->GetCopyableFootprints(&descr, 0, 1, 0, nullptr, nullptr, nullptr, &mResourceSize);
+    size_t size;
+    device->GetCopyableFootprints(&descr, 0, 1, 0, nullptr, nullptr, nullptr, &size);
+    mResourceSize = static_cast<uint32_t>(size);
 
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
@@ -28,7 +30,9 @@ DXResource::DXResource(const ComPtr<ID3D12Device5>& device, ComPtr<ID3D12Resourc
     mResource = res;
     mState = resState;
     auto description = mResource->GetDesc();
-    device->GetCopyableFootprints(&description, 0, 1, 0, nullptr, nullptr, nullptr, &mResourceSize);
+    size_t size;
+    device->GetCopyableFootprints(&description, 0, 1, 0, nullptr, nullptr, nullptr, &size);
+    mResourceSize = static_cast<uint32_t>(size);
 }
 
 DXResource::~DXResource() {}

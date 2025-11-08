@@ -9,7 +9,9 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
+#pragma warning(pop)
 #include <renderer/RenderTarget.hpp>
 #include <renderer/DepthStencil.hpp>
 #include <resources/Texture.hpp>

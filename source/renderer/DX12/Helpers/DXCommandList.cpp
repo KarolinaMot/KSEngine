@@ -10,6 +10,10 @@ DXCommandAllocator::DXCommandAllocator(ComPtr<ID3D12Device5> device, const char*
     {
         LOG(Log::Severity::FATAL, "Failed to create command allocator");
     }
+
+    wchar_t wString[4096];
+    MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
+    m_allocator->SetName(wString);
 }
 
 DXCommandAllocator::~DXCommandAllocator()
@@ -250,7 +254,7 @@ void DXCommandList::ClearDepthStencils(const DXResource& depthResource, const DX
     m_allocator->TrackResource(depthResource.GetResource());
 }
 
-void DXCommandList::BindVertexData(DXResource& buffer, size_t bufferStride, uint32_t inputSlot, uint32_t elementOffset,
+void DXCommandList::BindVertexData(DXResource& buffer, uint32_t bufferStride, uint32_t inputSlot, uint32_t elementOffset,
                                    uint32_t elementCount)
 {
     if (!m_isOpen)
@@ -270,7 +274,7 @@ void DXCommandList::BindVertexData(DXResource& buffer, size_t bufferStride, uint
     m_allocator->TrackResource(buffer.GetResource());
 }
 
-void DXCommandList::BindIndexData(DXResource& buffer, size_t bufferStride, uint32_t elementOffset, uint32_t elementCount)
+void DXCommandList::BindIndexData(DXResource& buffer, uint32_t bufferStride, uint32_t elementOffset, uint32_t elementCount)
 {
     if (!m_isOpen)
     {

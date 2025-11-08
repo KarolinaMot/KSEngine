@@ -15,7 +15,7 @@ class UploadArena;
 class Skydome : public ShaderInput
 {
 public:
-    Skydome(Device& device, DXCommandList& commandList, const Texture& image);
+    Skydome(Device& device, const Texture& image);
     ~Skydome();
     virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex = 0);
 

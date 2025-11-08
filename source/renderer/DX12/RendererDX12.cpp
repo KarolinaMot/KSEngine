@@ -124,7 +124,6 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
     }
 
     auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
 
     deferredRendererDepthTex =
         std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
@@ -473,7 +472,6 @@ void KS::Renderer::Main(Device& device, Scene& scene)
 void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
 {
     auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
     auto texCount = device.GetTexWithoutMipmapCount();
 
     for (int i = 0; i < texCount; i++)

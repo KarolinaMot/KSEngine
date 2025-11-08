@@ -8,7 +8,6 @@
 #include <renderer/InfoStructs.hpp>
 #pragma warning(push, 0)
 #include <DXR/DXRHelper.h>
-#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
 #pragma warning(pop)
 
 class KS::Shader::Impl
@@ -211,6 +210,7 @@ void KS::Shader::RTShader(const Device& device)
     {
         if (m_shaders[i].first == "") continue;
         ComPtr<IDxcBlob> blob = nv_helpers_dx12::CompileShaderLibrary(ConvertToWideString(m_shaders[i].first.c_str()).c_str());
+
         if (!blob)
         {
             std::exit(EXIT_FAILURE);
@@ -241,7 +241,7 @@ void KS::Shader::RTShader(const Device& device)
     // Create a list of shader entry point names that use the payload.
 
     D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocShaderCfg = {};
-    assocShaderCfg.NumExports = shaderPayloadExports.size();
+    assocShaderCfg.NumExports = static_cast<UINT>(shaderPayloadExports.size());
     assocShaderCfg.pExports = shaderPayloadExports.data();
     assocShaderCfg.pSubobjectToAssociate = &subs[shaderConfigId];  // shaderCfg subobject
     subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocShaderCfg});
@@ -254,7 +254,7 @@ void KS::Shader::RTShader(const Device& device)
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSig});
 
         D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION assocLocalRS = {};
-        assocLocalRS.NumExports = m_links[i].shaderNames.size();
+        assocLocalRS.NumExports = static_cast<UINT>(m_links[i].shaderNames.size());
         assocLocalRS.pExports = m_links[i].shaderNames.data();
         assocLocalRS.pSubobjectToAssociate = &subs[subs.size()-1];  // local RS subobject
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &assocLocalRS});

@@ -1,5 +1,5 @@
 #pragma once
-
+#pragma warning(push, 0)
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat2x2.hpp>
 #include <glm/mat3x3.hpp>
@@ -7,6 +7,8 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#pragma warning(pop)
+
 
 namespace std
 {

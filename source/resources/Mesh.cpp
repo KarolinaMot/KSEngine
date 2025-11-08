@@ -38,34 +38,35 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
-KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, int meshIndex)
+KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, uint32_t meshIndex)
 {
     m_impl = std::make_unique<Impl>();
 
-    for (const auto& [name, attributes] : data)
+    for (const auto& [attrName, attributes] : data)
     {
         auto view = attributes.GetView<uint8_t>();
 
         auto* start = view.begin();
         size_t size = view.count();
-        size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(name)->second;
+        size_t stride = MeshConstants::ATTRIBUTE_STRIDES.find(attrName)->second;
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
-        auto buffer = std::make_shared<KS::StorageBuffer>(device, commandList, name, start, stride, size / stride, false);
+        auto buffer = std::make_shared<KS::StorageBuffer>(device, commandList, attrName, start, static_cast<uint32_t>(stride),
+                                                          static_cast<uint32_t>(size / stride), false);
 
-        if (name == MeshConstants::ATTRIBUTE_NORMALS_NAME)
+        if (attrName == MeshConstants::ATTRIBUTE_NORMALS_NAME)
             buffer->AllocateAsReadOnly(device, NORMALS_SLOT + meshIndex);
-        else if (name == MeshConstants::ATTRIBUTE_INDICES_NAME)
+        else if (attrName == MeshConstants::ATTRIBUTE_INDICES_NAME)
             buffer->AllocateAsReadOnly(device, INDICES_SLOT + meshIndex);
-        else if (name == MeshConstants::ATTRIBUTE_POSITIONS_NAME)
+        else if (attrName == MeshConstants::ATTRIBUTE_POSITIONS_NAME)
             buffer->AllocateAsReadOnly(device, VPOS_SLOT + meshIndex);
-        else if (name == MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)
+        else if (attrName == MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)
             buffer->AllocateAsReadOnly(device, UVS_SLOT + meshIndex);
-        else if (name == MeshConstants::ATTRIBUTE_TANGENTS_NAME)
+        else if (attrName == MeshConstants::ATTRIBUTE_TANGENTS_NAME)
             buffer->AllocateAsReadOnly(device, TAN_SLOT + meshIndex);
 
-        m_data.emplace(name, buffer);
+        m_data.emplace(attrName, buffer);
     }
 
     m_name = name;
@@ -106,7 +107,7 @@ std::shared_ptr<KS::StorageBuffer> KS::Mesh::GetAttribute(const std::string& nam
     return nullptr;
 }
 
-uint32_t KS::Mesh::BLASAddress() const
+size_t KS::Mesh::BLASAddress() const
 {
     if (!m_impl->m_BLAS)
     {

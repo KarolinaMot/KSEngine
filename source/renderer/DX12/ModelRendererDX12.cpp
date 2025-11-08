@@ -10,12 +10,6 @@
 #include <resources/Texture.hpp>
 #pragma warning(push, 0)
 #include <glm/gtc/matrix_transform.hpp>
-#include <DXR/DXRHelper.h>
-#include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
-#include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
-#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
-#include <DXR/nv_helpers_dx12/RootSignatureGenerator.h>
-#include <DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h>
 #pragma warning(pop)
 #include <renderer/InfoStructs.hpp>
 #include <renderer/StorageBuffer.hpp>

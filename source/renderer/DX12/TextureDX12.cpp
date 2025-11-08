@@ -386,10 +386,10 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
 
     m_textureCount++;
 
-    m_impl->m_viewport.Width = texture1->m_width;
-    m_impl->m_viewport.Height = texture1->m_height;
-    m_impl->m_viewport.TopLeftX = 0;
-    m_impl->m_viewport.TopLeftY = 0;
+    m_impl->m_viewport.Width = static_cast<FLOAT>(texture1->m_width);
+    m_impl->m_viewport.Height = static_cast<FLOAT>(texture1->m_height);
+    m_impl->m_viewport.TopLeftX = 0.f;
+    m_impl->m_viewport.TopLeftY = 0.f;
     m_impl->m_viewport.MinDepth = 0.0f;
     m_impl->m_viewport.MaxDepth = 1.0f;
 
@@ -436,8 +436,8 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
 
     m_textureCount++;
 
-    m_impl->m_viewport.Width = texture1->m_width;
-    m_impl->m_viewport.Height = texture1->m_height;
+    m_impl->m_viewport.Width = static_cast<FLOAT>(texture1->m_width);
+    m_impl->m_viewport.Height = static_cast<FLOAT>(texture1->m_height);
     m_impl->m_viewport.TopLeftX = 0;
     m_impl->m_viewport.TopLeftY = 0;
     m_impl->m_viewport.MinDepth = 0.0f;

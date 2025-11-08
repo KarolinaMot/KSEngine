@@ -32,7 +32,7 @@ public:
     ~TLAS();
 
     // Ownership of instances lives here:
-    void AddInstance(const Device& device, DXCommandList& cmd, DrawEntry* entry, glm::mat4x4 modelMat);
+    void AddInstance(DrawEntry* entry, glm::mat4x4 modelMat);
     void RemoveInstance(uint32_t instanceHandle);
     void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
     void Clear();
@@ -55,7 +55,7 @@ private:
     size_t m_scratchSize = 0;
     uint32_t m_capacity = 0;  // capacity of instance descs
 
-    void EnsureInstanceCapacity(const Device& device, DXCommandList& cmd,
+    void EnsureInstanceCapacity(const Device& device,
                                 uint32_t count);  // grow buffers (and set m_dirtyStructure)
     void WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate);  // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
     void EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate);

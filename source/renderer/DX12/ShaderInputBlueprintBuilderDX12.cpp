@@ -162,7 +162,7 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampl
                                                                                    SamplerDesc samplerDesc, uint32_t space)
 {
     std::pair<ShaderInputVisibility, SamplerDesc> sampler = {visibility, samplerDesc};
-    D3D12_TEXTURE_ADDRESS_MODE addressMode;
+    D3D12_TEXTURE_ADDRESS_MODE addressMode{};
 
     switch (sampler.second.addressMode)
     {
@@ -183,7 +183,7 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampl
             break;
     }
 
-    D3D12_FILTER filterMode;
+    D3D12_FILTER filterMode{};
     switch (sampler.second.filter)
     {
         case SamplerFilter::SF_NEAREST:
@@ -199,7 +199,7 @@ KS::ShaderInputBlueprintBuilder& KS::ShaderInputBlueprintBuilder::AddStaticSampl
             break;
     }
 
-    D3D12_STATIC_BORDER_COLOR borderColor;
+    D3D12_STATIC_BORDER_COLOR borderColor{};
     switch (sampler.second.borderColor)
     {
         case SamplerBorderColor::SBC_TRANSPARENT_BLACK:
@@ -262,12 +262,11 @@ std::shared_ptr<KS::ShaderInputBlueprint> KS::ShaderInputBlueprintBuilder::Build
     }
     signature->SetName(wString);
 
-    return std::make_shared<ShaderInputBlueprint>(device, std::move(m_descriptors), signature.Get(), !m_local, name);
+    return std::make_shared<ShaderInputBlueprint>(std::move(m_descriptors), signature.Get(), !m_local, name);
 }
 
-D3D12_SHADER_VISIBILITY KS::ShaderInputBlueprintBuilder::Impl::GetVisibility(ShaderInputVisibility visibility)
-{
-    D3D12_SHADER_VISIBILITY descVisibility;
+D3D12_SHADER_VISIBILITY KS::ShaderInputBlueprintBuilder::Impl::GetVisibility(ShaderInputVisibility visibility){
+    D3D12_SHADER_VISIBILITY descVisibility{};
     switch (visibility)
     {
         case ShaderInputVisibility::PIXEL:

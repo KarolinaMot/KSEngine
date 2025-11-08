@@ -11,7 +11,7 @@ KS::ComputeRenderer::ComputeRenderer(const Device& device, SubRendererDesc& desc
 
 KS::ComputeRenderer::~ComputeRenderer() {}
 
-void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
+void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContext, Scene&,
                                  std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT)
 {
     auto& commandList = commandContext->m_commandList;

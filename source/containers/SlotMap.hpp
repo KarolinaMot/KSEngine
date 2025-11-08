@@ -111,7 +111,7 @@ private:
         if (free_list.empty())
         {
             storage.emplace_back();
-            return storage.size() - 1;
+            return static_cast<Index>(storage.size()) - 1;
         }
 
         return free_list.back();
@@ -123,10 +123,5 @@ private:
     // Keeps track of freed elements
     std::vector<Index> free_list {};
 };
-
-namespace Tests
-{
-    void TestSlotMap();
-}
 
 }

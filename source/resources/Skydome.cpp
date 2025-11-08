@@ -17,7 +17,7 @@ public:
     UploadSlice m_slice;
 };
 
-KS::Skydome::Skydome(Device& device, DXCommandList& commandList, const Texture& tex) : ShaderInput()
+KS::Skydome::Skydome(Device& device, const Texture& tex) : ShaderInput()
 {
     m_impl = std::make_unique<Impl>();   
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -56,7 +56,7 @@ KS::Skydome::Skydome(Device& device, DXCommandList& commandList, const Texture& 
 
 KS::Skydome::~Skydome() {}
 
-void KS::Skydome::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t mip)
+void KS::Skydome::Bind(const Device&, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t mip)
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
@@ -72,7 +72,7 @@ void KS::Skydome::Bind(const Device& device, DXCommandList& commandList, const S
     }
 }
 
-size_t KS::Skydome::GetGPUAddress(int elementIndex, int frameIndex) const
+size_t KS::Skydome::GetGPUAddress(int, int) const
 {
     return m_impl->m_cubemap->GetResource()->GetGPUVirtualAddress();
 }

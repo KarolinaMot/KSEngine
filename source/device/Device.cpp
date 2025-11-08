@@ -30,7 +30,7 @@ public:
     UINT GetFramebufferIndex();
 
     // void BindSwapchainRT();
-    void StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor);
+    void StartFrame(int cpuFrame);
     void EndFrame(int cpuFrame);
 
     enum DXResources
@@ -120,7 +120,7 @@ void KS::Device::NewFrame()
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     m_frame_index = m_impl->GetFramebufferIndex();
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
-    m_impl->StartFrame(m_frame_index, m_cpu_frame, m_clear_color);
+    m_impl->StartFrame(m_cpu_frame);
 
     m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
     m_swapchainRT->Clear(*commandList, m_cpu_frame);
@@ -274,7 +274,7 @@ UINT KS::Device::Impl::GetFramebufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-void KS::Device::Impl::StartFrame(int frameIndex, int cpuFrame, glm::vec4 clearColor)
+void KS::Device::Impl::StartFrame(int cpuFrame)
 {
     // Wait until the current swapchain is available;
     m_fence_values[cpuFrame].Wait();
@@ -294,7 +294,7 @@ void KS::Device::Impl::EndFrame(int cpuFrame)
     m_uploadArena->OnSubmit(m_fence_values[cpuFrame].GetFutureValue());
 }
 
-void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
+void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID, LPCSTR pDescription, void*)
 {
     switch (Severity)
     {

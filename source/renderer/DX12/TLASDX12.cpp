@@ -26,7 +26,7 @@ KS::TLAS::TLAS() { m_Impl = std::make_unique<Impl>(); }
 
 KS::TLAS::~TLAS() {}
 
-void KS::TLAS::AddInstance(const Device& device, DXCommandList& cmd, DrawEntry* entry, glm::mat4x4 modelMat)
+void KS::TLAS::AddInstance(DrawEntry* entry, glm::mat4x4 modelMat)
 {
     uint32_t instanceCount = static_cast<uint32_t>(m_instances.size());
     TLASInstance inst{};
@@ -86,7 +86,7 @@ size_t KS::TLAS::GetGPUAddress(int, int frameIndex) const
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
-void KS::TLAS::EnsureInstanceCapacity(const Device& device, DXCommandList& cmd, uint32_t count)
+void KS::TLAS::EnsureInstanceCapacity(const Device& device, uint32_t count)
 {
     UINT newCap = m_capacity <= 1 ? 2 : m_capacity;
     auto frameIndex = device.GetCPUFrameIndex();
@@ -187,9 +187,8 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     }
     const bool doUpdate = m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex] &&
                           (m_Impl->m_tlas[frameIndex] != nullptr);
-    auto descSize = Align256(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * static_cast<UINT64>(m_instances.size()));
 
-    EnsureInstanceCapacity(device, cmd, count);
+    EnsureInstanceCapacity(device, count);
     WriteInstanceDescs(frameIndex, doUpdate);
 
     // Prebuild info

@@ -7,7 +7,9 @@
 #include <resources/Mesh.hpp>
 #include <resources/Model.hpp>
 
+#pragma warning(push, 0)
 #include <glm/glm.hpp>
+#pragma warning(pop)
 #include <memory>
 #include <unordered_map>
 #include "InfoStructs.hpp"

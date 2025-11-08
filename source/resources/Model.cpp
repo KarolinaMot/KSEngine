@@ -5,7 +5,10 @@
 #include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
+#pragma warning(push, 0)
 #include <glm/gtc/type_ptr.hpp>
+#pragma warning(pop)
+
 #include <tools/Log.hpp>
 
 #include "Image.hpp"
@@ -400,6 +403,4 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
         LOG(Log::Severity::WARN, "Failed to create output model file {}", out_model_file.string());
         return std::nullopt;
     }
-
-    return ResourceHandle<Model> { out_model_file.string() };
 }

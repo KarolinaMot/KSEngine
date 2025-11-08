@@ -224,40 +224,6 @@ DXHeapHandle DXDescHeap::AllocateRenderTarget(DXResource* resource, D3D12_RENDER
     return DXHeapHandle(slot, shared_from_this());
 }
 
-DXHeapHandle DXDescHeap::AllocateRenderTarget(DXResource* resource, ID3D12Device5* device, D3D12_RENDER_TARGET_VIEW_DESC* desc)
-{
-    int slot = -1;
-
-    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
-    {
-        // LOG(LogCore, Warning, "Trying to allocate an RTV in the wrong heap");
-        assert(false && "Trying to allocate an RTV in the wrong heap");
-        return DXHeapHandle();
-    }
-
-    if (mClearList.size() > 0)
-    {
-        slot = mClearList[0];
-        mClearList.erase(mClearList.begin());
-    }
-    else if (mResourceCount <= mMaxResources)
-    {
-        slot = mResourceCount;
-        mResourceCount++;
-    }
-    else
-    {
-        // LOG(LogCore, Fatal, "Descriptor heap maximum reached");
-        assert(false && "Descriptor heap maximum reached");
-        return DXHeapHandle();
-    }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
-    m_device->CreateRenderTargetView(resource->Get(), desc, handle);
-
-    return DXHeapHandle(slot, shared_from_this());
-}
-
 DXHeapHandle DXDescHeap::AllocateDepthStencil(DXResource* resource, D3D12_DEPTH_STENCIL_VIEW_DESC* desc)
 {
     int slot = -1;
@@ -292,41 +258,7 @@ DXHeapHandle DXDescHeap::AllocateDepthStencil(DXResource* resource, D3D12_DEPTH_
     return DXHeapHandle(slot, shared_from_this());
 }
 
-DXHeapHandle DXDescHeap::AllocateDepthStencil(DXResource* resource, ID3D12Device5* device, D3D12_DEPTH_STENCIL_VIEW_DESC* desc)
-{
-    int slot = -1;
-
-    if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
-    {
-        // LOG(LogCore, Warning, "Trying to allocate a DSV in the wrong heap");
-        assert(false && "Trying to allocate an DSV in the wrong heap");
-        return DXHeapHandle();
-    }
-
-    if (mClearList.size() > 0)
-    {
-        slot = mClearList[0];
-        mClearList.erase(mClearList.begin());
-    }
-    else if (mResourceCount <= mMaxResources)
-    {
-        slot = mResourceCount;
-        mResourceCount++;
-    }
-    else
-    {
-        // LOG(LogCore, Fatal, "Descriptor heap maximum reached");
-        assert(false && "Descriptor heap maximum reached");
-        return DXHeapHandle();
-    }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
-    m_device->CreateDepthStencilView(resource->Get(), desc, handle);
-
-    return DXHeapHandle(slot, shared_from_this());
-}
-
-void DXDescHeap::DeallocateResource(int slot)
+void DXDescHeap::DeallocateResource(uint32_t slot)
 {
     for (size_t i = 0; i < mClearList.size(); i++)
     {

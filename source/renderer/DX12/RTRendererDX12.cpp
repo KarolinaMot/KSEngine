@@ -10,13 +10,6 @@
 #include <resources/Texture.hpp>
 #include <resources/Skydome.hpp>
 #pragma warning(push, 0)
-#include <DXR/DXRHelper.h>
-#include <DXR/nv_helpers_dx12/BottomLevelASGenerator.h>
-#include <DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h>
-#include <DXR/nv_helpers_dx12/RootSignatureGenerator.h>
-#include <DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h>
-#include <DXR/nv_helpers_dx12/TopLevelASGenerator.h>
-
 #include <glm/gtc/matrix_transform.hpp>
 #pragma warning(pop)
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
@@ -39,12 +32,9 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
     m_impl = std::make_unique<Impl>();
     auto engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
 
-    int32_t frameIndex = 0;
-
     auto heap = static_cast<DXDescHeap*>(device.GetResourceHeap());
     D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle =
         static_cast<DXDescHeap*>(device.GetResourceHeap())->Get()->GetGPUDescriptorHandleForHeapStart();
-    auto heapPointer = srvUavHeapHandle.ptr;
 
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
@@ -130,16 +120,11 @@ KS::RTRenderer::RTRenderer(const Device& device, Scene& scene, SubRendererDesc& 
 
 KS::RTRenderer::~RTRenderer() {}
 
-void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                            std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT)
+void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Scene&,
+                            std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool)
 {
     auto commandList = commandContext->m_commandList.get();
     auto cpuFrameIndex = device.GetCPUFrameIndex();
-
-    //if (clearRT)
-    //{
-    //    m_renderTarget->Clear(*commandList, cpuFrameIndex);
-    //}
 
     m_renderTarget->GetTexture(cpuFrameIndex, 0)->TransitionToRW(device, *commandList);
 

@@ -1,6 +1,8 @@
 #pragma once
+#pragma warning(push, 0)
 #include <cereal/types/map.hpp>
 #include <cereal/types/string.hpp>
+#pragma warning(pop)
 #include <containers/ByteBuffer.hpp>
 #include <map>
 #include <memory>
@@ -83,7 +85,7 @@ class Device;
 class Mesh
 {
 public:
-    Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, int meshIndex);
+    Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, uint32_t meshIndex);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;
@@ -94,17 +96,17 @@ public:
     Mesh& operator=(Mesh&& other) noexcept;
 
     std::shared_ptr<StorageBuffer> GetAttribute(const std::string& name) const;
-    uint32_t BLASAddress() const;
+    size_t BLASAddress() const;
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
-    int GetMeshIndex() const { return m_meshIndex; }
+    uint32_t GetMeshIndex() const { return m_meshIndex; }
 
 private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
-    int m_meshIndex = 0;
+    uint32_t m_meshIndex = 0;
 
     class Impl;
     std::unique_ptr<Impl> m_impl;

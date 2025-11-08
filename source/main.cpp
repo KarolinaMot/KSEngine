@@ -1,18 +1,10 @@
-// #include <cereal/archives/binary.hpp>
-// #include <cereal/archives/json.hpp>
-// #include <code_utility.hpp>
-// #include <compare>
 #include <components/ComponentCamera.hpp>
 #include <components/ComponentTransform.hpp>
-// #include <containers/SlotMap.hpp>
 #include <device/Device.hpp>
 #include <ecs/EntityComponentSystem.hpp>
 #include <fileio/FileIO.hpp>
-// #include <glm/glm.hpp>
-// #include <glm/gtc/matrix_transform.hpp>
 #include <input/RawInput.hpp>
 #include <math/Geometry.hpp>
-// #include <iostream>
 #include <memory>
 #include <renderer/ModelRenderer.hpp>
 #include <renderer/Renderer.hpp>
@@ -20,7 +12,6 @@
 #include <scene/Scene.hpp>
 #include <editor/Editor.hpp>
 #include <tools/Log.hpp>
-// #include <vector>
 #include <resources/Model.hpp>
 #include <tools/Timer.hpp>
 
@@ -66,24 +57,19 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
     }
 
     auto view = registry.view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
-    for (auto&& [e, camera, transform] : view.each())
-    {
+    auto it = view.each().begin();
+    auto [e, camera, transform] = *it;
 
-        camera.eulerAngles += eulerDelta;
-        camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
+    camera.eulerAngles += eulerDelta;
+    camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
-        // LOG(Log::Severity::INFO, "{} {}", camera.eulerAngles.x, camera.eulerAngles.y);
+    auto rotation = glm::quat(camera.eulerAngles);
+    auto translation = transform.GetLocalTranslation();
 
-        auto rotation = glm::quat(camera.eulerAngles);
-        auto translation = transform.GetLocalTranslation();
+    transform.SetLocalTranslation(translation + rotation * (movement_dir * dt * CAM_SPEED));
+    transform.SetLocalRotation(rotation);
 
-        transform.SetLocalTranslation(translation + rotation * (movement_dir * dt * CAM_SPEED));
-        transform.SetLocalRotation(rotation);
-
-        return camera.GenerateCamera(transform.GetWorldMatrix());
-    }
-
-    return KS::Camera {};
+    return camera.GenerateCamera(transform.GetWorldMatrix());
 }
 
 int main()
@@ -123,6 +109,7 @@ int main()
     //scene.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
     //scene.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
 
+    //auto model = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
     auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
 

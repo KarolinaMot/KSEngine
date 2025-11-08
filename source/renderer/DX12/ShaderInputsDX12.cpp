@@ -11,7 +11,7 @@ public:
 };
 
 
-KS::ShaderInputBlueprint::ShaderInputBlueprint(const Device& device, std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature,
+KS::ShaderInputBlueprint::ShaderInputBlueprint(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature,
                                bool global, std::string name)
 {
     m_impl = std::make_unique<Impl>();
