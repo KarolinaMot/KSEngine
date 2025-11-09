@@ -1,4 +1,5 @@
 #include <device/Device.hpp>
+#include <scene/Scene.hpp>
 #include <renderer/ComputeRenderer.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
@@ -7,12 +8,11 @@
 #include <renderer/ShaderInputBlueprint.hpp>
 #include <resources/Texture.hpp>
 
-KS::ComputeRenderer::ComputeRenderer(const Device& device, SubRendererDesc& desc) : SubRenderer(device, desc) {}
+KS::ComputeRenderer::ComputeRenderer(const Device& device, std::shared_ptr<Shader>& shader) : SubRenderer(device, shader) {}
 
 KS::ComputeRenderer::~ComputeRenderer() {}
 
-void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContext, Scene&,
-                                 std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT)
+void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
     auto& commandList = commandContext->m_commandList;
 
@@ -20,30 +20,30 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
 
     commandList->BindPipeline(pipeline);
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), true);
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
     auto frameIndex = device.GetCPUFrameIndex();
 
-    for (int i = 0; i < inputs.size(); i++)
+    for (int i = 0; i < par.inputs->size(); i++)
     {
-        auto& input = inputs[i];
+        auto& input = (*par.inputs)[i];
         if (input.first)
-            input.first->Bind(device, *commandList, input.second.desc, input.second.bindOffset);
+            input.first->Bind(device, resourceHeap, *commandList, input.second.desc, input.second.bindOffset);
         else
             LOG(Log::Severity::WARN, "One of the inputs {} in a compute renderer was empty command will be ignored", i);
     }
 
 
-    if (m_renderTarget)
+    if (par.rt)
     {
-        if (clearRT)
+        if (par.clearRt)
         {
-            m_renderTarget->Bind(*commandList, frameIndex, m_depthStencil.get());
-            m_renderTarget->Clear(*commandList, frameIndex);
+            par.rt->Bind(*commandList, frameIndex, par.ds.get());
+            par.rt->Clear(*commandList, frameIndex);
         }
-        m_renderTarget->GetTexture(frameIndex, 0)->Bind(device, *commandList, m_shader->GetShaderInput()->GetInput("compute_res"));
-        m_dispatchWidth = m_renderTarget->GetTexture(frameIndex, 0)->GetWidth();
-        m_dispatchHeight = m_renderTarget->GetTexture(frameIndex, 0)->GetHeight();
+        par.rt->GetTexture(frameIndex, 0)->Bind(device, resourceHeap, *commandList, m_shader->GetShaderInput()->GetInput("compute_res"));
+        m_dispatchWidth = par.rt->GetTexture(frameIndex, 0)->GetWidth();
+        m_dispatchHeight = par.rt->GetTexture(frameIndex, 0)->GetHeight();
     }
     
     if (m_dispatchWidth == 0 || m_dispatchHeight == 0 || m_dispatchDepth == 0)

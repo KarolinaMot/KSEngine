@@ -41,7 +41,6 @@ public:
 
     void* GetDevice() const;
     DXCommandContext GetCommandContext() const;
-    void* GetResourceHeap() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;
     void* GetWindowHandle() const;
@@ -68,18 +67,6 @@ public:
     std::shared_ptr<Texture> GetDepthStencilTex() { return m_swapchainDepthTex; };
     UploadArena* GetUploadArena() const;
 
-    void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
-    void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
-    size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
-
-    KS::Texture* GetTextureForMipmapGen(int index) const
-    {
-        if (auto lock = m_texWithoutMipmaps[index].lock())
-            return lock.get();
-        else
-            return nullptr;
-    }
-
     // Blocks until all rendering operations are finished
     void Flush();
 
@@ -100,7 +87,6 @@ private:
     std::shared_ptr<Texture> m_swapchainTex[2];
     std::shared_ptr<DepthStencil> m_swapchainDS;
     std::shared_ptr<Texture> m_swapchainDepthTex;
-    std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
 };
 
 } // namespace KS

@@ -85,7 +85,8 @@ class Device;
 class Mesh
 {
 public:
-    Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, uint32_t meshIndex);
+    Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, const MeshData& data, const char* name,
+         uint32_t meshIndex);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;

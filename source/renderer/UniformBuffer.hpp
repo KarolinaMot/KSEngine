@@ -54,8 +54,8 @@ public:
     size_t GetElementCount() const { return m_num_elements; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
-                      uint32_t offsetIndex = 0) override;
+    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t offset = 0) override;
 
 private:
     void CreateUniformBuffer(const Device& device);

@@ -17,11 +17,11 @@ public:
     UploadSlice m_slice;
 };
 
-KS::Skydome::Skydome(Device& device, const Texture& tex) : ShaderInput()
+KS::Skydome::Skydome(Device& device, void* resourceHeap, const Texture& tex) : ShaderInput()
 {
     m_impl = std::make_unique<Impl>();   
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    auto descriptorHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto descriptorHeap = reinterpret_cast<DXDescHeap*>(resourceHeap);
 
     D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
     flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -56,7 +56,7 @@ KS::Skydome::Skydome(Device& device, const Texture& tex) : ShaderInput()
 
 KS::Skydome::~Skydome() {}
 
-void KS::Skydome::Bind(const Device&, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t mip)
+void KS::Skydome::Bind(const Device&, void*, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t mip)
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {

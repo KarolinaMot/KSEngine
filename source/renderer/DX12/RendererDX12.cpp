@@ -28,7 +28,8 @@
 #include <resources/Skydome.hpp>
 #include <resources/Image.hpp>
 #include <scene/Scene.hpp>
-KS::Renderer::Renderer(Device& device, Scene& scene)
+
+KS::Renderer::Renderer(Device& device)
 {
     SamplerDesc clampSampler;
     clampSampler.addressMode = SamplerAddressMode::SAM_CLAMP;
@@ -74,62 +75,8 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
             .SetLocal()
             .Build(device, "RT SIGNATURE");
 
-    std::shared_ptr<Texture> deferredRendererTex[2][4];
-    std::shared_ptr<Texture> deferredRendererDepthTex;
-    std::shared_ptr<Texture> compute_resTex[2];
-    std::shared_ptr<Texture> raytracingResTex[2];
-    std::shared_ptr<Texture> lightRenderingTex[2];
-    std::shared_ptr<Texture> lightShaftTex[2];
-    std::shared_ptr<Texture> upscaledLightShaftTex[2];
-
-    for (int i = 0; i < 2; i++)
-    {
-        deferredRendererTex[i][0] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
-        deferredRendererTex[i][1] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R32G32B32A32_FLOAT);
-        deferredRendererTex[i][2] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
-        deferredRendererTex[i][3] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
-
-        compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                                 Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                 glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM);
-        raytracingResTex[i] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
-
-        lightRenderingTex[i] = std::make_shared<Texture>(
-            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
-            Formats::R32G32B32A32_FLOAT, static_cast<std::uint16_t>(4));
-
-        lightShaftTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth() / 4, device.GetSwapchainHeight() / 4,
-                                                     Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                     glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT);
-
-        upscaledLightShaftTex[i] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R8G8B8A8_UNORM);
-    }
 
     auto commandContext = device.GetCommandContext();
-
-    deferredRendererDepthTex =
-        std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                  Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
-    m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, deferredRendererDepthTex);
 
     int fullInputFlags =
         Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS | Shader::PBR_TEXTURES;
@@ -204,81 +151,15 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                                .SetGlobalSignature(m_mainInputs)
                                                .Build(device);
 
-    m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
-    for (int i = 0; i < 4; i++)
-    {
-        m_renderTargets[DEFERRED_RENDER]->AddTexture(device, deferredRendererTex[0][i], deferredRendererTex[1][i],
-                                                     "DEFERRED RENDERER" + std::to_string(i));
-    }
-
-    m_renderTargets[PBR_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[PBR_RENDER]->AddTexture(device, compute_resTex[0], compute_resTex[1], "PBR RENDER RES");
-
-    m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
-
-    m_renderTargets[LIGHT_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[LIGHT_RENDER]->AddTexture(device, lightRenderingTex[0], lightRenderingTex[1], "LIGHT RENDER RES");
-
-    m_renderTargets[LIGHT_SHAFT_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[LIGHT_SHAFT_RENDER]->AddTexture(device, lightShaftTex[0], lightShaftTex[1], "LIGHT SHAFT RENDER RES");
-
-    m_renderTargets[UPSCALING_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[UPSCALING_RENDER]->AddTexture(device, upscaledLightShaftTex[0], upscaledLightShaftTex[1],
-                                                  "UPSCALED LIGHT SHAFT RENDER RES");
-
-    SubRendererDesc defferedDesc;
-    defferedDesc.shader = mainShader;
-    defferedDesc.renderTarget = m_renderTargets[DEFERRED_RENDER];
-    defferedDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[DEFERRED_RENDER] = std::make_unique<ModelRenderer>(device, defferedDesc);
-
-    SubRendererDesc skyboxRenderDesc;
-    skyboxRenderDesc.shader = skyboxRenderShader;
-    skyboxRenderDesc.renderTarget = m_renderTargets[PBR_RENDER];
-    skyboxRenderDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ModelRenderer>(device, skyboxRenderDesc, true);
-
-    SubRendererDesc pbrDesc;
-    pbrDesc.shader = computePBRShader;
-    pbrDesc.renderTarget = m_renderTargets[PBR_RENDER];
-    pbrDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[PBR_RENDER] = std::make_unique<ComputeRenderer>(device, pbrDesc);
-
-    SubRendererDesc occluderDesc;
-    occluderDesc.shader = lightOccluderShader;
-    occluderDesc.renderTarget = m_renderTargets[LIGHT_RENDER];
-    occluderDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[OCCLUDER_RENDER] = std::make_unique<ModelRenderer>(device, occluderDesc);
-
-    SubRendererDesc lightDesc;
-    lightDesc.shader = lightRendererShader;
-    lightDesc.renderTarget = m_renderTargets[LIGHT_RENDER];
-    lightDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[LIGHT_RENDER] = std::make_unique<ComputeRenderer>(device, lightDesc);
-
-    SubRendererDesc lightShaftDesc;
-    lightShaftDesc.shader = lightShaftShader;
-    lightShaftDesc.renderTarget = m_renderTargets[LIGHT_SHAFT_RENDER];
-    lightShaftDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[LIGHT_SHAFT_RENDER] = std::make_unique<ComputeRenderer>(device, lightShaftDesc);
-
-    SubRendererDesc upscalingDesc;
-    upscalingDesc.shader = upscalingShader;
-    upscalingDesc.renderTarget = m_renderTargets[UPSCALING_RENDER];
-    upscalingDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[UPSCALING_RENDER] = std::make_unique<ComputeRenderer>(device, upscalingDesc);
-
-    SubRendererDesc rtDesc;
-    rtDesc.shader = rtShader;
-    rtDesc.renderTarget = m_renderTargets[RT_RENDER];
-    rtDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, scene, rtDesc);
-
-    SubRendererDesc cubemapDesc;
-    cubemapDesc.shader = skyboxShader;
-    cubemapDesc.depthStencil = m_deferredRendererDepthStencil;
-    m_subrenderers[CUBEMAP_GEN] = std::make_unique<ComputeRenderer>(device, cubemapDesc);
+    m_subrenderers[DEFERRED_RENDER] = std::make_unique<ModelRenderer>(device, mainShader);
+    m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ModelRenderer>(device, skyboxRenderShader, true);
+    m_subrenderers[PBR_RENDER] = std::make_unique<ComputeRenderer>(device, computePBRShader);
+    m_subrenderers[OCCLUDER_RENDER] = std::make_unique<ModelRenderer>(device, lightOccluderShader);
+    m_subrenderers[LIGHT_RENDER] = std::make_unique<ComputeRenderer>(device, lightRendererShader);
+    m_subrenderers[LIGHT_SHAFT_RENDER] = std::make_unique<ComputeRenderer>(device, lightShaftShader);
+    m_subrenderers[UPSCALING_RENDER] = std::make_unique<ComputeRenderer>(device, upscalingShader);
+    m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtShader);
+    m_subrenderers[CUBEMAP_GEN] = std::make_unique<ComputeRenderer>(device, skyboxShader);
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -311,9 +192,7 @@ KS::Renderer::Renderer(Device& device, Scene& scene)
                                                .SetGlobalSignature(m_mipMapShaderInputs)
                                                .Build(device);
         
-    SubRendererDesc mipGenDesc{};
-    mipGenDesc.shader = mipMapShader;
-    m_subrenderers[MIP_GEN] = std::make_unique<ComputeRenderer>(device, mipGenDesc);
+    m_subrenderers[MIP_GEN] = std::make_unique<ComputeRenderer>(device, mipMapShader);
 
     commandContext.Close();
 }
@@ -348,9 +227,11 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     if (raytraced)
         Raytrace(device, scene);
     else
+    {
+        RenderCubemap(device, scene);
         Main(device, scene);
+    }
 
-    RenderCubemap(device, scene);
 }
 
 void KS::Renderer::GodRays(Device& device, Scene& scene)
@@ -371,21 +252,34 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
         std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FOG_INFO_BUFFER), rootSignature->GetInput("fog_info"));
     m_inputs[LIGHT_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
                                                                          rootSignature->GetInput("camera_matrix"));
-    m_subrenderers[LIGHT_RENDER]->Render(device, &commandContext, scene, m_inputs[LIGHT_RENDER], true);
+
+    RenderParameters defPar{};
+    defPar.clearRt = true;
+    defPar.ds = scene.GetDepthStencil();
+    defPar.rt = scene.GetRenderTarget(LIGHT_RENDER);
+    defPar.scene = &scene;
+    defPar.inputs = &m_inputs[LIGHT_RENDER];
+    m_subrenderers[LIGHT_RENDER]->Render(device, &commandContext, defPar);
 
     // RENDERING OCCLUDER MESHES
     m_inputs[OCCLUDER_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
                                                                             rootSignature->GetInput("camera_matrix"));
     m_inputs[OCCLUDER_RENDER][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MODEL_MAT_BUFFER),
                                                                             rootSignature->GetInput("model_matrix"));
-    m_subrenderers[OCCLUDER_RENDER]->Render(device, &commandContext, scene, m_inputs[OCCLUDER_RENDER], false);
+
+    defPar.clearRt = false;
+    defPar.ds = scene.GetDepthStencil();
+    defPar.rt = scene.GetRenderTarget(LIGHT_RENDER);
+    defPar.scene = &scene;
+    defPar.inputs = &m_inputs[OCCLUDER_RENDER];
+    m_subrenderers[OCCLUDER_RENDER]->Render(device, &commandContext, defPar);
 
     commandContext = device.GetCommandContext();
     commandList = commandContext.m_commandList;
 
     // GENERATE LIGHT SCATTERING RENDER TARGET MIPS
-    auto lightRenderTex = m_renderTargets[LIGHT_RENDER]->GetTexture(frameIndex, 0);
-    device.AddToMipmapQueue(lightRenderTex);
+    auto lightRenderTex = scene.GetRenderTarget(LIGHT_RENDER)->GetTexture(frameIndex, 0);
+    scene.AddToMipmapQueue(lightRenderTex);
 
     // LIGHT SHAFT RENDER
     m_inputs[LIGHT_SHAFT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(POINT_LIGHT_BUFFER),
@@ -399,15 +293,27 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
                                                                                rootSignature->GetInput("camera_matrix"));
     m_inputs[LIGHT_SHAFT_RENDER][4] =
         std::pair<ShaderInput*, ShaderInputDesc>(lightRenderTex.get(), rootSignature->GetInput("light_render_res"));
-    m_subrenderers[LIGHT_SHAFT_RENDER]->Render(device, &commandContext, scene, m_inputs[LIGHT_SHAFT_RENDER], true);
+
+    defPar.clearRt = true;
+    defPar.ds = scene.GetDepthStencil();
+    defPar.rt = scene.GetRenderTarget(LIGHT_SHAFT_RENDER);
+    defPar.scene = &scene;
+    defPar.inputs = &m_inputs[LIGHT_SHAFT_RENDER];
+
+    m_subrenderers[LIGHT_SHAFT_RENDER]->Render(device, &commandContext, defPar);
 
     // LIGHT SHAFT UPSCALE
-    auto lightShaftTex = m_renderTargets[LIGHT_SHAFT_RENDER]->GetTexture(frameIndex, 0);
+    auto lightShaftTex = scene.GetRenderTarget(LIGHT_SHAFT_RENDER)->GetTexture(frameIndex, 0);
     m_inputs[UPSCALING_RENDER][0] =
         std::pair<ShaderInput*, ShaderInputDesc>(lightShaftTex.get(), rootSignature->GetInput("base_tex"));
-    m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, scene, m_inputs[UPSCALING_RENDER], true);
 
-    m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, scene, m_inputs[UPSCALING_RENDER], true);
+    defPar.clearRt = true;
+    defPar.ds = scene.GetDepthStencil();
+    defPar.rt = scene.GetRenderTarget(UPSCALING_RENDER);
+    defPar.scene = &scene;
+    defPar.inputs = &m_inputs[UPSCALING_RENDER];
+
+    m_subrenderers[UPSCALING_RENDER]->Render(device, &commandContext, defPar);
 
     commandContext.Close();
 }
@@ -418,7 +324,6 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     auto& commandList = commandContext.m_commandList;
     auto& rootSignature = m_mainInputs;
     auto frameIndex = device.GetCPUFrameIndex();
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
     // DEFERRED RENDERER
     m_inputs[DEFERRED_RENDER][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(
@@ -435,9 +340,14 @@ void KS::Renderer::Main(Device& device, Scene& scene)
         scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("material_info")));
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), false);
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, scene, m_inputs[DEFERRED_RENDER], true);
+    RenderParameters defPar{};
+    defPar.clearRt = true;
+    defPar.ds = scene.GetDepthStencil();
+    defPar.rt = scene.GetRenderTarget(DEFERRED_RENDER);
+    defPar.scene = &scene;
+    defPar.inputs = &m_inputs[DEFERRED_RENDER];
+    m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, defPar);
 
     commandContext = device.GetCommandContext();
     commandList = commandContext.m_commandList;
@@ -445,12 +355,12 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     // PBR RENDER
     for (int i = 0; i < 4; i++)
     {
-        auto texture = m_renderTargets[DEFERRED_RENDER]->GetTexture(frameIndex, i);
+        auto texture = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, i);
         m_inputs[PBR_RENDER][i] =
             std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
     }
 
-    auto upscaledTex = m_renderTargets[UPSCALING_RENDER]->GetTexture(frameIndex, 0);
+    auto upscaledTex = scene.GetRenderTarget(UPSCALING_RENDER)->GetTexture(frameIndex, 0);
     m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("light_shaft_res"));
     m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputBindDesc>(
         scene.GetStorageBuffer(POINT_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("point_lights")));
@@ -463,9 +373,16 @@ void KS::Renderer::Main(Device& device, Scene& scene)
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), true);
 
-    m_subrenderers[PBR_RENDER]->Render(device, &commandContext, scene, m_inputs[PBR_RENDER], false);
+    RenderParameters pbrPar{};
+    pbrPar.clearRt = false;
+    pbrPar.ds = scene.GetDepthStencil();
+    pbrPar.rt = scene.GetRenderTarget(PBR_RENDER);
+    pbrPar.scene = &scene;
+    pbrPar.inputs = &m_inputs[PBR_RENDER];
 
-    device.GetRenderTarget()->CopyTo(*commandList, frameIndex, m_renderTargets[PBR_RENDER], 0, 0);
+    m_subrenderers[PBR_RENDER]->Render(device, &commandContext, pbrPar);
+
+    device.GetRenderTarget()->CopyTo(*commandList, frameIndex, scene.GetRenderTarget(PBR_RENDER), 0, 0);
 
     commandContext.Close();
 }
@@ -473,11 +390,12 @@ void KS::Renderer::Main(Device& device, Scene& scene)
 void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
 {
     auto commandContext = device.GetCommandContext();
-    auto texCount = device.GetTexWithoutMipmapCount();
+    auto commandList = commandContext.m_commandList;
+    auto texCount = scene.GetTexWithoutMipmapCount();
 
     for (int i = 0; i < texCount; i++)
     {
-        auto texture = device.GetTextureForMipmapGen(i);
+        auto texture = scene.GetTextureForMipmapGen(i);
         if (!texture) continue;
 
         auto mipDesc = texture->GetMipmapInfo();
@@ -498,10 +416,15 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
             ->SetDispatchSize(static_cast<uint32_t>(1.f / mipDesc.TexelSize.x),
                               static_cast<uint32_t>(1.f / mipDesc.TexelSize.y));
 
-        m_subrenderers[MIP_GEN]->Render(device, &commandContext, scene, m_inputs[MIP_GEN], false);
+        RenderParameters defPar{};
+        defPar.clearRt = false;
+        defPar.scene = &scene;
+        defPar.inputs = &m_inputs[MIP_GEN];
+
+        m_subrenderers[MIP_GEN]->Render(device, &commandContext, defPar);
     }
 
-    device.ClearMipmapQueue();
+    scene.ClearMipmapQueue();
     commandContext.Close();
 }
 
@@ -511,33 +434,16 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[RT_RENDER]->GetShader()->GetShaderInput();
     auto frameIndex = device.GetCPUFrameIndex();
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
 
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+    RenderParameters defPar{};
+    defPar.clearRt = true;
+    defPar.scene = &scene;
+    defPar.rt = scene.GetRenderTarget(RT_RENDER);
+    defPar.inputs = &m_inputs[RT_RENDER];
 
-    //auto rtRenderTarget = m_renderTargets[RT_RENDER]->GetTexture(frameIndex, 0);
-    //auto skydome = scene.GetSkydome();
-    //
-    //m_inputs[RT_RENDER][0] =
-    //    std::pair<ShaderInput*, ShaderInputDesc>(rtRenderTarget.get(), rootSignature->GetInput("output_tex"));
-    //m_inputs[RT_RENDER][1] =
-    //    std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(scene.GetBVH()), rootSignature->GetInput("BVH"));
-    //m_inputs[RT_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
-    //                                                                  rootSignature->GetInput("camera_buffer"));
-    //m_inputs[RT_RENDER][3] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-    //    scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("material_info")));
-    //m_inputs[RT_RENDER][4] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-    //    scene.GetStorageBuffer(MODEL_MAT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("modelMats")));
-    //m_inputs[RT_RENDER][5] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-    //    scene.GetStorageBuffer(POINT_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("point_lights")));
-    //m_inputs[RT_RENDER][6] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-    //    scene.GetStorageBuffer(DIR_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("dir_lights")));
-    //m_inputs[RT_RENDER][7] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()),
-    //                                                                  rootSignature->GetInput("cubemap_tex"));
+    m_subrenderers[RT_RENDER]->Render(device, &commandContext, defPar);
 
-    m_subrenderers[RT_RENDER]->Render(device, &commandContext, scene, m_inputs[RT_RENDER], true);
-
-    auto& boundRT = m_renderTargets[RT_RENDER];
+    auto boundRT = scene.GetRenderTarget(RT_RENDER);
     device.GetRenderTarget()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
 
     commandContext.Close();
@@ -551,8 +457,6 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[CUBEMAP_GEN]->GetShader()->GetShaderInput();
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
     m_inputs[CUBEMAP_GEN][0] = std::pair<ShaderInput*, ShaderInputDesc>(
         reinterpret_cast<ShaderInput*>(scene.GetTexture(device, commandList.get(), skydome.second).get()),
@@ -562,7 +466,13 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
 
     reinterpret_cast<ComputeRenderer*>(m_subrenderers[CUBEMAP_GEN].get())
         ->SetDispatchSize(skydome.first->GetWidth(), skydome.first->GetHeight(), 6);
-    m_subrenderers[CUBEMAP_GEN]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_GEN], false);
+
+    RenderParameters defPar{};
+    defPar.clearRt = true;
+    defPar.scene = &scene;
+    defPar.inputs = &m_inputs[CUBEMAP_GEN];
+
+    m_subrenderers[CUBEMAP_GEN]->Render(device, &commandContext, defPar);
 
     commandContext.Close();
 }
@@ -573,10 +483,7 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
     if (!skydome.first->GetIsReady()) return;
 
     auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[CUBEMAP_GEN]->GetShader()->GetShaderInput();
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
-    commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
     m_inputs[CUBEMAP_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CAMERA_MAT_BUFFER),
                                                                            rootSignature->GetInput("camera_matrix"));
@@ -584,5 +491,15 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
                                                                            rootSignature->GetInput("model_matrix"));
     m_inputs[CUBEMAP_RENDER][2] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(skydome.first.get()),
                                                                            rootSignature->GetInput("cubemap_tex"));
-    m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, scene, m_inputs[CUBEMAP_RENDER], true);
+
+    RenderParameters par{};
+    par.clearRt = true;
+    par.ds = scene.GetDepthStencil();
+    par.rt = scene.GetRenderTarget(PBR_RENDER);
+    par.scene = &scene;
+    par.inputs = &m_inputs[CUBEMAP_RENDER];
+
+    m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, par);
+
+    commandContext.Close();
 }

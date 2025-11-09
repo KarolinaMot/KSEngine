@@ -53,11 +53,6 @@ DXHeapHandle DXDescHeap::AllocateResource(DXResource* resource, D3D12_SHADER_RES
         return DXHeapHandle();
     }
 
-    if (slot >= IMGUI_START)
-    {
-        LOG(Log::Severity::WARN, "Overallocating over imgui resources");
-    }
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
     if (desc->ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
     {
@@ -90,10 +85,6 @@ DXHeapHandle DXDescHeap::AllocateResource(DXResource* resource, D3D12_SHADER_RES
     }
 
     slot = index;
-    if (slot >= IMGUI_START)
-    {
-        LOG(Log::Severity::WARN, "Overallocating over imgui resources");
-    }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
     if (desc->ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
@@ -134,11 +125,6 @@ DXHeapHandle DXDescHeap::AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCES
         return DXHeapHandle();
     }
 
-    if (slot >= IMGUI_START)
-    {
-        LOG(Log::Severity::WARN, "Overallocating over imgui resources");
-    }
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
 
     if (!counterResource)
@@ -167,10 +153,6 @@ DXHeapHandle DXDescHeap::AllocateUAV(DXResource* resource, D3D12_UNORDERED_ACCES
     }
 
     slot = index;
-    if (slot >= IMGUI_START)
-    {
-        LOG(Log::Severity::WARN, "Overallocating over imgui resources");
-    }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), slot, mDescriptorSize);
 

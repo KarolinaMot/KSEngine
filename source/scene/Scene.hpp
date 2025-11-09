@@ -2,6 +2,8 @@
 #include <fileio/ResourceHandle.hpp>
 #include <renderer/InfoStructs.hpp>
 
+class DXDescHeap;
+class DXShaderTable;
 namespace KS
 {
 struct DrawEntry;
@@ -12,6 +14,8 @@ class Texture;
 class Skydome;
 class Model;
 class CommandList;
+class RenderTarget;
+class DepthStencil;
 class TLAS;
 class Mesh;
 class Image;
@@ -68,18 +72,40 @@ public:
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
     TLAS* GetBVH() const { return m_BVH.get(); }
-    
+    DXDescHeap* GetResourceHeap() const;
+    DXShaderTable* GetShaderTable(int index) const;
+    size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
+    std::shared_ptr<RenderTarget> GetRenderTarget(Subrenderers subrender) { return m_renderTargets[subrender]; }
+    std::shared_ptr<DepthStencil> GetDepthStencil() { return m_deferredRendererDepthStencil; }
+
+    KS::Texture* GetTextureForMipmapGen(int index) const
+    {
+        if (auto lock = m_texWithoutMipmaps[index].lock())
+            return lock.get();
+        else
+            return nullptr;
+    }
+
+    void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
+    void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
+
 private:
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
+
     const Model* GetModel(ResourceHandle<Model> model);
     const std::shared_ptr<Mesh> GetMesh(Device& device, DXCommandList* commandList, ResourceHandle<Mesh> mesh);
+    void InitializeShaderTable();
 
     std::unordered_map<std::string, DrawEntry> draw_queue{};
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> m_skyDomeMesh;
-    std::shared_ptr<StorageBuffer> mStorageBuffers[KS::NUM_SBUFFER];
-    std::shared_ptr<UniformBuffer> mUniformBuffers[KS::NUM_UBUFFER];
+    std::shared_ptr<StorageBuffer> mStorageBuffers[NUM_SBUFFER];
+    std::shared_ptr<UniformBuffer> mUniformBuffers[NUM_UBUFFER];
+    std::shared_ptr<RenderTarget> m_renderTargets[NUM_SUBRENDER];
+    std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     std::unique_ptr<TLAS> m_BVH;
@@ -90,5 +116,6 @@ private:
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
+    std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
 };
 }  // namespace KS

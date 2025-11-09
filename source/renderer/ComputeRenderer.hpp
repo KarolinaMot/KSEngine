@@ -7,11 +7,10 @@ class Scene;
 class ComputeRenderer : public SubRenderer
 {
 public:
-    ComputeRenderer(const Device& device, SubRendererDesc& desc);
+    ComputeRenderer(const Device& device, std::shared_ptr<Shader>& shader);
     ~ComputeRenderer();
 
-    virtual void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                                 std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT);
+    virtual void Render(Device& device, DXCommandContext* commandContext, RenderParameters& par);
     void SetDispatchSize(uint32_t width, uint32_t height, uint32_t depth = 1)
     {
         m_dispatchWidth = width;

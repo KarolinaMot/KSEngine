@@ -84,6 +84,7 @@ void DXShaderTable::Build(const ComPtr<ID3D12Device5>& device, ID3D12StateObject
 
     m_upl->GetResource()->Unmap(0, nullptr);
     m_gpuVA = m_upl->GetResource()->GetGPUVirtualAddress();
+    m_built = true;
 }
 
 void DXShaderTable::Clear()

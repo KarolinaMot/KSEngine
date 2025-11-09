@@ -44,7 +44,8 @@ public:
     {
         RT_HEAP,
         DEPTH_HEAP,
-        RESOURCE_HEAP,
+        IMGUI_HEAP,
+       // RESOURCE_HEAP,
         NUM_DESC_HEAPS
     };
 
@@ -94,13 +95,9 @@ DXCommandContext KS::Device::GetCommandContext() const
     return m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
 }
 
-void* KS::Device::GetResourceHeap() const
-{
-    return m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP].get();
-}
 void* KS::Device::GetDepthHeap() const
 {
-    return m_impl->m_descriptor_heaps[Impl::DXHeaps::DEPTH_HEAP].get();
+    return m_impl->m_descriptor_heaps[Impl::DXHeaps::DEPTH_HEAP].get(); 
 }
 
 void* KS::Device::GetRenderTargetHeap() const
@@ -149,8 +146,9 @@ void KS::Device::EndFrame()
 
     ImGui::Render();
 
-    auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP].get();
+    auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::IMGUI_HEAP].get();
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
+
     GetRenderTarget()->Bind(*commandList, m_cpu_frame, GetDepthStencil().get());
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
@@ -185,7 +183,7 @@ void KS::Device::InitializeSwapchain()
     m_swapchainRT = std::make_shared<RenderTarget>();
     m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target");
 
-    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
+    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT, 1u);
     m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
 }
 
@@ -209,12 +207,12 @@ void KS::Device::InitializeImGUI()
     ImGui::GetIO().DisplaySize.x = static_cast<float>(m_swapchainWidth);
     ImGui::GetIO().DisplaySize.y = static_cast<float>(m_swapchainHeight);
 
-    auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::RESOURCE_HEAP];
+    auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::IMGUI_HEAP];
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-        resourceHeap->Get()->GetCPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize());
+        resourceHeap->Get()->GetCPUDescriptorHandleForHeapStart(), resourceHeap->GetDescriptorSize());
     CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart(), IMGUI_START, resourceHeap->GetDescriptorSize());
+        resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart(), resourceHeap->GetDescriptorSize());
 
     ImGui_ImplDX12_Init(m_impl->m_device.Get(), FRAME_BUFFER_COUNT, DXGI_FORMAT_R8G8B8A8_UNORM, resourceHeap->Get(),
                         D3D12_CPU_DESCRIPTOR_HANDLE(cpuHandle.ptr), D3D12_GPU_DESCRIPTOR_HANDLE(gpuHandle.ptr));
@@ -379,15 +377,14 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
         m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
 
         // CREATE DESCRIPTOR HEAPS
-        m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 64, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             L"MAIN RENDER TARGETS HEAP");
         m_descriptor_heaps[DEPTH_HEAP] = DXDescHeap::Construct(
             m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
-        m_descriptor_heaps[RESOURCE_HEAP] =
-            DXDescHeap::Construct(m_device, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
-                                  OTHER_RESOURCES_START,
+        m_descriptor_heaps[IMGUI_HEAP] =
+            DXDescHeap::Construct(m_device, 8, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"IMGUI RESOURCE HEAP",
+                                  0,
                                   D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-
         // CREATE DEPTH STENCIL
         D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
         depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;

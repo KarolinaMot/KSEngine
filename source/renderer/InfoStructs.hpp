@@ -6,7 +6,7 @@
 #pragma warning(pop)
 
 #ifndef MAX_MESHES
-#define MAX_MESHES 4096
+#define MAX_MESHES 15
 #endif  // !MAX_MESHES
 
 #ifndef NUM_DRAW_THREAD
@@ -22,11 +22,16 @@
 #define TAN_SLOT UVS_SLOT + MAX_MESHES
 #define OTHER_RESOURCES_START TAN_SLOT + MAX_MESHES
 #define NUM_OF_TEXTURES 4096
-#define IMGUI_START OTHER_RESOURCES_START + NUM_OF_TEXTURES
 #define RESOURCE_HEAP_SIZE 65536
 
 namespace KS
 {
+
+enum ScenesToChoose 
+{
+    SAN_MIGUEL = 0,
+    TEST_SCENE = 1,
+};
 
 enum Subrenderers
 {

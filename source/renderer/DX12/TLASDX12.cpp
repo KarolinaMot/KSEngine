@@ -2,6 +2,7 @@
 
 #include <code_utility.hpp>
 #include <device/Device.hpp>
+#include <scene/Scene.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
@@ -71,7 +72,8 @@ void KS::TLAS::Clear()
     m_Impl->m_updateStructure[1] = true;
 }
 
-void KS::TLAS::Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t)
+void KS::TLAS::Bind(const Device& device, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
+                    uint32_t)
 {
     auto frame = device.GetCPUFrameIndex();
     auto& tlas = m_Impl->m_tlas[frame];
@@ -172,7 +174,7 @@ void KS::TLAS::EnsureScratch(const Device& device, uint64_t neededBytes)
     m_scratchSize = m_Impl->m_scratch[frameIndex]->GetDesc().Width;
 }
 
-void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
+void KS::TLAS::Build(const Device& device, const Scene& scene, DXCommandList& cmd)
 {
     auto frameIndex = device.GetCPUFrameIndex();
     m_Impl->m_updateStructure[frameIndex] = true;
@@ -232,9 +234,9 @@ void KS::TLAS::Build(const Device& device, DXCommandList& cmd)
     desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     desc.RaytracingAccelerationStructure = tlasSrv;
 
-    auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto heap = reinterpret_cast<DXDescHeap*>(scene.GetResourceHeap());
 
-    m_Impl->m_SRVHandle[frameIndex] = heap->AllocateResource(m_Impl->m_tlas[frameIndex].get(), &desc, BVH_SLOT + frameIndex);
+    m_Impl->m_SRVHandle[frameIndex] = heap->AllocateResource(m_Impl->m_tlas[frameIndex].get(), &desc, BVH_SLOT+frameIndex);
 
     if (m_Impl->m_updateTransforms[frameIndex]) m_Impl->m_updateTransforms[frameIndex] = false;
     if (m_Impl->m_updateStructure[frameIndex]) m_Impl->m_updateStructure[frameIndex] = false;

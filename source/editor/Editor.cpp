@@ -19,13 +19,27 @@ KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, Scene& scene, float dt, bool& recompileShaders)
+void KS::Editor::RenderWindows(Device& device, Scene& scene, float deltaTime, bool& recompileShaders, bool& raytraced, int& sceneIndex)
 {
     SceneHierarchy(scene);
     TransformWindow(scene);
+    ChooseScene(sceneIndex);
     FogWindow(device, scene);
-    FPSWindow(device, dt);
-    RecompileWindow(recompileShaders);
+    InfoWindow(device, deltaTime, recompileShaders, raytraced);
+}
+
+void KS::Editor::ChooseScene(int& index)
+{
+    bool open = true;
+    ImGui::Begin("Choose scene", &open);
+
+    if (ImGui::RadioButton("San Miguel scene", &index, SAN_MIGUEL))
+    { /* changed to Path */
+    }
+    if (ImGui::RadioButton("Simple test scene", &index, TEST_SCENE))
+    { /* changed to Raster */
+    }
+    ImGui::End();
 }
 
 void KS::Editor::SceneHierarchy(Scene& scene)
@@ -77,6 +91,11 @@ void KS::Editor::TransformWindow(Scene& scene)
     bool open = true;
 
     ImGui::Begin("Transform", &open);
+    if (m_selectedObject >= drawQueue.size())
+    {
+        m_selectedObject = -1;
+    }
+
     if (m_selectedObject == -1)
         ImGui::Text("No object was selected");
     else
@@ -123,24 +142,21 @@ void KS::Editor::FogWindow(Device& device, Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::FPSWindow(Device&, float deltaTime)
+void KS::Editor::InfoWindow(Device&, float, bool& recompileShaders, bool& raytraced)
 { 
-    float FPS = 1000.f / deltaTime;
+    float FPS = 1.f / ImGui::GetIO().DeltaTime;
     bool open = true;
     ImGui::Begin("DT window", &open); 
     ImGui::Text(("FPS: " + std::to_string(FPS)).c_str());
-    ImGui::Text(("Ms: " + std::to_string(deltaTime)).c_str());
-    ImGui::End();
-}
+    ImGui::Text(("Ms: " + std::to_string(ImGui::GetIO().DeltaTime * 1000.f)).c_str());
 
-void KS::Editor::RecompileWindow(bool& recompileShaders)
-{
-    bool open = true;
-    ImGui::Begin("Recompile shaders window", &open);
-    recompileShaders = false;
-    if (ImGui::Button("Recompile"))
+    if (ImGui::Button("Recompile shaders")) { recompileShaders = true; }
+
+    bool currentValue = raytraced;
+    if (ImGui::Checkbox("Raytraced", &currentValue))
     {
-        recompileShaders = true;
+        raytraced = !raytraced;
     }
+
     ImGui::End();
 }

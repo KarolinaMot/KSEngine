@@ -28,11 +28,10 @@ struct DrawEntry;
 class ModelRenderer : public SubRenderer
 {
 public:
-    ModelRenderer(const Device& device, SubRendererDesc& desc, bool onlyCubemap = false);
+    ModelRenderer(const Device& device, std::shared_ptr<Shader>& shader, bool onlyCubemap = false);
     ~ModelRenderer();
 
-    void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT) override;
+    void Render(Device& device, DXCommandContext* commandContext, RenderParameters& par) override;
 
 private:
 

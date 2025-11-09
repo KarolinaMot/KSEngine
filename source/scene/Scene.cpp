@@ -6,6 +6,8 @@
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DX12Conversion.hpp>
+#include <renderer/DX12/Helpers/DXShaderTable.hpp>
+#include <renderer/DX12/Helpers/DXDescHeap.hpp>
 
 #include <device/Device.hpp>
 #include <renderer/StorageBuffer.hpp>
@@ -17,11 +19,23 @@
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
 
-
+class KS::Scene::Impl
+{
+public:
+    std::shared_ptr<DXDescHeap> m_resourceHeap;
+    std::unique_ptr<DXShaderTable> m_shaderTable[FRAME_BUFFER_COUNT];
+};
 KS::Scene::Scene(Device& device)
 {
+    m_impl = std::make_unique<Impl>();
+
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
+    auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
+
+    m_impl->m_resourceHeap =
+        DXDescHeap::Construct(engineDevice, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
+                              OTHER_RESOURCES_START, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     m_pointLights = std::vector<PointLightInfo>(100);
     m_directionalLights = std::vector<DirLightInfo>(100);
@@ -32,10 +46,10 @@ KS::Scene::Scene(Device& device)
 
     CameraMats cam{};
 
-    mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList, "MODEL MATRIX RESOURCE", &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
+    mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), * commandList, "MODEL MATRIX RESOURCE",
+                                        &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
+        device, m_impl->m_resourceHeap.get(), *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
     mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
@@ -54,12 +68,95 @@ KS::Scene::Scene(Device& device)
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] =
         std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
     mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1, false);
-    mStorageBuffers[KS::DIR_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
-    mStorageBuffers[KS::POINT_LIGHT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
+    mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(
+        device, m_impl->m_resourceHeap.get(), *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
+    mStorageBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(
+        device, m_impl->m_resourceHeap.get(), *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
+
+    std::shared_ptr<Texture> deferredRendererTex[2][4];
+    std::shared_ptr<Texture> deferredRendererDepthTex;
+    std::shared_ptr<Texture> compute_resTex[2];
+    std::shared_ptr<Texture> raytracingResTex[2];
+    std::shared_ptr<Texture> lightRenderingTex[2];
+    std::shared_ptr<Texture> lightShaftTex[2];
+    std::shared_ptr<Texture> upscaledLightShaftTex[2];
+
+    for (int i = 0; i < 2; i++)
+    {
+        deferredRendererTex[i][0] =
+            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+        deferredRendererTex[i][1] =
+            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R32G32B32A32_FLOAT);
+        deferredRendererTex[i][2] =
+            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+        deferredRendererTex[i][3] =
+            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+
+        compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM);
+        raytracingResTex[i] =
+            std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
+
+        lightRenderingTex[i] = std::make_shared<Texture>(
+            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
+            Formats::R32G32B32A32_FLOAT, static_cast<std::uint16_t>(4));
+
+        lightShaftTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth() / 4, device.GetSwapchainHeight() / 4,
+                                                     Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                                     glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT);
+
+        upscaledLightShaftTex[i] =
+            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R8G8B8A8_UNORM);
+    }
+
+
+    deferredRendererDepthTex =
+        std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                  Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
+    m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, deferredRendererDepthTex);
+
+    m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
+    for (int i = 0; i < 4; i++)
+    {
+        m_renderTargets[DEFERRED_RENDER]->AddTexture(device, deferredRendererTex[0][i], deferredRendererTex[1][i],
+                                                     "DEFERRED RENDERER" + std::to_string(i));
+    }
+
+    m_renderTargets[PBR_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[PBR_RENDER]->AddTexture(device, compute_resTex[0], compute_resTex[1], "PBR RENDER RES");
+
+    m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
+
+    m_renderTargets[LIGHT_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[LIGHT_RENDER]->AddTexture(device, lightRenderingTex[0], lightRenderingTex[1], "LIGHT RENDER RES");
+
+    m_renderTargets[LIGHT_SHAFT_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[LIGHT_SHAFT_RENDER]->AddTexture(device, lightShaftTex[0], lightShaftTex[1], "LIGHT SHAFT RENDER RES");
+
+    m_renderTargets[UPSCALING_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[UPSCALING_RENDER]->AddTexture(device, upscaledLightShaftTex[0], upscaledLightShaftTex[1],
+                                                  "UPSCALED LIGHT SHAFT RENDER RES");
 
     m_BVH = std::make_unique<TLAS>();
+    InitializeShaderTable();
+
+
+
     commandContext.Close();
 }
 
@@ -185,7 +282,7 @@ void KS::Scene::Tick(Device& device)
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    m_BVH->Build(device, *commandList);
+    m_BVH->Build(device, *this, *commandList);
 
     commandContext.Close();
 }
@@ -200,7 +297,7 @@ void KS::Scene::SetSkydome(Device& device, DXCommandList& commandList, ResourceH
     {
         auto skydomeTex = GetTexture(device, &commandList, skydomeTexture);
         auto pair = std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>>();
-        pair.first = std::make_shared<Skydome>(device, *skydomeTex.get());
+        pair.first = std::make_shared<Skydome>(device, m_impl->m_resourceHeap.get(), *skydomeTex.get());
         pair.second = skydomeTexture;
         m_skyDome = pair;
     }
@@ -244,7 +341,8 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
         std::filesystem::path p(meshHandle.path);
         std::string mesh_name_extracted = p.stem().string();
 
-        auto meshPtr = std::make_shared<Mesh>(device, *commandList, data, mesh_name_extracted.c_str(),
+        auto meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), *commandList, data,
+                                              mesh_name_extracted.c_str(),
                                               static_cast<uint32_t>(mesh_cache.size()));
 
         auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
@@ -255,6 +353,84 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList
     {
         LOG(Log::Severity::WARN, "Model path ( {} ) was not found.", meshHandle.path);
         return nullptr;
+    }
+}
+
+void KS::Scene::InitializeShaderTable()
+{
+    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+    {
+        m_impl->m_shaderTable[i] = std::make_unique<DXShaderTable>();
+
+        std::vector<void*> heapPointers;
+        heapPointers.reserve(15);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        outputHandle.ptr += static_cast<uint64_t>((RAYTRACE_RT_SLOT + i) * m_impl->m_resourceHeap->GetDescriptorSize());
+
+        D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT+i) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        materialHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(MATERIAL_INFO_BUFFER)->GetHandle(true)) *
+                                m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE normalsHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        normalsHandle.ptr += static_cast<uint64_t>(NORMALS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE modelMatHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        modelMatHandle.ptr +=
+            static_cast<uint64_t>(GetStorageBuffer(MODEL_MAT_BUFFER)->GetHandle(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE dirLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        dirLights.ptr +=
+            static_cast<uint64_t>(GetStorageBuffer(DIR_LIGHT_BUFFER)->GetHandle(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE pointLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        pointLights.ptr +=
+            static_cast<uint64_t>(GetStorageBuffer(POINT_LIGHT_BUFFER)->GetHandle(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE textures = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE indexHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        indexHandle.ptr += static_cast<uint64_t>(INDICES_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE vPosHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        vPosHandle.ptr += static_cast<uint64_t>(VPOS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE uvHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        uvHandle.ptr += static_cast<uint64_t>(UVS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        D3D12_GPU_DESCRIPTOR_HANDLE tanHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        tanHandle.ptr += static_cast<uint64_t>(TAN_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        auto skyboxHandleID = GetSkydome().first->GetHandleIndex(true);
+        D3D12_GPU_DESCRIPTOR_HANDLE skyboxHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        skyboxHandle.ptr += static_cast<uint64_t>(skyboxHandleID) * m_impl->m_resourceHeap->GetDescriptorSize();
+
+        heapPointers.push_back(reinterpret_cast<void*>(outputHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(tlasHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i)));
+        heapPointers.push_back(reinterpret_cast<void*>(materialHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(modelMatHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(dirLights.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(pointLights.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(skyboxHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(normalsHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(indexHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(vPosHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(uvHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(tanHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(textures.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(GetUniformBuffer(LIGHT_INFO_BUFFER)->GetGPUAddress(0, i)));
+
+        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
+                                            static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+
+        m_impl->m_shaderTable[i]->AddHitGroup(L"HitGroup", heapPointers.data(),
+                                              static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+
+        m_impl->m_shaderTable[i]->AddMiss(L"Miss", heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size()));
     }
 }
 
@@ -273,14 +449,18 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
 
         if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size()))
         {
-            auto new_tex = std::make_shared<Texture>(device, *commandList, img.value());
-            device.AddToMipmapQueue(new_tex);
+            auto new_tex = std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), *commandList, img.value());
+            AddToMipmapQueue(new_tex);
             auto [obj, success] = tex_cache.emplace(imgPath, std::move(new_tex));
             return obj->second;
         }
     }
     return nullptr;
 }
+
+DXDescHeap* KS::Scene::GetResourceHeap() const { return m_impl->m_resourceHeap.get(); }
+
+DXShaderTable* KS::Scene::GetShaderTable(int index) const { return m_impl->m_shaderTable[index].get(); }
 
 KS::MaterialInfo KS::Scene::GetMaterialInfo(const Material& material) const
 {

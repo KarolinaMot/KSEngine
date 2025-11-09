@@ -23,7 +23,8 @@ KS::StorageBuffer::StorageBuffer() { m_impl = new Impl(); }
 
 KS::StorageBuffer::~StorageBuffer() { delete m_impl; }
 
-void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name,
+void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, DXCommandList& commandList,
+                                     const std::string& name,
                                      uint32_t numOfElements)
 {
     m_impl = new Impl();
@@ -40,8 +41,8 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, DXCommandList& comman
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeOfBuffer, m_impl->m_flags);
     m_impl->m_resource = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
 
-    AllocateAsReadOnly(device);
-    if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) AllocateAsReadWrite(device);
+    AllocateAsReadOnly(resourceHeap);
+    if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) AllocateAsReadWrite(resourceHeap);
 
     const UINT64 bytes = m_buffer_stride * numOfElements;
     auto upl = device.GetUploadArena();
@@ -101,7 +102,8 @@ void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList,
     m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
 }
 
-void KS::StorageBuffer::Bind(const Device&, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t)
+void KS::StorageBuffer::Bind(const Device&, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
+                             uint32_t)
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
@@ -124,9 +126,9 @@ void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t ele
     commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset, count);
 }
 
-void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)
+void KS::StorageBuffer::AllocateAsReadOnly(void* resourceHeap, int slot)
 {
-    auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto heap = reinterpret_cast<DXDescHeap*>(resourceHeap);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -143,7 +145,7 @@ void KS::StorageBuffer::AllocateAsReadOnly(const Device& device, int slot)
         m_impl->m_SRV_handle = heap->AllocateResource(m_impl->m_resource.get(), &srvDesc, slot);
 }
 
-void KS::StorageBuffer::AllocateAsReadWrite(const Device& device, int slot)
+void KS::StorageBuffer::AllocateAsReadWrite(void* resourceHeap, int slot)
 {
     if (!m_read_write)
     {
@@ -152,7 +154,7 @@ void KS::StorageBuffer::AllocateAsReadWrite(const Device& device, int slot)
         return;
     }
 
-    auto heap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto heap = reinterpret_cast<DXDescHeap*>(resourceHeap);
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;

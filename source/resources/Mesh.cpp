@@ -38,7 +38,8 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
-KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data, const char* name, uint32_t meshIndex)
+KS::Mesh::Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, const MeshData& data, const char* name,
+               uint32_t meshIndex)
 {
     m_impl = std::make_unique<Impl>();
 
@@ -52,19 +53,20 @@ KS::Mesh::Mesh(Device& device, DXCommandList& commandList, const MeshData& data,
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
-        auto buffer = std::make_shared<KS::StorageBuffer>(device, commandList, attrName, start, static_cast<uint32_t>(stride),
+        auto buffer =
+            std::make_shared<KS::StorageBuffer>(device, resourceHeap, commandList, attrName, start, static_cast<uint32_t>(stride),
                                                           static_cast<uint32_t>(size / stride), false);
 
         if (attrName == MeshConstants::ATTRIBUTE_NORMALS_NAME)
-            buffer->AllocateAsReadOnly(device, NORMALS_SLOT + meshIndex);
+            buffer->AllocateAsReadOnly(resourceHeap, NORMALS_SLOT + meshIndex);
         else if (attrName == MeshConstants::ATTRIBUTE_INDICES_NAME)
-            buffer->AllocateAsReadOnly(device, INDICES_SLOT + meshIndex);
+            buffer->AllocateAsReadOnly(resourceHeap, INDICES_SLOT + meshIndex);
         else if (attrName == MeshConstants::ATTRIBUTE_POSITIONS_NAME)
-            buffer->AllocateAsReadOnly(device, VPOS_SLOT + meshIndex);
+            buffer->AllocateAsReadOnly(resourceHeap, VPOS_SLOT + meshIndex);
         else if (attrName == MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)
-            buffer->AllocateAsReadOnly(device, UVS_SLOT + meshIndex);
+            buffer->AllocateAsReadOnly(resourceHeap, UVS_SLOT + meshIndex);
         else if (attrName == MeshConstants::ATTRIBUTE_TANGENTS_NAME)
-            buffer->AllocateAsReadOnly(device, TAN_SLOT + meshIndex);
+            buffer->AllocateAsReadOnly(resourceHeap, TAN_SLOT + meshIndex);
 
         m_data.emplace(attrName, buffer);
     }

@@ -50,6 +50,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
     float4 vertexPos = float4(GetPosition(instance, vertId, barycentrics), 1.f);
+    vertexPos = mul(modelMats[instance].mModelMat, float4(vertexPos.rgb, 1.f));
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
     float3 tangent = GetTangent(instance, vertId, barycentrics);
@@ -89,7 +90,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
     result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
     result = LinearToSRGB(result);
-    payload.colorAndDistance = float4(float3(uv, 1.f), 1.f);
+    payload.colorAndDistance = float4(material.baseColor, 1.f);
 }
 
 float3 NormalToColor(float3 normal)

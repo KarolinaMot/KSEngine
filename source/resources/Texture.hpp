@@ -26,17 +26,25 @@ public:
         DEPTH_TEXTURE = 1 << 3
     };
 
-    Texture(Device& device, DXCommandList& commandList, const Image& image, int flags = 0);
-    Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
-            uint16_t mipLevels = 1);
+    Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format,
+            uint32_t mipLevels=1);
+
+    Texture(Device& device, void* resourceHeap, DXCommandList& commandList, const Image& image);
+
+    Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
+            Formats format, uint32_t mipLevels);
+
     Texture(void* resource, uint32_t width, uint32_t height, int type);
-    Texture(const Device& device, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor, Formats format,
+
+    Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor,
+            Formats format,
             int srvAllocationSlot, int uavAllocationSlot);
+
     ~Texture();
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
-                      uint32_t offsetIndex = 0) override;
-    void TransitionToRO(const Device& device, DXCommandList& commandList) const;
-    void TransitionToRW(const Device& device, DXCommandList& commandList) const;
+    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t mip = 0) override;
+    void TransitionToRO(void* resourceHeap, DXCommandList& commandList) const;
+    void TransitionToRW(void* resourceHeap, DXCommandList& commandList) const;
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format; }
     GenerateMipsInfo GetMipmapInfo() const;
@@ -53,7 +61,7 @@ private:
     Impl* m_impl;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
-    uint16_t m_mipLevels = 1;
+    uint32_t m_mipLevels = 1;
 
     glm::vec4 m_clearColor = glm::vec4(0.f);
     Formats m_format;

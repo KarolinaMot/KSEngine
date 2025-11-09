@@ -90,8 +90,9 @@ int main()
 
     device->NewFrame();
 
-    KS::Scene scene = KS::Scene(*device);
-    KS::Renderer renderer = KS::Renderer(*device, scene);
+    KS::Scene sanMiguelScene = KS::Scene(*device);
+    KS::Scene testScene = KS::Scene(*device);
+    KS::Renderer renderer = KS::Renderer(*device);
 
     // Scene Setup
     {
@@ -105,34 +106,39 @@ int main()
     KS::Timer frametimer{};
     bool raytraced = false;
 
-    scene.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
+    sanMiguelScene.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
+    testScene.SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
     //scene.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
     //scene.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
 
-    auto model = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
-    //auto model = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
-    //auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
+    //auto sanMiguelModel = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
+    auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     //scene.QueueModel(*device, cubeModel, transform, "Cube");
     transform = glm::rotate(transform, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     transform = glm::scale(transform, glm::vec3(0.5f));
-    scene.QueueModel(*device, model, transform, "Damaged helmet");
+    sanMiguelScene.QueueModel(*device, damagedHelmetModel, transform, "San Miguel");
+
+    transform = glm::mat4x4(1.f);
+    testScene.QueueModel(*device, cubeModel, transform, "Cube");
+    transform = glm::rotate(transform, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    transform = glm::scale(transform, glm::vec3(0.5f));
+    testScene.QueueModel(*device, damagedHelmetModel, transform, "Damaged helmet");
 
     device->EndFrame();
     bool recomp = false;
+    int chosenScene = 0;
 
     while (device->IsWindowOpen())
     {
-
         auto dt = frametimer.Tick();
 
         input->ProcessInput();
         device->NewFrame();
 
         auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count());
-
-        if (input->GetKeyboard(KS::KeyboardKey::Space) == KS::InputState::Down) raytraced = !raytraced;
 
         auto renderParams = KS::RenderTickParams();
         renderParams.cpuFrame = device->GetFrameIndex();
@@ -141,9 +147,20 @@ int main()
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
 
-        scene.Tick(*device);
-        renderer.Render(*device, scene, renderParams, raytraced, recomp);
-        editor->RenderWindows(*device, scene, dt.count(), recomp);
+        Scene* activeScene = &sanMiguelScene;
+        switch(chosenScene){
+            case SAN_MIGUEL:
+                activeScene = &sanMiguelScene;
+                break;
+            case TEST_SCENE:
+                activeScene = &testScene;
+                break;
+        }
+
+        activeScene->Tick(*device);
+        renderer.Render(*device, *activeScene, renderParams, raytraced, recomp);
+        recomp = false;
+        editor->RenderWindows(*device, *activeScene, dt.count(), recomp, raytraced, chosenScene);
         device->EndFrame();
 
     }

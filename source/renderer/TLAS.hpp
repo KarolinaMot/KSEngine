@@ -13,6 +13,7 @@ namespace KS
 {
 class Device;
 class Mesh;
+class Scene;
 
 struct TLASInstance
 {
@@ -36,11 +37,11 @@ public:
     void RemoveInstance(uint32_t instanceHandle);
     void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
     void Clear();
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
-                      uint32_t offsetIndex = 0) override;
+    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t offset = 0) override;
     virtual size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 
-    void Build(const Device& device, DXCommandList& cmd);
+    void Build(const Device& device, const Scene& scene, DXCommandList& cmd);
 
     uint32_t GetSRVHandle(uint32_t frameIndex) const;
 

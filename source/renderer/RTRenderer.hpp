@@ -21,15 +21,12 @@ class UniformBuffer;
     class RTRenderer : public SubRenderer
     {
     public:
-        RTRenderer(const Device& device, Scene& scene, SubRendererDesc& desc);
+        RTRenderer(const Device& device, std::shared_ptr<Shader>& shader);
         ~RTRenderer();
 
-        void Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                    std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT) override;
+        void Render(Device& device, DXCommandContext* commandContext, RenderParameters& par) override;
 
     private:
-        class Impl;
-        std::unique_ptr<Impl> m_impl;
         bool m_raytraced = false;
         int32_t m_frameCount = 0;
     };

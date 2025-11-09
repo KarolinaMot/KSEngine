@@ -15,9 +15,10 @@ class UploadArena;
 class Skydome : public ShaderInput
 {
 public:
-    Skydome(Device& device, const Texture& image);
+    Skydome(Device& device, void* resourceHeap, const Texture& tex);
     ~Skydome();
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t offsetIndex = 0);
+    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+                      uint32_t offsetIndex = 0);
 
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }

@@ -20,8 +20,9 @@ public:
     void Clear();
 
     D3D12_DISPATCH_RAYS_DESC FillDispatchDesc(UINT width, UINT height, UINT depth = 1) const;
+    bool GetIsBuilt() const { return m_built; }
 
-private:
+    private:
     TableRecord MakeRecord(const std::wstring& name, const void* data, UINT size);
     UINT MaxRecordStride(const std::vector<TableRecord>& list, const auto& recSize) const;
     UINT MaxRecordStride(const TableRecord& record, const auto& recSize) const;
@@ -34,7 +35,7 @@ private:
     TableRecord m_raygen;
     std::vector<TableRecord> m_miss;
     std::vector<TableRecord> m_hit;
-
+    bool m_built = false;
     std::unique_ptr<DXResource> m_upl;
     UINT64 m_gpuVA = 0, m_size = 0;
 

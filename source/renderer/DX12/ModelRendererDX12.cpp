@@ -21,8 +21,8 @@
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
 
-KS::ModelRenderer::ModelRenderer(const Device& device, SubRendererDesc& desc, bool onlyCubemap)
-: SubRenderer(device, desc)
+KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader>& shader, bool onlyCubemap)
+    : SubRenderer(device, shader)
 {
     m_onlyCubemap = onlyCubemap;
 }
@@ -46,26 +46,25 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
     return count != 0;
 }
 
-void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, Scene& scene,
-                               std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>& inputs, bool clearRT)
+void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
-    int drawQueueSize = static_cast<int>(scene.GetDrawQueueSize());
+    int drawQueueSize = static_cast<int>(par.scene->GetDrawQueueSize());
     if (drawQueueSize == 0) return;
 
     auto commandList = commandContext->m_commandList.get();
 
     auto pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
     auto rootSignature = m_shader->GetShaderInput();
     auto frameIndex = device.GetCPUFrameIndex();
 
-    m_renderTarget->Bind(*commandList, frameIndex, m_depthStencil.get());
+    par.rt->Bind(*commandList, frameIndex, par.ds.get());
 
-    if (clearRT)
+    if (par.clearRt)
     {
-        m_renderTarget->Clear(*commandList, frameIndex);
+        par.rt->Clear(*commandList, frameIndex);
     }
-    m_depthStencil->Clear(*commandList);
+    par.ds->Clear(*commandList);
 
     auto BindDrawResources = [&](DXCommandList* cmdList)
     {
@@ -73,24 +72,24 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         cmdList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), false);
         cmdList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-        for (int i=0; i<inputs.size(); i++)
+        for (int i = 0; i < par.inputs->size(); i++)
         {
-            auto &input = inputs[i];
+            auto& input = (*par.inputs)[i];
             if (input.first) 
-                input.first->Bind(device, *cmdList, input.second.desc, input.second.bindOffset);
+                input.first->Bind(device, resourceHeap, *cmdList, input.second.desc, input.second.bindOffset);
             else
                 LOG(Log::Severity::WARN,
                     "One of the inputs {} in a model renderer was empty command will be ignored", i);
         }
 
-        m_renderTarget->Bind(*cmdList, frameIndex, m_depthStencil.get());
+        par.rt->Bind(*cmdList, frameIndex, par.ds.get());
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
 
     if (m_onlyCubemap)
     {
         BindDrawResources(commandList);
-        auto skydomeMesh = scene.GetSkydomeMesh().first;
+        auto skydomeMesh = par.scene->GetSkydomeMesh().first;
         using namespace MeshConstants;
         auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
         auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
@@ -113,7 +112,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
         for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
         {
-            DrawMesh(device, scene, *context.m_commandList.get(), meshIndex);
+            DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex);
         }
         context.Close();
     };
@@ -143,6 +142,7 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
     if (meshSet.mesh == nullptr || meshSet.baseTex == nullptr) return;
 
     using namespace MeshConstants;
+    auto resourceHeap = reinterpret_cast<DXDescHeap*>(scene.GetResourceHeap());
 
     auto positions = meshSet.mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
     auto normals = meshSet.mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
@@ -151,7 +151,7 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
     auto indices = meshSet.mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
     scene.GetUniformBuffer(MODEL_INDEX_BUFFER)
-        ->Bind(device, commandList, m_shader->GetShaderInput()->GetInput("model_index"), meshSet.modelIndex);
+        ->Bind(device, resourceHeap, commandList, m_shader->GetShaderInput()->GetInput("model_index"), meshSet.modelIndex);
 
     int shaderFlags = m_shader->GetFlags();
 
@@ -161,7 +161,6 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
     if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
 
     indices->BindAsIndexData(commandList);
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(device.GetResourceHeap());
     commandList.BindHeapSlot(*resourceHeap, 0, m_shader->GetShaderInput()->GetInput("textures").rootIndex);
 
     commandList.DrawIndexed(indices->GetElementCount());

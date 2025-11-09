@@ -142,7 +142,7 @@
                         "key": "BASE_TEXTURE",
                         "value": {
                             "index": 4,
-                            "data": "assets/models/SanMiguel/textures/White.png"
+                            "data": "assets/textures/White.png"
                         }
                     },
                     {

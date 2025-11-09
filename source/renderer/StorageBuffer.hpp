@@ -23,14 +23,16 @@ public:
     ~StorageBuffer();
 
     template <typename T>
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const std::vector<T>& data,
+    StorageBuffer(const Device& device, void* resourceHeap, DXCommandList& commandList, const std::string& name,
+                  const std::vector<T>& data,
                   bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
-        : StorageBuffer(device, commandList, name, (const void*)(data.data()), sizeof(T),
+        : StorageBuffer(device, resourceHeap, commandList, name, (const void*)(data.data()), sizeof(T),
                         data.size() == 0 ? 1 : static_cast<uint32_t>(data.size()), readWriteEnabled, flags)
     {
     }
 
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, uint32_t stride,
+    StorageBuffer(const Device& device, void* resourceHeap, DXCommandList& commandList, const std::string& name,
+                  uint32_t stride,
                   uint32_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
     {
         m_read_write = readWriteEnabled;
@@ -40,13 +42,14 @@ public:
         m_name = name;
         m_flags = flags;
 
-        CreateBuffer(device, commandList, name, m_num_elements);
+        CreateBuffer(device, resourceHeap, commandList, name, m_num_elements);
     }
 
 
-    StorageBuffer(const Device& device, DXCommandList& commandList, const std::string& name, const void* data, uint32_t stride,
+    StorageBuffer(const Device& device, void* resourceHeap, DXCommandList& commandList, const std::string& name,
+                  const void* data, uint32_t stride,
                   uint32_t element_count, bool readWriteEnabled, int flags = StorageBufferFlags::NONE)
-        : StorageBuffer(device, commandList, name, stride, element_count, readWriteEnabled, flags)
+        : StorageBuffer(device, resourceHeap, commandList, name, stride, element_count, readWriteEnabled, flags)
     {
         UploadDataBuffer(device, commandList, data, m_num_elements);
     }
@@ -79,13 +82,13 @@ public:
     }
 
     void Resize(const Device& device, DXCommandList& commandList, uint32_t newNumOfElements);
-    virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
-                      uint32_t offsetIndex = 0) override;
+    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+                       uint32_t offsetIndex=0) override;
     void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0,
                           uint32_t count = 0);
     void BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset = 0, uint32_t count = 0);
-    void AllocateAsReadOnly(const Device& device, int slot = -1);
-    void AllocateAsReadWrite(const Device& device, int slot = -1);
+    void AllocateAsReadOnly(void* resourceHeap, int slot = -1);
+    void AllocateAsReadWrite(void* resourceHeap, int slot = -1);
 
     uint32_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
@@ -98,7 +101,8 @@ public:
     int GetAllocationIndex(bool readOnly);
 
 private:
-    void CreateBuffer(const Device& device, DXCommandList& commandList, const std::string& name, uint32_t numOfElements);
+    void CreateBuffer(const Device& device, void* resourceHeap, DXCommandList& commandList, const std::string& name,
+                      uint32_t numOfElements);
     void UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data, uint32_t numOfElements,
                           uint64_t dstOffset = 0);
 

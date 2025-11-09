@@ -9,8 +9,8 @@ namespace KS
     {
     public:
         ShaderInput(){};
-        virtual void Bind(const Device& device, DXCommandList& commandList, const ShaderInputDesc& desc,
-                          uint32_t offsetIndex = 0) = 0;
+        virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+                          uint32_t offset = 0) = 0;
         virtual size_t GetGPUAddress(int elementIndex, int frameIndex) const = 0;
 
     };
