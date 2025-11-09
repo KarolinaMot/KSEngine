@@ -25,13 +25,21 @@ void RayGen()
     float2 dims = float2(DispatchRaysDimensions().xy);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
     
+     // Horizontal pixel angular size (works well in practice)
+    float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
+    float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
+    payload.coneAngle = alpha0;
+    
     // Define a ray, consisting of origin, direction, and the min-max distance values
     RayDesc ray;
-    ray.Origin = mul(cameraMats.mInvView, float4(0.f, 0.f, 0.f, 1.f));
+    ray.Origin = cameraMats.mCameraPos.xyz; // simpler & correct
     float4 target = mul(cameraMats.mInvProjection, float4(d.x, -d.y, 1, 1));
-    ray.Direction = mul(cameraMats.mInvView, float4(target.xyz, 0));
+    float3 dirWS = normalize(mul(cameraMats.mInvView, float4(target.xyz, 0)).xyz);
+    ray.Direction = dirWS;
     ray.TMin = 0;
     ray.TMax = 100000;
+    
+
     
     // Trace the ray
     TraceRay(

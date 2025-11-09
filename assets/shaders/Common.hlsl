@@ -6,6 +6,8 @@
 struct HitInfo
 {
     float4 colorAndDistance;
+    float coneAngle;
+    float3 padding;    
     //int instanceIndex;
 };
 
