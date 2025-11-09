@@ -35,12 +35,20 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     m_impl = new Impl();
 
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
-    m_width = width;
+    m_width = width; 
     m_height = height;
     m_format = format;
     m_flag = type;
     m_clearColor = clearColor;
-    m_mipLevels = m_width <= 5 ? 1 : mipLevels;
+    m_mipLevels = mipLevels;
+    auto mipInfo = GetMipmapInfo();
+    m_mipLevels = glm::min(mipInfo.NumMipLevels, mipLevels);
+
+    if (m_mipLevels==0) 
+       LOG(Log::Severity::WARN, "Tried to create texture with 0 mip levels.");
+
+    m_mipLevels = glm::max(m_mipLevels, 1u);
+    
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = Conversion::KSFormatsToDXGI(format);
@@ -233,10 +241,13 @@ void KS::Texture::Bind(const Device&, void* resourceHeap, DXCommandList& command
             
         TransitionToRW(resourceHeap, commandList);
         uint32_t mipLevel = mip;
-        if (mip > 0 && m_mipLevels == 0)
+        if (mip >= m_mipLevels)
         {
-            LOG(Log::Severity::WARN, "Tried to bind a mip level ({}) above the defined max mip level ({}) of a texture. Mip level 0 will be bound.", mip, m_mipLevels);
-            mipLevel = 0;
+            LOG(Log::Severity::WARN,
+                "Tried to bind a mip level ({}) above the defined max mip level ({}) of a texture. Maximum mip level {} will "
+                "be bound.",
+                mip, m_mipLevels, m_mipLevels-1);
+            mipLevel = m_mipLevels - 1;
         }
 
          if (!m_impl->mUAVHeapSlot[mipLevel].IsValid())
@@ -269,41 +280,44 @@ void KS::Texture::TransitionToRW(void* resourceHeap, DXCommandList& commandList)
     commandList.TransitionResource(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
+static inline uint32_t FloorLog2(uint32_t v)
+{
+    // v >= 1 assumed
+#if defined(_MSC_VER)
+    unsigned long idx;
+    _BitScanReverse(&idx, v);
+    return (uint32_t)idx;
+#else
+    return 31u - __builtin_clz(v);
+#endif
+}
+
+
 KS::GenerateMipsInfo KS::Texture::GetMipmapInfo() const
 {
-    auto resource = m_impl->mTextureBuffer->GetResource();
-    auto resourceDesc = resource->GetDesc();
-    DWORD mipCount = 4;
+    GenerateMipsInfo generateMipsCB{};
+    generateMipsCB.IsSRGB = false;  // TODO: set based on format
 
-    GenerateMipsInfo generateMipsCB;
-    generateMipsCB.IsSRGB = false;  // TODO: check if format is SRGB
-    uint64_t srcWidth = resourceDesc.Width;
-    uint32_t srcHeight = resourceDesc.Height;
-    uint32_t dstWidth = static_cast<uint32_t>(srcWidth >> 1);
-    uint32_t dstHeight = srcHeight >> 1;
+    const uint32_t srcWidth = m_width;
+    const uint32_t srcHeight = m_height;
 
-    // 0b00(0): Both width and height are even.
-    // 0b01(1): Width is odd, height is even.
-    // 0b10(2): Width is even, height is odd.
-    // 0b11(3): Both width and height are odd.
-    generateMipsCB.SrcDimension = (srcHeight & 1) << 1 | (srcWidth & 1);
+    // First destination level size (next mip)
+    uint32_t dstWidth = std::max(1u, srcWidth >> 1);
+    uint32_t dstHeight = std::max(1u, srcHeight >> 1);
 
-    // The number of times we can half the size of the texture and get
-    // exactly a 50% reduction in size.
-    // A 1 bit in the width or height indicates an odd dimension.
-    // The case where either the width or the height is exactly 1 is handled
-    // as a special case (as the dimension does not require reduction).
-    _BitScanForward(&mipCount, (dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
-    
-    // Dimensions should not reduce to 0.
-    // This can happen if the width and height are not the same.
-    dstWidth = std::max<DWORD>(1, dstWidth);
-    dstHeight = std::max<DWORD>(1, dstHeight);
-    
+    // Parity flags for shader to know how to sample border texels on odd sizes.
+    // 0b00: both even, 0b01: width odd, 0b10: height odd, 0b11: both odd.
+    generateMipsCB.SrcDimension = ((srcHeight & 1u) << 1) | (srcWidth & 1u);
+
+    // We’re setting up the first dispatch from mip 0 downward.
+    // If your compute path generates multiple mips per dispatch, keep mipCount as-is.
+    // If it generates exactly one level per dispatch, set mipCount = 1 here.
     generateMipsCB.SrcMipLevel = 0;
-    generateMipsCB.NumMipLevels = mipCount;
-    generateMipsCB.TexelSize.x = 1.0f / (float)dstWidth;
-    generateMipsCB.TexelSize.y = 1.0f / (float)dstHeight;
+    generateMipsCB.NumMipLevels = m_mipLevels;
+
+    // Safe even for NPOT because we clamped dst to at least 1.
+    generateMipsCB.TexelSize.x = 1.0f / float(dstWidth);
+    generateMipsCB.TexelSize.y = 1.0f / float(dstHeight);
 
     return generateMipsCB;
 }

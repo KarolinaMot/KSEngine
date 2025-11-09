@@ -404,12 +404,14 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
 
         m_inputs[MIP_GEN][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(
             scene.GetUniformBuffer(MIP_GEN_INFO), ShaderInputBindDesc(i, m_mipMapShaderInputs->GetInput("mipmap_info")));
+
         m_inputs[MIP_GEN][1] = std::pair<ShaderInput*, ShaderInputBindDesc>(
             texture, ShaderInputBindDesc(1, m_mipMapShaderInputs->GetInput("mip_1")));
         m_inputs[MIP_GEN][2] = std::pair<ShaderInput*, ShaderInputBindDesc>(
             texture, ShaderInputBindDesc(2, m_mipMapShaderInputs->GetInput("mip_2")));
         m_inputs[MIP_GEN][3] = std::pair<ShaderInput*, ShaderInputBindDesc>(
             texture, ShaderInputBindDesc(3, m_mipMapShaderInputs->GetInput("mip_3")));
+
         m_inputs[MIP_GEN][4] =
             std::pair<ShaderInput*, ShaderInputBindDesc>(texture, ShaderInputBindDesc(m_mipMapShaderInputs->GetInput("mip_0")));
 
