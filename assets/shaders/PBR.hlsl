@@ -73,6 +73,32 @@ float Attenuation(float distance, float range)
     return max(min(1.0 - pow(distance / range, 4.0), 1.0), 0.0) / distance2;
 }
 
+float DistanceAttenuation(float3 Lvec, float kc, float kl, float kq, float radius)
+{
+    // Lvec = lightPos - P
+    float d2 = dot(Lvec, Lvec);
+    float d = sqrt(d2);
+
+    // Assimp model: I(d) = I0 / (kc + kl*d + kq*d^2)
+    float denom = kc + kl * d + kq * d2;
+
+    // Guard against divide-by-zero; if everything is 0 treat as no falloff.
+    float att = (kc == 0 && kl == 0 && kq == 0) ? 1.0 : rcp(max(denom, 1e-6));
+
+    // Optional cutoff by radius (hard or smooth)
+    if (radius > 0)
+    {
+        // Hard cutoff:
+        att *= step(d, radius);
+
+        // Or smooth edge (comment hard cutoff and use this instead):
+        // float t = saturate(1.0 - d / radius);
+        // att *= t * t; // or t^4 for softer edge
+    }
+
+    return att;
+}
+
 // linear to sRGB approximation
 // see http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
 float3 LinearToSRGB(float3 color)

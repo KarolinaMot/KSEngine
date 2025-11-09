@@ -15,7 +15,9 @@ struct PointLight
 {
     float4 mPosition;
     float4 mColorAndIntensity;
-    float mRadius;
+    float mLinearAttenuation;
+    float mQuadraticAttenuation;
+    float mConstantAttenuation;
     float3 padding;
 };
 

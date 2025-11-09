@@ -120,8 +120,10 @@ struct PointLightInfo
 {
     glm::vec4 mPosition = { 0.f, 0.0f, 0.0f, 0.f };
     glm::vec4 mColorAndIntensity = { 0.f, 0.0f, 0.0f, 0.f };
-    float mRadius = 0.f;
-    float padding[3];
+    float mLinearAttenuation = 0.f;
+    float mQuadraticAttenuation = 0.f;
+    float mConstantAttenuation = 0.f;
+    float padding;
 };
 
 struct LightInfo
@@ -131,6 +133,23 @@ struct LightInfo
     uint32_t padding[2];
     glm::vec4 mAmbientAndIntensity = glm::vec4(1.f);
 };
+
+template <typename A>
+inline void serialize(A& ar, PointLightInfo& v)
+{
+    ar(cereal::make_nvp("Position", v.mPosition));
+    ar(cereal::make_nvp("ConstantAttenuation", v.mConstantAttenuation));
+    ar(cereal::make_nvp("LinearAttenuation", v.mLinearAttenuation));
+    ar(cereal::make_nvp("QuadraticAttenuation", v.mQuadraticAttenuation));
+    ar(cereal::make_nvp("ColorAndIntensity", v.mColorAndIntensity));
+}
+
+template <typename A>
+inline void serialize(A& ar, DirLightInfo& v)
+{
+    ar(cereal::make_nvp("ColorAndIntensity", v.mColorAndIntensity));
+    ar(cereal::make_nvp("Direction", v.mDir));
+}
 
 struct MaterialInfo
 {

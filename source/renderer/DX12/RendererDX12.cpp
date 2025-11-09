@@ -220,7 +220,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
         }
     }
 
-    GodRays(device, scene);
+    //GodRays(device, scene);
     GenCubemap(device, scene);
 
     GenerateMipmaps(device, scene);

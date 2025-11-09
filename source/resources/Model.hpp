@@ -3,6 +3,7 @@
 #include <assimp/postprocess.h>
 #include <fileio/FileIO.hpp>
 #include <fileio/Serialization.hpp>
+#include <renderer/InfoStructs.hpp>
 
 namespace KS
 {
@@ -25,6 +26,8 @@ public:
     std::vector<Node> nodes;
     std::vector<ResourceHandle<Mesh>> meshes;
     std::vector<Material> materials;
+    std::vector<PointLightInfo> pointLights;
+    std::vector<DirLightInfo> dirLights;
 
 private:
     friend class cereal::access;
@@ -52,6 +55,8 @@ inline void Model::save(A& ar, const uint32_t v) const
         ar(cereal::make_nvp("Nodes", nodes));
         ar(cereal::make_nvp("Meshes", meshes));
         ar(cereal::make_nvp("Materials", materials));
+        ar(cereal::make_nvp("PointLights", pointLights));
+        ar(cereal::make_nvp("DirLights", dirLights));
         break;
 
     default:
@@ -68,6 +73,8 @@ inline void Model::load(A& ar, const uint32_t v)
         ar(cereal::make_nvp("Nodes", nodes));
         ar(cereal::make_nvp("Meshes", meshes));
         ar(cereal::make_nvp("Materials", materials));
+        ar(cereal::make_nvp("PointLights", pointLights));
+        ar(cereal::make_nvp("DirLights", dirLights));
         break;
 
     default:

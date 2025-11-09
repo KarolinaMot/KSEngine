@@ -13,6 +13,7 @@
 
 #include "Image.hpp"
 #include "Mesh.hpp"
+#include <renderer/InfoStructs.hpp>
 
 namespace KS::detail
 {
@@ -132,6 +133,34 @@ void ProcessNodesRecursive(std::vector<Model::Node>& out, const aiScene* scene, 
     for (size_t i = 0; i < target_node->mNumChildren; i++)
     {
         ProcessNodesRecursive(out, scene, target_node->mChildren[i], transform);
+    }
+}
+
+void ProcessLight(std::vector<DirLightInfo>& dirLights, std::vector<PointLightInfo>& pointLights, const aiLight* light)
+{
+    if (light->mType == aiLightSource_DIRECTIONAL)
+    {
+        DirLightInfo out;
+
+        glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
+        float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+        color = color / intensity;  
+        out.mColorAndIntensity = glm::vec4(color, intensity);
+        out.mDir = {light->mDirection.x, light->mDirection.y, light->mDirection.z, 1.f};
+        dirLights.push_back(out);
+    }
+    else if (light->mType == aiLightSource_POINT)
+    {
+        PointLightInfo out;
+        out.mPosition = {light->mPosition.x, light->mPosition.y, light->mPosition.z, 0.f};
+        out.mConstantAttenuation = light->mAttenuationConstant;
+        out.mLinearAttenuation = light->mAttenuationLinear;
+        out.mQuadraticAttenuation = light->mAttenuationQuadratic;
+        glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
+        float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+        color = color / intensity;
+        out.mColorAndIntensity = glm::vec4(color, intensity);
+        pointLights.push_back(out);
     }
 }
 
@@ -385,6 +414,18 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
         }
     }
 
+    std::vector<PointLightInfo> pointLights;
+    std::vector<DirLightInfo> dirLights;
+
+    // Process all lights
+    {
+        for (size_t i = 0; i < scene->mNumLights; i++)
+        {
+            detail::ProcessLight(dirLights, pointLights, scene->mLights[i]);
+        }
+    }
+
+
     std::vector<Model::Node> nodes;
 
     // Process Nodes
@@ -401,7 +442,9 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
         Model imported {
             .nodes = std::move(nodes),
             .meshes = std::move(mesh_paths),
-            .materials = std::move(materials)
+            .materials = std::move(materials),
+            .pointLights = std::move(pointLights),
+            .dirLights = std::move(dirLights)
         };
 
         json(imported);

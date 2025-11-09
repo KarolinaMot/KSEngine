@@ -53,7 +53,9 @@ public:
     void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name);
     void ApplyModelTransform(std::string name, const glm::mat4& transfrom);
     void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
+    void QueuePointLight(PointLightInfo info);
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
+    void QueueDirectionalLight(DirLightInfo info);
     void SetAmbientLight(glm::vec3 color, float intensity);
     void SetFogValues(Device& device, const FogInfo& newFogInfo);
 

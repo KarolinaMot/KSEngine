@@ -198,7 +198,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
                 auto meshHandle = ptr->meshes[mesh];
                 auto mat = ptr->materials[material];
-
+                 
                 std::shared_ptr<Mesh> meshPtr = GetMesh(device, commandList, meshHandle);
                 std::string key = name + std::to_string(m_modelCount);
 
@@ -240,6 +240,20 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 m_BVH->AddInstance(&draw_queue[key], modelMat.mModel);
             }
         }
+
+        //for (int i = 0; i < ptr->pointLights.size(); i++)
+        //{
+        //    auto light = ptr->pointLights[i];
+        //    glm::vec4 hp = transform * light.mPosition; 
+        //    light.mPosition = hp;
+        //    QueuePointLight(light);
+        //}
+
+        for (int i = 0; i < ptr->dirLights.size(); i++)
+        {
+            QueueDirectionalLight(ptr->dirLights[i]);
+        }
+
     }
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
@@ -260,21 +274,36 @@ void KS::Scene::ApplyModelTransform(std::string name, const glm::mat4& transfrom
     m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
 }
 
-void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius)
+void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float att)
 {
     PointLightInfo pLight;
     pLight.mColorAndIntensity = glm::vec4(color, intensity);
     pLight.mPosition = glm::vec4(position, 0.f);
-    pLight.mRadius = radius;
+    pLight.mLinearAttenuation = att;
+    pLight.mQuadraticAttenuation = att;
+    pLight.mConstantAttenuation = att;
     m_pointLights[m_lightInfo.numPointLights] = pLight;
     m_lightInfo.numPointLights++;
 }
+
+void KS::Scene::QueuePointLight(PointLightInfo info)
+{
+    m_pointLights[m_lightInfo.numPointLights] = info;
+    m_lightInfo.numPointLights++;
+}
+
 void KS::Scene::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity)
 {
     DirLightInfo dLight;
     dLight.mDir = glm::vec4(direction, 0.f);
     dLight.mColorAndIntensity = glm::vec4(color, intensity);
     m_directionalLights[m_lightInfo.numDirLights] = dLight;
+    m_lightInfo.numDirLights++;
+}
+
+void KS::Scene::QueueDirectionalLight(DirLightInfo info)
+{
+    m_directionalLights[m_lightInfo.numDirLights] = info;
     m_lightInfo.numDirLights++;
 }
 

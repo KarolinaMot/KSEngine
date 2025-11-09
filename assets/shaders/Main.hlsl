@@ -82,7 +82,7 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
             float3 lightDirection = light.mPosition.xyz - vertexPos.xyz;
             float dist = length(lightDirection);
             lightDirection /= dist;
-            float att = Attenuation(dist, light.mRadius);
+            float att = DistanceAttenuation(lightDirection, light.mConstantAttenuation, light.mLinearAttenuation, light.mQuadraticAttenuation, 20.f);
 
             GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
         }
