@@ -8,6 +8,7 @@
 #include <renderer/DX12/Helpers/DX12Conversion.hpp>
 #include <renderer/DX12/Helpers/DXShaderTable.hpp>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
+#include <renderer/DX12/Helpers/DX12Conversion.hpp>
 
 #include <device/Device.hpp>
 #include <renderer/StorageBuffer.hpp>
@@ -25,16 +26,26 @@ public:
     std::shared_ptr<DXDescHeap> m_resourceHeap;
     std::unique_ptr<DXShaderTable> m_shaderTable[FRAME_BUFFER_COUNT];
 };
-KS::Scene::Scene(Device& device)
+
+
+KS::Scene::Scene() {}
+
+KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 {
+    m_name = name;
+    m_identifyingIndex = id;
+
     m_impl = std::make_unique<Impl>();
 
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
+    std::string heapName = m_name + " resource heap";
+
     m_impl->m_resourceHeap =
-        DXDescHeap::Construct(engineDevice, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"RESOURCE HEAP",
+        DXDescHeap::Construct(engineDevice, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                              Conversion::utf8_to_wide(heapName).c_str(),
                               OTHER_RESOURCES_START, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     m_pointLights = std::vector<PointLightInfo>(100);
@@ -85,55 +96,58 @@ KS::Scene::Scene(Device& device)
     {
         deferredRendererTex[i][0] =
             std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
+            Formats::R8G8B8A8_UNORM, "deferredRendererRTTexA " + std::to_string(i));
         deferredRendererTex[i][1] =
             std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R32G32B32A32_FLOAT);
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
+            Formats::R32G32B32A32_FLOAT, "deferredRendererRTTexB " + std::to_string(i));
         deferredRendererTex[i][2] =
             std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
+            Formats::R8G8B8A8_UNORM, "deferredRendererRTTexC " + std::to_string(i));
         deferredRendererTex[i][3] =
             std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM);
+                                      glm::vec4(0.0f, 0.f, 0.f, 1.f), Formats::R8G8B8A8_UNORM, "deferredRendererRTTexD " + std::to_string(i));
 
         compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM);
+                                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM,
+                                                      "PBRRTTexC " + std::to_string(i));
         raytracingResTex[i] =
             std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM, -1, RAYTRACE_RT_SLOT + i);
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.5f, 0.5f, 0.5f, 1.f),
+            Formats::R8G8B8A8_UNORM, "RTX_RT " + std::to_string(i), -1, RAYTRACE_RT_SLOT + i);
 
         lightRenderingTex[i] = std::make_shared<Texture>(
             device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
-            Formats::R32G32B32A32_FLOAT, static_cast<std::uint16_t>(4));
+            Formats::R32G32B32A32_FLOAT, "lightRenderingTex " + std::to_string(i), static_cast<std::uint16_t>(4));
 
         lightShaftTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth() / 4, device.GetSwapchainHeight() / 4,
                                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                     glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT);
+                                                     glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT,
+                                                     "lightShaftTex " + std::to_string(i));
 
         upscaledLightShaftTex[i] =
             std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R8G8B8A8_UNORM);
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
+            Formats::R8G8B8A8_UNORM, "upscaledLightShaftTex " + std::to_string(i));
     }
 
 
     deferredRendererDepthTex =
-        std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                  Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT);
+        std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(), Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f),
+        Formats::D32_FLOAT, "deferredRendererDepthTex");
+
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, deferredRendererDepthTex);
 
     m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
     for (int i = 0; i < 4; i++)
     {
         m_renderTargets[DEFERRED_RENDER]->AddTexture(device, deferredRendererTex[0][i], deferredRendererTex[1][i],
-                                                     "DEFERRED RENDERER" + std::to_string(i));
+                                                     "DEFERRED RENDERER" + std::to_string(i) + " ");
     }
 
     m_renderTargets[PBR_RENDER] = std::make_shared<RenderTarget>();
@@ -167,7 +181,8 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
     auto commandContext = device.GetCommandContext();
     auto commandList = commandContext.m_commandList.get();
 
-    if (auto* ptr = GetModel(model))
+    auto* ptr = GetModel(model);
+    if (ptr)
     {
         for (auto node : ptr->nodes)
         {
@@ -178,7 +193,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 if (m_modelCount >= MAX_MESHES)
                 {
                     LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
-                    return;
+                    break;
                 }
 
                 auto meshHandle = ptr->meshes[mesh];
@@ -447,7 +462,9 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
     {
         auto imageContents = FileIO::DumpFullStream(fileread.value());
 
-        if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size()))
+        std::filesystem::path p(imgPath.path);
+        auto fileName = p.stem().string();
+        if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size(), fileName))
         {
             auto new_tex = std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), *commandList, img.value());
             AddToMipmapQueue(new_tex);

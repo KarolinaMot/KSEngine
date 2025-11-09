@@ -89,7 +89,7 @@ Image ProcessImage(const aiTexture* texture)
 {
     if (texture->mHeight == 0)
     {
-        if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth))
+        if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth, texture->mFilename.C_Str()))
         {
             return image_load.value();
         }
@@ -110,7 +110,8 @@ Image ProcessImage(const aiTexture* texture)
             reordered_data.at(i) = { texel.r, texel.g, texel.b, texel.a };
         }
 
-        return Image { ByteBuffer(reordered_data.data(), reordered_data.size()), texture->mWidth, texture->mHeight };
+        return Image{ByteBuffer(reordered_data.data(), reordered_data.size()), texture->mWidth, texture->mHeight,
+                     texture->mFilename.C_Str()};
     }
 }
 

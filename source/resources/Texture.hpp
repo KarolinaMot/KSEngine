@@ -27,18 +27,18 @@ public:
     };
 
     Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format,
-            uint32_t mipLevels=1);
+            std::string name,
+            uint32_t mipLevels =1);
 
     Texture(Device& device, void* resourceHeap, DXCommandList& commandList, const Image& image);
 
     Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
-            Formats format, uint32_t mipLevels);
+            Formats format, std::string name, uint32_t mipLevels);
 
     Texture(void* resource, uint32_t width, uint32_t height, int type);
 
-    Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int flags, glm::vec4 clearColor,
-            Formats format,
-            int srvAllocationSlot, int uavAllocationSlot);
+    Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
+            Formats format, std::string name, int srvAllocationSlot, int uavAllocationSlot);
 
     ~Texture();
     virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
@@ -53,7 +53,7 @@ public:
     uint32_t GetHeight() const { return m_height; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
     uint32_t GetHandleIndex(bool readOnly) const;
-
+    std::string GetName() const { return m_name; }
    // void GenerateMipmaps(const Device& device, DXCommandList& commandList);
 
 private:
@@ -66,5 +66,6 @@ private:
     glm::vec4 m_clearColor = glm::vec4(0.f);
     Formats m_format;
     int m_flag;
+    std::string m_name;
 };
 }  // namespace KS

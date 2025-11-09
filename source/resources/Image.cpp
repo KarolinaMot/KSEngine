@@ -10,7 +10,7 @@
 
 #include <tools/Log.hpp>
 
-std::optional<KS::Image> KS::LoadImageFileFromMemory(const void* filedata, size_t byte_length)
+std::optional<KS::Image> KS::LoadImageFileFromMemory(const void* filedata, size_t byte_length, std::string name)
 {
     int height {}, width {}, comp {};
     auto* stbi_result = stbi_load_from_memory((const stbi_uc*)(filedata), static_cast<int>(byte_length), &width, &height, &comp, 4);
@@ -19,7 +19,7 @@ std::optional<KS::Image> KS::LoadImageFileFromMemory(const void* filedata, size_
     {
         ByteBuffer image_data { stbi_result, static_cast<uint32_t>(width * height * 4) };
         STBI_FREE(stbi_result);
-        return Image { std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+        return Image{std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height), name};
     }
     else
     {

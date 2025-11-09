@@ -7,6 +7,16 @@ namespace KS
 {
 namespace Conversion
 {
+
+static std::wstring utf8_to_wide(const std::string& s)
+{
+    if (s.empty()) return std::wstring();
+    int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
+    std::wstring w(len, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), w.data(), len);
+    return w;
+}
+
 static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
 {
     switch (format)

@@ -37,7 +37,7 @@ KS::Renderer::Renderer(Device& device)
     m_mainInputs = ShaderInputBlueprintBuilder()
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
-                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY,
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY,
                               1)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"compute_res"}, KS::ShaderInputMod::READ_WRITE)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer1"}, KS::ShaderInputMod::READ_WRITE)
@@ -69,7 +69,8 @@ KS::Renderer::Renderer(Device& device)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"vertexPos"}, ShaderInputMod::READ_ONLY, 3)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"uvs"}, ShaderInputMod::READ_ONLY, 4)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"tangents"}, ShaderInputMod::READ_ONLY, 5)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY, 6)
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY,
+                              6)
             .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
             .SetLocal()

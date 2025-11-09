@@ -183,7 +183,8 @@ void KS::Device::InitializeSwapchain()
     m_swapchainRT = std::make_shared<RenderTarget>();
     m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target");
 
-    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE, glm::vec4(1.f), Formats::D32_FLOAT, 1u);
+    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE,
+                                                    glm::vec4(1.f), Formats::D32_FLOAT, "swapchain depth", 1u);
     m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
 }
 

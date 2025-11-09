@@ -46,7 +46,8 @@ struct MeshSet
 class Scene
 {
 public:
-    Scene(Device& device);
+    Scene();
+    Scene(Device& device, std::string name, ScenesToChoose id);
     ~Scene();
 
     void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name);
@@ -88,8 +89,10 @@ public:
 
     void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
+    std::string GetName() const { return m_name; }
+    ScenesToChoose GetIndex() const { return m_identifyingIndex; }
 
-private:
+    private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
 
@@ -109,6 +112,8 @@ private:
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;
     std::unique_ptr<TLAS> m_BVH;
+    std::string m_name;
+    ScenesToChoose m_identifyingIndex;
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);

@@ -19,26 +19,28 @@ KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, Scene& scene, float deltaTime, bool& recompileShaders, bool& raytraced, int& sceneIndex)
+void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float deltaTime,
+                               bool& recompileShaders, bool& raytraced, int& sceneIndex)
 {
-    SceneHierarchy(scene);
-    TransformWindow(scene);
-    ChooseScene(sceneIndex);
-    FogWindow(device, scene);
+    ChooseScene(scenes, sceneCount, sceneIndex);
+    SceneHierarchy(*scenes[sceneIndex].get());
+    TransformWindow(*scenes[sceneIndex].get());
+    FogWindow(device, *scenes[sceneIndex].get());
     InfoWindow(device, deltaTime, recompileShaders, raytraced);
 }
 
-void KS::Editor::ChooseScene(int& index)
+void KS::Editor::ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount, int& index)
 {
     bool open = true;
     ImGui::Begin("Choose scene", &open);
 
-    if (ImGui::RadioButton("San Miguel scene", &index, SAN_MIGUEL))
-    { /* changed to Path */
+    for (uint32_t i = 0; i < sceneCount; i++)
+    {
+        if (ImGui::RadioButton(scenes[i]->GetName().c_str(), &index, scenes[i]->GetIndex()))
+        { /* changed to Path */
+        }
     }
-    if (ImGui::RadioButton("Simple test scene", &index, TEST_SCENE))
-    { /* changed to Raster */
-    }
+
     ImGui::End();
 }
 

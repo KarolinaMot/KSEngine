@@ -12,6 +12,7 @@
 #include "Helpers/DXDescHeap.hpp"
 #include "Helpers/DXCommandList.hpp"
 #include "Helpers/DX12Conversion.hpp"
+#include <renderer/DX12/Helpers/DX12Conversion.hpp>
 
 class KS::Texture::Impl
 {
@@ -29,7 +30,7 @@ public:
 };
 
 KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format,
-                     uint32_t mipLevels)
+                     std::string name, uint32_t mipLevels)
 {
     m_impl = new Impl();
 
@@ -61,11 +62,12 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
         std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc,
         (flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) || (flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) ? &clearValue
                                                                                                                : nullptr,
-                                                          "Texture Buffer Resource Heap");
+        name.c_str());
+    m_name = name;
 }
 
 KS::Texture::Texture(Device& device, void* resourceHeap, DXCommandList& commandList, const Image& image) :
-    Texture(device, image.GetWidth(), image.GetHeight(), RW_TEXTURE, glm::vec4(0.f), R8G8B8A8_UNORM, 4)
+    Texture(device, image.GetWidth(), image.GetHeight(), RW_TEXTURE, glm::vec4(0.f), R8G8B8A8_UNORM, image.GetName(), 4)
 {
     UINT64 textureUploadBufferSize;
     auto resourceDesc = m_impl->mTextureBuffer->GetDesc();
@@ -110,8 +112,8 @@ KS::Texture::Texture(Device& device, void* resourceHeap, DXCommandList& commandL
 }
 
 KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
-                     Formats format, uint32_t mipLevels)
-    : Texture(device, width, height, type, clearColor, format, mipLevels)
+                     Formats format, std::string name, uint32_t mipLevels)
+    : Texture(device, width, height, type, clearColor, format, name, mipLevels)
 {
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(resourceHeap);
     auto resourceDesc = m_impl->mTextureBuffer->GetDesc();
@@ -170,7 +172,7 @@ KS::Texture::Texture(void* resource, uint32_t width, uint32_t height, int type)
 }
 
 KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
-                     Formats format, int srvAllocationSlot, int uavAllocationSlot)
+                     Formats format, std::string name, int srvAllocationSlot, int uavAllocationSlot)
 {
     m_impl = new Impl();
 
@@ -197,12 +199,12 @@ KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, u
         CD3DX12_RESOURCE_DESC::Tex2D(KS::Conversion::KSFormatsToDXGI(m_format), m_width, m_height, 1, static_cast<UINT16>(m_mipLevels), 1, 0, flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    m_impl->mTextureBuffer =
-        std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, "Texture Buffer Resource Heap");
+    m_impl->mTextureBuffer = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, name.c_str());
 
     auto heap = reinterpret_cast<DXDescHeap*>(resourceHeap);
     m_impl->AllocateAsSRV(heap, srvAllocationSlot);
     m_impl->AllocateAsUAV(heap, uavAllocationSlot, 0);
+    m_name = name;
 }
 
 KS::Texture::~Texture() { delete m_impl; }
@@ -322,7 +324,6 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot, int 
 {
     if (slot < 0)
     {
-        AllocateAsUAV(descriptorHeap, mipSlice);
         return;
     }
 
@@ -349,7 +350,6 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap, int slot)
 {
     if (slot < 0)
     {
-        AllocateAsSRV(descriptorHeap);
         return;
     }
 

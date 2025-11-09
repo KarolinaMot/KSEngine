@@ -89,11 +89,11 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
 
         GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
 
-        //result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
-        //result = LinearToSRGB(result);
+        result = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+        result = LinearToSRGB(result);
         result = mat.baseColor;
         
-        FinalRes[DispatchThreadID.xy] = float4(vertexPos, 1.f);
+        FinalRes[DispatchThreadID.xy] = float4(mat.baseColor, 1.f);
     }
     
     float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
