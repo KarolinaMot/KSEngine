@@ -92,7 +92,6 @@ int main()
 
     std::unique_ptr<KS::Scene> scenes[KS::ScenesToChoose::COUNT];
     scenes[TEST_SCENE] = std::make_unique<KS::Scene>(*device, "Test scene", TEST_SCENE);
-    //scenes[SAN_MIGUEL] = std::make_unique<KS::Scene>(*device, "San Miguel", SAN_MIGUEL);
     KS::Renderer renderer = KS::Renderer(*device);
 
     // Scene Setup
@@ -100,33 +99,23 @@ int main()
         auto& registry = ecs->GetWorld();
         auto e = registry.create();
 
-        registry.emplace<KS::ComponentTransform>(e, glm::vec3(0.f, 0.f, 0.f));
+        registry.emplace<KS::ComponentTransform>(e, glm::vec3(-8.31f, 2.75f, - 7.04f));
         registry.emplace<KS::ComponentFirstPersonCamera>(e);
     }
 
     KS::Timer frametimer{};
-    bool raytraced = false;
+    bool raytraced = true;
 
-    //scenes[SAN_MIGUEL]->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
     scenes[TEST_SCENE]->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-    //scene.QueuePointLight(glm::vec3(0.5, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), 5.f, 5.f);
-    //scene.QueuePointLight(glm::vec3(-0.5, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), 5.f, 5.f);
 
     auto sanMiguelModel = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
     auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
-    //scene.QueueModel(*device, cubeModel, transform, "Cube");
-    //scenes[SAN_MIGUEL]->QueueModel(*device, sanMiguelModel, transform, "San Miguel2");
-    transform = glm::rotate(transform, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    transform = glm::scale(transform, glm::vec3(0.5f));
-   // scenes[SAN_MIGUEL]->QueueModel(*device, sanMiguelModel, transform, "San Miguel");
-
     transform = glm::mat4x4(1.f);
     scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube");
     transform = glm::rotate(transform, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    //transform = glm::scale(transform, glm::vec3(0.5f));
     scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "Damaged helmet");
 
     device->EndFrame();
@@ -148,12 +137,9 @@ int main()
         renderParams.viewMatrix = camera.GetView();
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
-
+ 
         Scene* activeScene = scenes[TEST_SCENE].get();
         switch(chosenScene){
-            //case SAN_MIGUEL:
-            //    activeScene = scenes[SAN_MIGUEL].get();
-            //    break;
             case TEST_SCENE:
                 activeScene = scenes[TEST_SCENE].get();
                 break;
