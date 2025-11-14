@@ -11,22 +11,26 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/matrix_decompose.hpp>  // <-- This one is key
 #include <glm/gtx/quaternion.hpp>
-#include <scene/Scene.hpp>
 #pragma warning(pop)
 
+#include <components/ComponentCamera.hpp>
+#include <components/ComponentTransform.hpp>
+#include <scene/Scene.hpp>
 
 KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
 KS::Editor::~Editor() {}
 
 void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float deltaTime,
-                               bool& recompileShaders, bool& raytraced, int& sceneIndex)
+                               bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
+                               ComponentTransform& camTransform)
 {
     ChooseScene(scenes, sceneCount, sceneIndex);
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
     FogWindow(device, *scenes[sceneIndex].get());
     InfoWindow(device, deltaTime, recompileShaders, raytraced);
+    CameraWindow(info, camTransform);
 }
 
 void KS::Editor::ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount, int& index)
@@ -159,6 +163,22 @@ void KS::Editor::InfoWindow(Device&, float, bool& recompileShaders, bool& raytra
     {
         raytraced = !raytraced;
     }
+
+    ImGui::End();
+}
+
+void KS::Editor::CameraWindow(ComponentFirstPersonCamera& info, ComponentTransform& camTransform)
+{
+    bool open = true;
+    ImGui::Begin("Camera window", &open);
+
+    glm::vec3 camPosition = camTransform.GetLocalTranslation();
+
+    ImGui::DragFloat3("Camera position", &camPosition[0], 0.1f);
+    ImGui::DragFloat("Camera FoV", &info.fieldOfView, 0.01f);
+    ImGui::DragFloat("Camera far plane", &info.farPlane, 0.01f);
+    ImGui::DragFloat("Camera near plane", &info.nearPlane, 0.01f);
+    camTransform.SetLocalTranslation(camPosition);
 
     ImGui::End();
 }

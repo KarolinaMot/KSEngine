@@ -148,7 +148,12 @@ int main()
         activeScene->Tick(*device);
         renderer.Render(*device, *activeScene, renderParams, raytraced, recomp);
         recomp = false;
-        editor->RenderWindows(*device, scenes, KS::ScenesToChoose::COUNT, dt.count(), recomp, raytraced, chosenScene);
+
+        auto view = ecs->GetWorld().view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
+        auto it = view.each().begin();
+        auto [e, cameraInfo, camTransform] = *it;
+        editor->RenderWindows(*device, scenes, KS::ScenesToChoose::COUNT, dt.count(), recomp, raytraced, chosenScene,
+                              cameraInfo, camTransform);
         device->EndFrame();
 
     }
