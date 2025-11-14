@@ -52,19 +52,79 @@ void KS::Editor::SceneHierarchy(Scene& scene)
 {
     const auto& drawQueue = scene.GetQueue();
     bool open = true;
-    int i = 0;
+    auto lightInfo = scene.GetLightInfo();
+
     ImGui::Begin("Scene hierarchy", &open);
-    for (const auto& drawObject : drawQueue)
+    static const char* current_item = NULL;
+
     {
-        const auto& objectName = drawObject.second.mesh->GetName() + "##" + drawObject.first;
-
-        const bool is_selected = (m_selectedObject == i);
-        if (ImGui::Selectable(objectName.c_str(), is_selected)) m_selectedObject = i;
-
+        const bool is_selected = 0;
+        if (ImGui::Selectable("Ambient light", is_selected))
+        {
+            m_selectedObject = 0;
+            m_type = AMBIENT_LIGHT;
+        }
         // Optionally focus selected item
         if (is_selected) ImGui::SetItemDefaultFocus();
-        i++;
     }
+
+    if (ImGui::CollapsingHeader("Point lights"))
+    {
+        auto numPointLights = static_cast<int>(lightInfo.numPointLights);
+        for (int i = 0; i < numPointLights; i++)
+        {
+            const auto& objectName = "PointLight" + std::to_string(i);
+
+            const bool is_selected = (m_selectedObject == i);
+            if (ImGui::Selectable(objectName.c_str(), is_selected))
+            {
+                m_selectedObject = i;
+                m_type = POINT_LIGHT;
+            }
+            // Optionally focus selected item
+            if (is_selected) ImGui::SetItemDefaultFocus();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Directional lights"))
+    {
+        auto numDirLights = static_cast<int>(lightInfo.numDirLights);
+
+        for (int i = 0; i < numDirLights; i++)
+        {
+            const auto& objectName = "DirLight" + std::to_string(i);
+
+            const bool is_selected = (m_selectedObject == i);
+            if (ImGui::Selectable(objectName.c_str(), is_selected))
+            {
+                m_selectedObject = i;
+                m_type = DIR_LIGHT;
+            }
+            // Optionally focus selected item
+            if (is_selected) ImGui::SetItemDefaultFocus();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Scene meshes"))
+    {
+        int i = 0;
+
+        for (const auto& drawObject : drawQueue)
+        {
+            const auto& objectName = drawObject.second.mesh->GetName() + "##" + drawObject.first;
+
+            const bool is_selected = (m_selectedObject == i);
+            if (ImGui::Selectable(objectName.c_str(), is_selected))
+            {
+                m_selectedObject = i;
+                m_type = MESH;
+            }
+            // Optionally focus selected item
+            if (is_selected) ImGui::SetItemDefaultFocus();
+            i++;
+        }
+    }
+
     ImGui::End();
 }
 
@@ -93,37 +153,28 @@ glm::mat4 RecomposeTransform(const glm::vec3& translation, const glm::vec3& rota
 
 void KS::Editor::TransformWindow(Scene& scene)
 {
-    auto& drawQueue = scene.GetQueue();
     bool open = true;
 
-    ImGui::Begin("Transform", &open);
-    if (m_selectedObject >= drawQueue.size())
+    ImGui::Begin("Inspector", &open);
+
+    switch (m_type)
+
     {
-        m_selectedObject = -1;
-    }
-
-    if (m_selectedObject == -1)
-        ImGui::Text("No object was selected");
-    else
-    {
-        auto& object = *std::next(drawQueue.begin(), m_selectedObject);
-
-        glm::vec3 translation, rotation, scale;
-        glm::mat4 oldTransform = object.second.modelMat;
-        DecomposeTransform(oldTransform, translation, rotation, scale);
-        bool transfromChanged = false;
-        
-        if (ImGui::DragFloat3("Translation", &translation.x, 0.1f)) transfromChanged = true;
-        if (ImGui::DragFloat3("Rotation", &rotation.x, 1.0f)) transfromChanged = true;
-        if (ImGui::DragFloat3("Scale", &scale.x, 0.1f)) transfromChanged = true;
-
-        if (transfromChanged)
-        {
-            glm::mat4 newTransform = RecomposeTransform(translation, rotation, scale);
-            glm::mat4 delta = glm::inverse(newTransform) * oldTransform;
-            scene.ApplyModelTransform(object.first, delta);
-        }
-
+        case MESH:
+            MeshInspector(scene);
+            break;
+        case DIR_LIGHT:
+            DirLightInspector(scene);
+            break;
+        case POINT_LIGHT:
+            PointLightInspector(scene);
+            break;
+        case AMBIENT_LIGHT:
+            AmbientLightInspector(scene);
+            break;
+        default:
+            MeshInspector(scene);
+            break;
     }
     ImGui::End();
 }
@@ -181,4 +232,100 @@ void KS::Editor::CameraWindow(ComponentFirstPersonCamera& info, ComponentTransfo
     camTransform.SetLocalTranslation(camPosition);
 
     ImGui::End();
+}
+
+void KS::Editor::MeshInspector(Scene& scene)
+{
+    auto& drawQueue = scene.GetQueue();
+
+    if (m_selectedObject >= drawQueue.size())
+    {
+        m_selectedObject = -1;
+    }
+
+    if (m_selectedObject == -1)
+    {
+        ImGui::Text("No object was selected");
+        return;
+    }
+
+    auto& object = *std::next(drawQueue.begin(), m_selectedObject);
+
+    glm::vec3 translation, rotation, scale;
+    glm::mat4 oldTransform = object.second.modelMat;
+    DecomposeTransform(oldTransform, translation, rotation, scale);
+    bool transfromChanged = false;
+
+    if (ImGui::DragFloat3("Translation", &translation.x, 0.1f)) transfromChanged = true;
+    if (ImGui::DragFloat3("Rotation", &rotation.x, 1.0f)) transfromChanged = true;
+    if (ImGui::DragFloat3("Scale", &scale.x, 0.1f)) transfromChanged = true;
+
+    if (transfromChanged)
+    {
+        glm::mat4 newTransform = RecomposeTransform(translation, rotation, scale);
+        glm::mat4 delta = glm::inverse(newTransform) * oldTransform;
+        scene.ApplyModelTransform(object.first, delta);
+    }
+}
+
+void KS::Editor::PointLightInspector(Scene& scene)
+{
+    auto& pointLightQueue = scene.GetPointLights();
+
+    if (m_selectedObject >= pointLightQueue.size())
+    {
+        m_selectedObject = -1;
+    }
+
+    if (m_selectedObject == -1)
+    {
+        ImGui::Text("No object was selected");
+        return;
+    }
+
+    bool lightChanged = false;
+
+    auto& light = pointLightQueue[m_selectedObject];
+
+    if (ImGui::DragFloat3("Position", &light.mPosition.x, 0.1f)) lightChanged = true;
+    if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
+    if (ImGui::DragFloat("QAttenuation", &light.mQuadraticAttenuation, 0.1f)) lightChanged = true;
+    if (ImGui::DragFloat("LAttenuation", &light.mLinearAttenuation, 0.1f)) lightChanged = true;
+    if (ImGui::DragFloat("CAttenuation", &light.mConstantAttenuation, 0.1f)) lightChanged = true;
+
+    // if (lightChanged)
+    // scene.UpdatePointLight(m_selectedObject, light);
+}
+
+void KS::Editor::DirLightInspector(Scene& scene)
+{
+    auto& dirLigthQueue = scene.GetDirLights();
+
+    if (m_selectedObject >= dirLigthQueue.size())
+    {
+        m_selectedObject = -1;
+    }
+
+    if (m_selectedObject == -1)
+    {
+        ImGui::Text("No object was selected");
+        return;
+    }
+
+    auto& light = dirLigthQueue[m_selectedObject];
+
+    bool lightChanged = false;
+
+    if (ImGui::DragFloat3("Direction", &light.mDir.x, 0.1f)) lightChanged = true;
+    if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
+
+    // if (lightChanged)
+    // scene.UpdateDirLight(m_selectedObject, light);
+}
+
+void KS::Editor::AmbientLightInspector(Scene& scene)
+{
+    auto lightInfo = scene.GetLightInfo();
+    ImGui::DragFloat4("Color and intensity", &lightInfo.mAmbientAndIntensity.x, 0.1f);
+    scene.SetAmbientLight(glm::vec3(lightInfo.mAmbientAndIntensity), lightInfo.mAmbientAndIntensity.a);
 }

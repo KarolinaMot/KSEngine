@@ -27,6 +27,15 @@
 namespace KS
 {
 
+enum SceneObjectTypes
+{
+    // SAN_MIGUEL,
+    MESH,
+    POINT_LIGHT,
+    DIR_LIGHT,
+    AMBIENT_LIGHT
+};
+
 enum ScenesToChoose
 {
     //SAN_MIGUEL,

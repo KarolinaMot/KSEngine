@@ -76,10 +76,15 @@ public:
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
     TLAS* GetBVH() const { return m_BVH.get(); }
     DXDescHeap* GetResourceHeap() const;
+    void UpdateDirLights() { m_updateDirLights = true; }
+    void UpdatePointLights() { m_updatePointLights = true; }
     DXShaderTable* GetShaderTable(int index) const;
     size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
     std::shared_ptr<RenderTarget> GetRenderTarget(Subrenderers subrender) { return m_renderTargets[subrender]; }
     std::shared_ptr<DepthStencil> GetDepthStencil() { return m_deferredRendererDepthStencil; }
+    std::vector<DirLightInfo>& GetDirLights() { return m_directionalLights; }
+    std::vector<PointLightInfo>& GetPointLights() { return m_pointLights; }
+    glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
 
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
@@ -124,5 +129,6 @@ public:
     FogInfo m_fogInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
+    bool m_updateDirLights = false, m_updatePointLights = false;
 };
 }  // namespace KS

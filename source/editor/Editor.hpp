@@ -1,6 +1,6 @@
 #pragma once
 #include <memory>
-
+#include <renderer/InfoStructs.hpp>
 namespace KS
 {
 
@@ -26,7 +26,12 @@ private:
     void FogWindow(Device& device, Scene& scene);
     void InfoWindow(Device&, float deltaTime, bool& recompileShaders, bool& raytraced);
     void CameraWindow(ComponentFirstPersonCamera& info, ComponentTransform& camTransform);
+    void MeshInspector(Scene& scene);
+    void PointLightInspector(Scene& scene);
+    void DirLightInspector(Scene& scene);
+    void AmbientLightInspector(Scene& scene);
 
     int m_selectedObject = -1;
+    SceneObjectTypes m_type = MESH;
 };
 }

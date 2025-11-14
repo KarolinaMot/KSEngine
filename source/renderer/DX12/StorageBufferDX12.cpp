@@ -83,7 +83,6 @@ void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList,
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
-    m_num_elements = newNumOfElements;
 
     if (m_num_elements == newNumOfElements)
     {
