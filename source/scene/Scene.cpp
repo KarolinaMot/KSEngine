@@ -326,9 +326,10 @@ void KS::Scene::Tick(Device& device)
 
     mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    //mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
-    //mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
+    if (m_updateDirLights) mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
+    if (m_updatePointLights) mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
 
+    m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);
 
     commandContext.Close();

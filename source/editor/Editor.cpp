@@ -293,8 +293,8 @@ void KS::Editor::PointLightInspector(Scene& scene)
     if (ImGui::DragFloat("LAttenuation", &light.mLinearAttenuation, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat("CAttenuation", &light.mConstantAttenuation, 0.1f)) lightChanged = true;
 
-    // if (lightChanged)
-    // scene.UpdatePointLight(m_selectedObject, light);
+     if (lightChanged)
+     scene.UpdatePointLights();
 }
 
 void KS::Editor::DirLightInspector(Scene& scene)
@@ -319,8 +319,8 @@ void KS::Editor::DirLightInspector(Scene& scene)
     if (ImGui::DragFloat3("Direction", &light.mDir.x, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
 
-    // if (lightChanged)
-    // scene.UpdateDirLight(m_selectedObject, light);
+     if (lightChanged)
+     scene.UpdateDirLights();
 }
 
 void KS::Editor::AmbientLightInspector(Scene& scene)

@@ -101,7 +101,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
         float dist = length(lightDirection);
         lightDirection /= dist;
         //float att = DistanceAttenuation(lightDirection, light.mConstantAttenuation, light.mLinearAttenuation, light.mQuadraticAttenuation, 1.f);
-        float att = Attenuation(dist, 10.f);
+        float att = Attenuation(dist, 2.f);
 
         GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.008f, att, diffuse, specular);
     }
