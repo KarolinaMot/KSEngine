@@ -115,7 +115,6 @@ int main()
     glm::mat4x4 transform = glm::mat4x4(1.f);
     transform = glm::mat4x4(1.f);
     scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube");
-    transform = glm::rotate(transform, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "Damaged helmet");
 
     device->EndFrame();

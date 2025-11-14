@@ -1,277 +1,291 @@
 #include "Model.hpp"
 
-#include <fileio/FileIO.hpp>
-
 #include <assimp/GltfMaterial.h>
-#include <assimp/Importer.hpp>
 #include <assimp/scene.h>
+
+#include <assimp/Importer.hpp>
+#include <fileio/FileIO.hpp>
 #pragma warning(push, 0)
 #include <glm/gtc/type_ptr.hpp>
 #pragma warning(pop)
 
+#include <renderer/InfoStructs.hpp>
 #include <tools/Log.hpp>
 
 #include "Image.hpp"
 #include "Mesh.hpp"
-#include <renderer/InfoStructs.hpp>
 
 namespace KS::detail
 {
-
-MeshData ProcessMesh(const aiMesh* mesh)
-{
-    using namespace KS::MeshConstants;
-
-    // Build Mesh
-    MeshData new_mesh {};
-
-    // Indices
-    if (mesh->HasFaces())
+    MeshData ProcessMesh(const aiMesh* mesh)
     {
-        std::vector<uint32_t> indices;
+        using namespace KS::MeshConstants;
 
-        for (size_t i = 0; i < mesh->mNumFaces; i++)
+        // Build Mesh
+        MeshData new_mesh{};
+
+        // Indices
+        if (mesh->HasFaces())
         {
-            auto& face = mesh->mFaces[i];
-            if (face.mNumIndices == 3)
+            std::vector<uint32_t> indices;
+
+            for (size_t i = 0; i < mesh->mNumFaces; i++)
             {
-                indices.push_back(face.mIndices[0]);
-                indices.push_back(face.mIndices[1]);
-                indices.push_back(face.mIndices[2]);
+                auto& face = mesh->mFaces[i];
+                if (face.mNumIndices == 3)
+                {
+                    indices.push_back(face.mIndices[0]);
+                    indices.push_back(face.mIndices[1]);
+                    indices.push_back(face.mIndices[2]);
+                }
+            }
+
+            auto buffer = ByteBuffer(indices.data(), indices.size());
+            new_mesh.AddAttribute(ATTRIBUTE_INDICES_NAME, std::move(buffer));
+        }
+
+        // Positions
+        if (mesh->HasPositions())
+        {
+            auto buffer = ByteBuffer(mesh->mVertices, mesh->mNumVertices);
+            new_mesh.AddAttribute(ATTRIBUTE_POSITIONS_NAME, std::move(buffer));
+        }
+
+        // Normals
+        if (mesh->HasNormals())
+        {
+            auto buffer = ByteBuffer(mesh->mNormals, mesh->mNumVertices);
+            new_mesh.AddAttribute(ATTRIBUTE_NORMALS_NAME, std::move(buffer));
+        }
+
+        // Tangents and Bitangents
+        if (mesh->HasTangentsAndBitangents())
+        {
+            auto buffer = ByteBuffer(mesh->mTangents, mesh->mNumVertices);
+            new_mesh.AddAttribute(ATTRIBUTE_TANGENTS_NAME, std::move(buffer));
+
+            auto buffer2 = ByteBuffer(mesh->mBitangents, mesh->mNumVertices);
+            new_mesh.AddAttribute(ATTRIBUTE_BITANGENTS_NAME, std::move(buffer2));
+        }
+
+        // Texture UVS (only using the first)
+        if (mesh->GetNumUVChannels())
+        {
+            std::vector<glm::vec2> texture_uvs{};
+            for (size_t i = 0; i < mesh->mNumVertices; i++)
+            {
+                texture_uvs.emplace_back(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+            }
+
+            auto buffer = ByteBuffer(texture_uvs.data(), texture_uvs.size());
+            new_mesh.AddAttribute(ATTRIBUTE_TEXTURE_UVS_NAME, std::move(buffer));
+        }
+        return new_mesh;
+    }
+
+    Image ProcessImage(const aiTexture* texture)
+    {
+        if (texture->mHeight == 0)
+        {
+            if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth, texture->mFilename.C_Str()))
+            {
+                return image_load.value();
+            }
+            else
+            {
+                LOG(Log::Severity::WARN, "Failed to import model texture {}", texture->mFilename.C_Str());
+                return Image{};
             }
         }
-
-        auto buffer = ByteBuffer(indices.data(), indices.size());
-        new_mesh.AddAttribute(ATTRIBUTE_INDICES_NAME, std::move(buffer));
-    }
-
-    // Positions
-    if (mesh->HasPositions())
-    {
-        auto buffer = ByteBuffer(mesh->mVertices, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_POSITIONS_NAME, std::move(buffer));
-    }
-
-    // Normals
-    if (mesh->HasNormals())
-    {
-        auto buffer = ByteBuffer(mesh->mNormals, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_NORMALS_NAME, std::move(buffer));
-    }
-
-    // Tangents and Bitangents
-    if (mesh->HasTangentsAndBitangents())
-    {
-        auto buffer = ByteBuffer(mesh->mTangents, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_TANGENTS_NAME, std::move(buffer));
-
-        auto buffer2 = ByteBuffer(mesh->mBitangents, mesh->mNumVertices);
-        new_mesh.AddAttribute(ATTRIBUTE_BITANGENTS_NAME, std::move(buffer2));
-    }
-
-    // Texture UVS (only using the first)
-    if (mesh->GetNumUVChannels())
-    {
-        std::vector<glm::vec2> texture_uvs {};
-        for (size_t i = 0; i < mesh->mNumVertices; i++)
+        else
         {
-            texture_uvs.emplace_back(
-                mesh->mTextureCoords[0][i].x,
-                mesh->mTextureCoords[0][i].y);
+            std::vector<aiTexel> reordered_data;
+            reordered_data.resize(texture->mWidth * texture->mHeight);
+
+            for (size_t i = 0; i < reordered_data.size(); i++)
+            {
+                auto& texel = texture->pcData[i];
+                reordered_data.at(i) = {texel.r, texel.g, texel.b, texel.a};
+            }
+
+            return Image{ByteBuffer(reordered_data.data(), reordered_data.size()), texture->mWidth, texture->mHeight,
+                         texture->mFilename.C_Str()};
+        }
+    }
+
+    void ProcessLight(std::vector<DirLightInfo> & dirLights, std::vector<PointLightInfo> & pointLights, const aiLight* light,
+                      glm::mat4x4 transform)
+    {
+        if (light->mType == aiLightSource_DIRECTIONAL)
+        {
+            DirLightInfo out;
+            glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
+            float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+            color = color / intensity;
+            out.mColorAndIntensity = glm::vec4(color, intensity);
+            out.mDir = {light->mDirection.x, light->mDirection.y, light->mDirection.z, 1.f};
+            dirLights.push_back(out);
+        }
+        else if (light->mType == aiLightSource_POINT)
+        {
+            PointLightInfo out;
+
+            out.mPosition = glm::vec4(transform[3]);
+            out.mConstantAttenuation = light->mAttenuationConstant;
+            out.mLinearAttenuation = light->mAttenuationLinear;
+            out.mQuadraticAttenuation = light->mAttenuationQuadratic;
+            glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
+            float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+            color = color / intensity;
+            out.mColorAndIntensity = glm::vec4(color, intensity);
+            pointLights.push_back(out);
+        }
+    }
+
+    static glm::mat4 AiToGlm(const aiMatrix4x4& m)
+    {
+        // GLM constructor takes column-major data
+        return glm::mat4(m.a1, m.b1, m.c1, m.d1, m.a2, m.b2, m.c2, m.d2, m.a3, m.b3, m.c3, m.d3, m.a4, m.b4, m.c4, m.d4);
+    }
+
+    void ProcessNodesRecursive(std::vector<Model::Node> & out, std::vector<DirLightInfo> & dirLights,
+                               std::vector<PointLightInfo> & pointLights, const aiScene* scene, const aiNode* target_node,
+                               const glm::mat4& parent_transform)
+    {
+        glm::mat4 transform = parent_transform * AiToGlm(target_node->mTransformation);
+
+        std::vector<std::pair<size_t, size_t>> mm{};
+        for (size_t i = 0; i < target_node->mNumMeshes; i++)
+        {
+            auto mesh_index = target_node->mMeshes[i];
+            auto material_index = scene->mMeshes[mesh_index]->mMaterialIndex;
+            mm.emplace_back(mesh_index, material_index);
         }
 
-        auto buffer = ByteBuffer(texture_uvs.data(), texture_uvs.size());
-        new_mesh.AddAttribute(ATTRIBUTE_TEXTURE_UVS_NAME, std::move(buffer));
-    }
-    return new_mesh;
-}
-
-Image ProcessImage(const aiTexture* texture)
-{
-    if (texture->mHeight == 0)
-    {
-        if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth, texture->mFilename.C_Str()))
+        for (unsigned int li = 0; li < scene->mNumLights; ++li)
         {
-            return image_load.value();
+            if (scene->mLights[li]->mName != target_node->mName) continue;
+
+            ProcessLight(dirLights, pointLights, scene->mLights[li], transform);
+        }
+
+        out.emplace_back(transform, mm);
+
+        for (size_t i = 0; i < target_node->mNumChildren; i++)
+        {
+            ProcessNodesRecursive(out, dirLights, pointLights, scene, target_node->mChildren[i], transform);
+        }
+    }
+
+    Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material)
+    {
+        using namespace MaterialConstants;
+        Material out;
+
+        // Base colour factor
+        if (aiColor4D t{}; material->Get(AI_MATKEY_BASE_COLOR, t) == aiReturn_SUCCESS)
+        {
+            out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4{t.r, t.g, t.b, t.a});
         }
         else
         {
-            LOG(Log::Severity::WARN, "Failed to import model texture {}", texture->mFilename.C_Str());
-            return Image {};
-        }
-    }
-    else
-    {
-        std::vector<aiTexel> reordered_data;
-        reordered_data.resize(texture->mWidth * texture->mHeight);
-
-        for (size_t i = 0; i < reordered_data.size(); i++)
-        {
-            auto& texel = texture->pcData[i];
-            reordered_data.at(i) = { texel.r, texel.g, texel.b, texel.a };
+            out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4{t.r, t.g, t.b, t.a});
         }
 
-        return Image{ByteBuffer(reordered_data.data(), reordered_data.size()), texture->mWidth, texture->mHeight,
-                     texture->mFilename.C_Str()};
-    }
-}
-
-void ProcessNodesRecursive(std::vector<Model::Node>& out, const aiScene* scene, const aiNode* target_node, const glm::mat4& parent_transform)
-{
-    glm::mat4 transform = parent_transform * glm::make_mat4(&target_node->mTransformation.a1);
-
-    std::vector<std::pair<size_t, size_t>> mm {};
-    for (size_t i = 0; i < target_node->mNumMeshes; i++)
-    {
-        auto mesh_index = target_node->mMeshes[i];
-        auto material_index = scene->mMeshes[mesh_index]->mMaterialIndex;
-        mm.emplace_back(mesh_index, material_index);
-    }
-
-    out.emplace_back(transform, mm);
-
-    for (size_t i = 0; i < target_node->mNumChildren; i++)
-    {
-        ProcessNodesRecursive(out, scene, target_node->mChildren[i], transform);
-    }
-}
-
-void ProcessLight(std::vector<DirLightInfo>& dirLights, std::vector<PointLightInfo>& pointLights, const aiLight* light)
-{
-    if (light->mType == aiLightSource_DIRECTIONAL)
-    {
-        DirLightInfo out;
-
-        glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
-        float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
-        color = color / intensity;  
-        out.mColorAndIntensity = glm::vec4(color, intensity);
-        out.mDir = {light->mDirection.x, light->mDirection.y, light->mDirection.z, 1.f};
-        dirLights.push_back(out);
-    }
-    else if (light->mType == aiLightSource_POINT)
-    {
-        PointLightInfo out;
-        out.mPosition = {light->mPosition.x, light->mPosition.y, light->mPosition.z, 0.f};
-        out.mConstantAttenuation = light->mAttenuationConstant;
-        out.mLinearAttenuation = light->mAttenuationLinear;
-        out.mQuadraticAttenuation = light->mAttenuationQuadratic;
-        glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
-        float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
-        color = color / intensity;
-        out.mColorAndIntensity = glm::vec4(color, intensity);
-        pointLights.push_back(out);
-    }
-}
-
-Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material)
-{
-    using namespace MaterialConstants;
-    Material out;
-
-    // Base colour factor
-    if (aiColor4D t{}; material->Get(AI_MATKEY_BASE_COLOR, t) == aiReturn_SUCCESS)
-    {
-        out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4{t.r, t.g, t.b, t.a});
-    }
-    else
-    {
-        out.AddParameter(BASE_COLOUR_FACTOR_NAME, glm::vec4{t.r, t.g, t.b, t.a});
-    }
-
-    // Occlusion Roughness Metallic
-    {
-        glm::vec4 orm = ORM_FACTORS_DEFAULT;
-        material->Get(AI_MATKEY_GLTF_TEXTURE_STRENGTH(aiTextureType_AMBIENT_OCCLUSION, 0), orm.x);
-        material->Get(AI_MATKEY_ROUGHNESS_FACTOR, orm.y);
-        material->Get(AI_MATKEY_METALLIC_FACTOR, orm.z);
-        out.AddParameter(ORM_FACTORS_NAME, orm);
-    }
-
-    // Normal Emissive Alpha Cutoff
-    {
-        glm::vec4 nea = NEA_FACTORS_DEFAULT;
-        material->Get(AI_MATKEY_GLTF_TEXTURE_SCALE(aiTextureType_NORMALS, 0), nea.x);
-        material->Get(AI_MATKEY_EMISSIVE_INTENSITY, nea.y);
-        material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, nea.z);
-        out.AddParameter(NEA_FACTORS_NAME, nea);
-    }
-
-    // Double Sided
-    {
-        int d = DOUBLE_SIDED_DEFAULT;
-        material->Get(AI_MATKEY_TWOSIDED, d);
-        out.AddParameter(DOUBLE_SIDED_FLAG_NAME, static_cast<bool>(d));
-    }
-
-    auto GetTexture = [&](aiTextureType type) -> std::optional<std::string>
-    {
-        aiString texture_name{};
-        if (material->GetTexture(type, 0, &texture_name) != aiReturn_SUCCESS) return {};
-
-        std::string name = std::string(texture_name.C_Str());
-        if (name.front() == '*')
+        // Occlusion Roughness Metallic
         {
-            int index = std::atoi(&name[1]);
-            return image_paths.at(index);
+            glm::vec4 orm = ORM_FACTORS_DEFAULT;
+            material->Get(AI_MATKEY_GLTF_TEXTURE_STRENGTH(aiTextureType_AMBIENT_OCCLUSION, 0), orm.x);
+            material->Get(AI_MATKEY_ROUGHNESS_FACTOR, orm.y);
+            material->Get(AI_MATKEY_METALLIC_FACTOR, orm.z);
+            out.AddParameter(ORM_FACTORS_NAME, orm);
+        }
+
+        // Normal Emissive Alpha Cutoff
+        {
+            glm::vec4 nea = NEA_FACTORS_DEFAULT;
+            material->Get(AI_MATKEY_GLTF_TEXTURE_SCALE(aiTextureType_NORMALS, 0), nea.x);
+            material->Get(AI_MATKEY_EMISSIVE_INTENSITY, nea.y);
+            material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, nea.z);
+            out.AddParameter(NEA_FACTORS_NAME, nea);
+        }
+
+        // Double Sided
+        {
+            int d = DOUBLE_SIDED_DEFAULT;
+            material->Get(AI_MATKEY_TWOSIDED, d);
+            out.AddParameter(DOUBLE_SIDED_FLAG_NAME, static_cast<bool>(d));
+        }
+
+        auto GetTexture = [&](aiTextureType type) -> std::optional<std::string>
+        {
+            aiString texture_name{};
+            if (material->GetTexture(type, 0, &texture_name) != aiReturn_SUCCESS) return {};
+
+            std::string name = std::string(texture_name.C_Str());
+            if (name.front() == '*')
+            {
+                int index = std::atoi(&name[1]);
+                return image_paths.at(index);
+            }
+            else
+            {
+                LOG(Log::Severity::WARN, "Support for non embedded textures is still very limited");
+                return {};
+            }
+        };
+
+        if (auto path = GetTexture(aiTextureType_BASE_COLOR))
+        {
+            out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
         }
         else
         {
-            LOG(Log::Severity::WARN, "Support for non embedded textures is still very limited");
-            return {};
+            out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
         }
-    };
 
-    if (auto path = GetTexture(aiTextureType_BASE_COLOR))
-    {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
-    }
-    else
-    {
-        out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
-    }
+        if (auto path = GetTexture(aiTextureType_NORMALS))
+        {
+            out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+        }
+        else
+        {
+            out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.jpg"});
+        }
 
-    if (auto path = GetTexture(aiTextureType_NORMALS))
-    {
-        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
-    }
-    else
-    {
-        out.AddParameter(NORMAL_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Blue.jpg"});
-    }
+        if (auto path = GetTexture(aiTextureType_LIGHTMAP))
+        {
+            out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+        }
+        else
+        {
+            out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
+        }
 
-    if (auto path = GetTexture(aiTextureType_LIGHTMAP))
-    {
-        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
-    }
-    else
-    {
-        out.AddParameter(OCCLUSION_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/White.png"});
-    }
+        if (auto path = GetTexture(aiTextureType_METALNESS))
+        {
+            out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+        }
+        else
+        {
+            out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
+        }
 
-    if (auto path = GetTexture(aiTextureType_METALNESS))
-    {
-        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
-    }
-    else
-    {
-        out.AddParameter(METALLIC_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
-    }
+        if (auto path = GetTexture(aiTextureType_EMISSIVE))
+        {
+            out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+        }
+        else
+        {
+            out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
+        }
 
-    if (auto path = GetTexture(aiTextureType_EMISSIVE))
-    {
-        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+        return out;
     }
-    else
-    {
-        out.AddParameter(EMISSIVE_TEXTURE_NAME, ResourceHandle<Texture>{"assets/textures/Black.png"});
-    }
-
-    return out;
-}
 }
 
-std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(const FileIO::Path& source_model, uint32_t post_processing_flags)
+std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(const FileIO::Path& source_model,
+                                                                               uint32_t post_processing_flags)
 {
     Assimp::Importer importer;
     const aiScene* scene = nullptr;
@@ -320,7 +334,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
         for (size_t i = 0; i < scene->mNumMeshes; i++)
         {
             auto mesh = detail::ProcessMesh(scene->mMeshes[i]);
-            std::string mesh_name {};
+            std::string mesh_name{};
 
             if (scene->mMeshes[i]->mName.length == 0)
             {
@@ -335,7 +349,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
             if (auto out = FileIO::OpenWriteStream(output_path))
             {
-                BinarySaver ar { out.value() };
+                BinarySaver ar{out.value()};
                 ar(mesh);
             }
             else
@@ -345,7 +359,6 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
             mesh_paths.emplace_back(output_path);
             LOG(Log::Severity::INFO, "Processed mesh {}/{}, object {}/{}", i + 1, scene->mNumMeshes, i + 1, totalObjects);
-
         }
     }
 
@@ -353,7 +366,6 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
     // Process all Images
     {
-
         auto images_out = out_dir / "textures";
         FileIO::MakeDirectory(images_out.string());
 
@@ -362,7 +374,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
             auto ai_image = scene->mTextures[i];
             auto image = detail::ProcessImage(ai_image);
 
-            std::string image_name {};
+            std::string image_name{};
 
             if (scene->mTextures[i]->mFilename.length == 0)
             {
@@ -383,8 +395,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
                 auto ptr = compressed_data.value().GetView<char>().begin();
                 auto size = compressed_data.value().GetView<char>().count();
 
-                output_file.value()
-                    .write(ptr, size);
+                output_file.value().write(ptr, size);
             }
             else
             {
@@ -393,9 +404,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
             image_paths.emplace_back(output_path);
             LOG(Log::Severity::INFO, "Processed image {}/{}, object {}/{}", i + 1, scene->mNumTextures,
-                i + 1 + scene->mNumMeshes,
-                totalObjects);
-
+                i + 1 + scene->mNumMeshes, totalObjects);
         }
     }
 
@@ -416,40 +425,28 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
     std::vector<PointLightInfo> pointLights;
     std::vector<DirLightInfo> dirLights;
-
-    // Process all lights
-    {
-        for (size_t i = 0; i < scene->mNumLights; i++)
-        {
-            detail::ProcessLight(dirLights, pointLights, scene->mLights[i]);
-        }
-    }
-
-
     std::vector<Model::Node> nodes;
 
     // Process Nodes
     {
-        detail::ProcessNodesRecursive(nodes, scene, scene->mRootNode, glm::identity<glm::mat4>());
+        detail::ProcessNodesRecursive(nodes, dirLights, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
     }
 
     auto out_model_file = out_dir / (source.filename().replace_extension().string() + ".json");
 
     if (auto out = FileIO::OpenWriteStream(out_model_file.string(), std::ios::trunc))
     {
-        JSONSaver json { out.value() };
+        JSONSaver json{out.value()};
 
-        Model imported {
-            .nodes = std::move(nodes),
-            .meshes = std::move(mesh_paths),
-            .materials = std::move(materials),
-            .pointLights = std::move(pointLights),
-            .dirLights = std::move(dirLights)
-        };
+        Model imported{.nodes = std::move(nodes),
+                       .meshes = std::move(mesh_paths),
+                       .materials = std::move(materials),
+                       .pointLights = std::move(pointLights),
+                       .dirLights = std::move(dirLights)};
 
         json(imported);
         LOG(Log::Severity::INFO, "Successfully imported model from {}", source_model.string());
-        return ResourceHandle<Model> { out_model_file.string() };
+        return ResourceHandle<Model>{out_model_file.string()};
     }
     else
     {
