@@ -48,8 +48,8 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
                               Conversion::utf8_to_wide(heapName).c_str(),
                               OTHER_RESOURCES_START, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
-    m_pointLights = std::vector<PointLightInfo>(100);
-    m_directionalLights = std::vector<DirLightInfo>(100);
+    m_pointLights.reserve(100);
+    m_directionalLights.reserve(100);
 
     SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
     m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\meshes\\Cube.bin");
@@ -256,10 +256,12 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
     }
 
-    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
-    mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, &m_materialInstances[0], m_modelCount);
-    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
-    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
+    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), & m_modelMatrices[0],
+                                              m_modelCount);
+    mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_materialInstances[0],
+                                                  m_modelCount);
+    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
+    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
     commandContext.Close();
 }
 
@@ -282,13 +284,13 @@ void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float inten
     pLight.mLinearAttenuation = att;
     pLight.mQuadraticAttenuation = att;
     pLight.mConstantAttenuation = att;
-    m_pointLights[m_lightInfo.numPointLights] = pLight;
+    m_pointLights.push_back(pLight);
     m_lightInfo.numPointLights++;
 }
 
 void KS::Scene::QueuePointLight(PointLightInfo info)
 {
-    m_pointLights[m_lightInfo.numPointLights] = info;
+    m_pointLights.push_back(info);
     m_lightInfo.numPointLights++;
 }
 
@@ -297,13 +299,13 @@ void KS::Scene::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, floa
     DirLightInfo dLight;
     dLight.mDir = glm::vec4(direction, 0.f);
     dLight.mColorAndIntensity = glm::vec4(color, intensity);
-    m_directionalLights[m_lightInfo.numDirLights] = dLight;
+    m_directionalLights.push_back(dLight);
     m_lightInfo.numDirLights++;
 }
 
 void KS::Scene::QueueDirectionalLight(DirLightInfo info)
 {
-    m_directionalLights[m_lightInfo.numDirLights] = info;
+    m_directionalLights.push_back(info);
     m_lightInfo.numDirLights++;
 }
 
@@ -324,10 +326,13 @@ void KS::Scene::Tick(Device& device)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
-    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, &m_modelMatrices[0], m_modelCount);
+    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_modelMatrices[0],
+                                              m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
-    if (m_updateDirLights) mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_directionalLights);
-    if (m_updatePointLights) mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_pointLights);
+    if (m_updateDirLights)
+        mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
+    if (m_updatePointLights)
+        mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
 
     m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);
@@ -509,6 +514,18 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
 }
 
 DXDescHeap* KS::Scene::GetResourceHeap() const { return m_impl->m_resourceHeap.get(); }
+
+void KS::Scene::UpdateDirLights(int index, DirLightInfo info)
+{
+    m_directionalLights[index] = info;
+    m_updateDirLights = true;
+}
+
+void KS::Scene::UpdatePointLights(int index, PointLightInfo info)
+{
+    m_pointLights[index] = info;
+    m_updatePointLights = true;
+}
 
 DXShaderTable* KS::Scene::GetShaderTable(int index) const { return m_impl->m_shaderTable[index].get(); }
 

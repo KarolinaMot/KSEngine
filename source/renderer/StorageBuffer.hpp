@@ -56,7 +56,8 @@ public:
 
 
     template <typename T>
-    void Update(const Device& device, DXCommandList& commandList, const T* data, uint32_t numElements, uint32_t offset = 0, bool ignoreStride =false)
+    void Update(const Device& device, DXCommandList& commandList, void* resourceHeap, const T* data, uint32_t numElements,
+                uint32_t offset = 0, bool ignoreStride = false)
     {
         if (sizeof(T) != m_buffer_stride && !ignoreStride)
         {
@@ -71,17 +72,17 @@ public:
             return;
         }
 
-        if (numElements > m_num_elements) Resize(device, commandList, numElements);
+        if (numElements > m_num_elements) Resize(device, commandList, resourceHeap, numElements);
         UploadDataBuffer(device, commandList, data, numElements, offset);
     }
 
     template <typename T>
-    void Update(const Device& device, DXCommandList& commandList, const std::vector<T>& data)
+    void Update(const Device& device, DXCommandList& commandList, void* resourceHeap, const std::vector<T>& data)
     {
-        Update(device, commandList, data.data(), static_cast<uint32_t>(data.size()));
+        Update(device, commandList, resourceHeap, data.data(), static_cast<uint32_t>(data.size()));
     }
 
-    void Resize(const Device& device, DXCommandList& commandList, uint32_t newNumOfElements);
+    void Resize(const Device& device, DXCommandList& commandList, void* resourceHeap, uint32_t newNumOfElements);
     virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
                        uint32_t offsetIndex=0) override;
     void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0,

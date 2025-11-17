@@ -79,7 +79,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
     commandList.TransitionResource(*m_impl->m_resource, destState);
 }
 
-void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, uint32_t newNumOfElements)
+void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, void* resourceHeap, uint32_t newNumOfElements)
 {
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
 
@@ -99,6 +99,11 @@ void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList,
     const UINT64 bytes = UINT64(m_buffer_stride) * UINT64(m_num_elements);
     auto upl = device.GetUploadArena();
     m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
+
+    if (m_impl->m_SRV_handle.IsValid())
+    {
+        AllocateAsReadOnly(resourceHeap, m_impl->m_SRV_handle.GetIndex());
+    }
 }
 
 void KS::StorageBuffer::Bind(const Device&, void*, DXCommandList& commandList, const ShaderInputDesc& desc,

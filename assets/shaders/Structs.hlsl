@@ -18,7 +18,7 @@ struct PointLight
     float mLinearAttenuation;
     float mQuadraticAttenuation;
     float mConstantAttenuation;
-    float3 padding;
+    float padding;
 };
 
 struct PBRMaterial

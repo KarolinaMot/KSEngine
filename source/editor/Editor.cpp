@@ -270,9 +270,8 @@ void KS::Editor::MeshInspector(Scene& scene)
 
 void KS::Editor::PointLightInspector(Scene& scene)
 {
-    auto& pointLightQueue = scene.GetPointLights();
 
-    if (m_selectedObject >= pointLightQueue.size())
+    if (m_selectedObject >= static_cast<int>(scene.GetLightInfo().numPointLights))
     {
         m_selectedObject = -1;
     }
@@ -285,7 +284,7 @@ void KS::Editor::PointLightInspector(Scene& scene)
 
     bool lightChanged = false;
 
-    auto& light = pointLightQueue[m_selectedObject];
+    auto light = scene.GetPointLight(m_selectedObject);
 
     if (ImGui::DragFloat3("Position", &light.mPosition.x, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
@@ -294,14 +293,12 @@ void KS::Editor::PointLightInspector(Scene& scene)
     if (ImGui::DragFloat("CAttenuation", &light.mConstantAttenuation, 0.1f)) lightChanged = true;
 
      if (lightChanged)
-     scene.UpdatePointLights();
+     scene.UpdatePointLights(m_selectedObject, light);
 }
 
 void KS::Editor::DirLightInspector(Scene& scene)
 {
-    auto& dirLigthQueue = scene.GetDirLights();
-
-    if (m_selectedObject >= dirLigthQueue.size())
+    if (m_selectedObject >= static_cast<int>(scene.GetLightInfo().numDirLights))
     {
         m_selectedObject = -1;
     }
@@ -312,7 +309,7 @@ void KS::Editor::DirLightInspector(Scene& scene)
         return;
     }
 
-    auto& light = dirLigthQueue[m_selectedObject];
+    auto light = scene.GetDirLight(m_selectedObject);
 
     bool lightChanged = false;
 
@@ -320,7 +317,7 @@ void KS::Editor::DirLightInspector(Scene& scene)
     if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
 
      if (lightChanged)
-     scene.UpdateDirLights();
+     scene.UpdateDirLights(m_selectedObject, light);
 }
 
 void KS::Editor::AmbientLightInspector(Scene& scene)

@@ -76,14 +76,14 @@ public:
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath);
     TLAS* GetBVH() const { return m_BVH.get(); }
     DXDescHeap* GetResourceHeap() const;
-    void UpdateDirLights() { m_updateDirLights = true; }
-    void UpdatePointLights() { m_updatePointLights = true; }
+    void UpdateDirLights(int index, DirLightInfo info);
+    void UpdatePointLights(int index, PointLightInfo info);
     DXShaderTable* GetShaderTable(int index) const;
     size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
     std::shared_ptr<RenderTarget> GetRenderTarget(Subrenderers subrender) { return m_renderTargets[subrender]; }
     std::shared_ptr<DepthStencil> GetDepthStencil() { return m_deferredRendererDepthStencil; }
-    std::vector<DirLightInfo>& GetDirLights() { return m_directionalLights; }
-    std::vector<PointLightInfo>& GetPointLights() { return m_pointLights; }
+    DirLightInfo GetDirLight(int index) const { return m_directionalLights[index]; }
+    PointLightInfo GetPointLight(int index) const { return m_pointLights[index]; }
     glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
 
     KS::Texture* GetTextureForMipmapGen(int index) const

@@ -90,7 +90,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     for (uint i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
-        GetBRDF(material, viewDirection, light.mDir.xyz * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a*0.008f, 1.f, diffuse, specular);
+        GetBRDF(material, viewDirection, normalize(light.mDir.xyz)  * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
     }
     
     for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -101,9 +101,9 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
         float dist = length(lightDirection);
         lightDirection /= dist;
         //float att = DistanceAttenuation(lightDirection, light.mConstantAttenuation, light.mLinearAttenuation, light.mQuadraticAttenuation, 1.f);
-        float att = Attenuation(dist, 2.f);
+        float att = Attenuation(dist, 3.f);
 
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.008f, att, diffuse, specular);
+        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, diffuse, specular);
     }
     
     GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
