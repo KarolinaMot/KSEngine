@@ -195,7 +195,6 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
             for (auto [mesh, material] : node.mesh_material_indices)
             {
-                if (!mesh) continue;
                 if (m_modelCount >= MAX_MESHES)
                 {
                     LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
