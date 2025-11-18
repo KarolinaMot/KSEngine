@@ -103,8 +103,8 @@ public:
     class Impl;
     std::unique_ptr<Impl> m_impl;
 
-    const Model* GetModel(ResourceHandle<Model> model);
-    const std::shared_ptr<Mesh> GetMesh(Device& device, DXCommandList* commandList, ResourceHandle<Mesh> mesh);
+    const Model* GetModel(Device& device, DXCommandList& commandList, ResourceHandle<Model> model);
+    const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle);
     void InitializeShaderTable();
 
     std::unordered_map<std::string, DrawEntry> draw_queue{};

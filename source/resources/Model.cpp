@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 
 #include <assimp/Importer.hpp>
+#include <assimp/Exporter.hpp>
 #include <fileio/FileIO.hpp>
 #pragma warning(push, 0)
 #include <glm/gtc/type_ptr.hpp>
@@ -15,9 +16,9 @@
 #include "Image.hpp"
 #include "Mesh.hpp"
 
-namespace KS::detail
+namespace KS
 {
-    MeshData ProcessMesh(const aiMesh* mesh)
+    MeshData Model::ProcessMesh(const aiMesh* mesh)
     {
         using namespace KS::MeshConstants;
 
@@ -83,7 +84,7 @@ namespace KS::detail
         return new_mesh;
     }
 
-    Image ProcessImage(const aiTexture* texture)
+    Image Model::ProcessImage(const aiTexture* texture)
     {
         if (texture->mHeight == 0)
         {
@@ -113,7 +114,9 @@ namespace KS::detail
         }
     }
 
-    void ProcessLight(std::vector<DirLightInfo> & dirLights, std::vector<PointLightInfo> & pointLights, const aiLight* light,
+
+    void Model::ProcessLight(std::vector<DirLightInfo>& dirLights, std::vector<PointLightInfo>& pointLights,
+                             const aiLight* light,
                       glm::mat4x4 transform)
     {
         if (light->mType == aiLightSource_DIRECTIONAL)
@@ -148,7 +151,7 @@ namespace KS::detail
         return glm::mat4(m.a1, m.b1, m.c1, m.d1, m.a2, m.b2, m.c2, m.d2, m.a3, m.b3, m.c3, m.d3, m.a4, m.b4, m.c4, m.d4);
     }
 
-    void ProcessNodesRecursive(std::vector<Model::Node> & out, std::vector<DirLightInfo> & dirLights,
+    void Model::ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
                                std::vector<PointLightInfo> & pointLights, const aiScene* scene, const aiNode* target_node,
                                const glm::mat4& parent_transform)
     {
@@ -177,7 +180,7 @@ namespace KS::detail
         }
     }
 
-    Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material)
+    Material Model::ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material)
     {
         using namespace MaterialConstants;
         Material out;
@@ -220,7 +223,8 @@ namespace KS::detail
         auto GetTexture = [&](aiTextureType type) -> std::optional<std::string>
         {
             aiString texture_name{};
-            if (material->GetTexture(type, 0, &texture_name) != aiReturn_SUCCESS) return {};
+            if (material->GetTexture(type, 0, &texture_name) != aiReturn_SUCCESS)
+                return {};
 
             std::string name = std::string(texture_name.C_Str());
             if (name.front() == '*')
@@ -235,9 +239,10 @@ namespace KS::detail
             }
         };
 
-        if (auto path = GetTexture(aiTextureType_BASE_COLOR))
+        auto baseColorTex = GetTexture(aiTextureType_BASE_COLOR);
+        if (baseColorTex)
         {
-            out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{path.value()});
+            out.AddParameter(BASE_TEXTURE_NAME, ResourceHandle<Texture>{baseColorTex.value()});
         }
         else
         {
@@ -291,166 +296,40 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
     const aiScene* scene = nullptr;
     LOG(Log::Severity::INFO, "Importing model file: {}", source_model.string());
 
-    // Read Scene File
+    auto source = source_model;
+    auto base_dir = source.make_preferred().parent_path();
+    auto out_dir = base_dir / source.stem();
+    auto out_model_file = out_dir / (source.filename().replace_extension().string() + ".assbin");
+
+    if (!std::filesystem::exists(out_model_file))
     {
-        if (auto file_data = FileIO::OpenReadStream(source_model, std::ios::binary))
-        {
-            auto dump = FileIO::DumpFullStream(file_data.value());
-            scene = importer.ReadFileFromMemory(dump.data(), dump.size(), post_processing_flags);
-        }
-        else
+
+        auto file_data = FileIO::OpenReadStream(source_model, std::ios::binary);
+        if (!file_data)
         {
             LOG(Log::Severity::WARN, "Could not open file: {}", source_model.string());
             return {};
         }
 
-        if (scene == nullptr)
+        auto dump = FileIO::DumpFullStream(file_data.value());
+        scene = importer.ReadFileFromMemory(dump.data(), dump.size(), post_processing_flags);
+
+        if (!scene)
         {
-            LOG(Log::Severity::WARN, "Could not import model: {}", importer.GetErrorString());
+            LOG(Log::Severity::WARN, "Could not import model: {} ({})", source_model.string(), importer.GetErrorString());
             return {};
         }
-    }
 
-    // Validation
-    if (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
-    {
-        LOG(Log::Severity::WARN, "Importing Model file is incomplete");
-    }
-
-    auto source = source_model;
-
-    auto base_dir = source.make_preferred().parent_path();
-    auto out_dir = base_dir / source.stem();
-
-    FileIO::MakeDirectory(out_dir.string());
-
-    std::vector<ResourceHandle<Mesh>> mesh_paths;
-    auto totalObjects = scene->mNumMeshes + scene->mNumTextures + scene->mNumMaterials;
-    // Process all meshes
-    {
-        auto mesh_out = out_dir / "meshes";
-        FileIO::MakeDirectory(mesh_out.string());
-
-        for (size_t i = 0; i < scene->mNumMeshes; i++)
+        // Export a cached assbin for next time
+        Assimp::Exporter exporter;
+        aiReturn res = exporter.Export(scene, "assbin", out_model_file.string());
+        if (res != aiReturn_SUCCESS)
         {
-            auto mesh = detail::ProcessMesh(scene->mMeshes[i]);
-            std::string mesh_name{};
-
-            if (scene->mMeshes[i]->mName.length == 0)
-            {
-                mesh_name = "mesh" + std::to_string(i);
-            }
-            else
-            {
-                mesh_name = scene->mMeshes[i]->mName.C_Str();
-            }
-
-            auto output_path = (mesh_out / (mesh_name + ".bin")).string();
-
-            if (auto out = FileIO::OpenWriteStream(output_path))
-            {
-                BinarySaver ar{out.value()};
-                ar(mesh);
-            }
-            else
-            {
-                LOG(Log::Severity::WARN, "Failed to write output mesh file {}", output_path);
-            }
-
-            mesh_paths.emplace_back(output_path);
-            LOG(Log::Severity::INFO, "Processed mesh {}/{}, object {}/{}", i + 1, scene->mNumMeshes, i + 1, totalObjects);
+            LOG(Log::Severity::WARN, "Export to assbin failed for {}: {}", out_model_file.string(), exporter.GetErrorString());
         }
+
     }
 
-    std::vector<std::string> image_paths;
+    return ResourceHandle<Model>{out_model_file.string()};
 
-    // Process all Images
-    {
-        auto images_out = out_dir / "textures";
-        FileIO::MakeDirectory(images_out.string());
-
-        for (size_t i = 0; i < scene->mNumTextures; i++)
-        {
-            auto ai_image = scene->mTextures[i];
-            auto image = detail::ProcessImage(ai_image);
-
-            std::string image_name{};
-
-            if (scene->mTextures[i]->mFilename.length == 0)
-            {
-                image_name = "texture" + std::to_string(i);
-            }
-            else
-            {
-                image_name = scene->mTextures[i]->mFilename.C_Str();
-            }
-
-            auto output_path = (images_out / (image_name + ".png")).string();
-
-            auto output_file = FileIO::OpenWriteStream(output_path);
-            auto compressed_data = SaveImageToPNG(image);
-
-            if (output_file && compressed_data)
-            {
-                auto ptr = compressed_data.value().GetView<char>().begin();
-                auto size = compressed_data.value().GetView<char>().count();
-
-                output_file.value().write(ptr, size);
-            }
-            else
-            {
-                LOG(Log::Severity::WARN, "Failed to write output texture file {}", output_path);
-            }
-
-            image_paths.emplace_back(output_path);
-            LOG(Log::Severity::INFO, "Processed image {}/{}, object {}/{}", i + 1, scene->mNumTextures,
-                i + 1 + scene->mNumMeshes, totalObjects);
-        }
-    }
-
-    std::vector<Material> materials;
-
-    // Process Materials
-    {
-        for (size_t i = 0; i < scene->mNumMaterials; i++)
-        {
-            auto m = scene->mMaterials[i];
-            auto material = detail::ProcessMaterial(image_paths, m);
-
-            materials.emplace_back(material);
-            LOG(Log::Severity::INFO, "Processed material {}/{}, object {}/{}", i + 1, scene->mNumMaterials,
-                i + 1 + scene->mNumMeshes + scene->mNumTextures, totalObjects);
-        }
-    }
-
-    std::vector<PointLightInfo> pointLights;
-    std::vector<DirLightInfo> dirLights;
-    std::vector<Model::Node> nodes;
-
-    // Process Nodes
-    {
-        detail::ProcessNodesRecursive(nodes, dirLights, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
-    }
-
-    auto out_model_file = out_dir / (source.filename().replace_extension().string() + ".json");
-
-    if (auto out = FileIO::OpenWriteStream(out_model_file.string(), std::ios::trunc))
-    {
-        JSONSaver json{out.value()};
-
-        Model imported{.nodes = std::move(nodes),
-                       .meshes = std::move(mesh_paths),
-                       .materials = std::move(materials),
-                       .pointLights = std::move(pointLights),
-                       .dirLights = std::move(dirLights)};
-
-        json(imported);
-        LOG(Log::Severity::INFO, "Successfully imported model from {}", source_model.string());
-        return ResourceHandle<Model>{out_model_file.string()};
-    }
-    else
-    {
-        LOG(Log::Severity::WARN, "Failed to create output model file {}", out_model_file.string());
-        return std::nullopt;
-    }
 }

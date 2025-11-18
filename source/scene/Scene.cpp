@@ -20,6 +20,10 @@
 #include <resources/Image.hpp>
 #include <resources/Mesh.hpp>
 
+#include <assimp/Importer.hpp>
+#include <assimp/GltfMaterial.h>
+#include <assimp/scene.h>
+
 class KS::Scene::Impl
 {
 public:
@@ -52,8 +56,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_directionalLights.reserve(100);
 
     SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
-    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\meshes\\Cube.bin");
-    m_skyDomeMesh.first = GetMesh(device, commandList.get(), m_skyDomeMesh.second);
+    GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube/Cube.assbin"));
+    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\mesh0");
+    m_skyDomeMesh.first = GetMesh(m_skyDomeMesh.second);
 
     CameraMats cam{};
 
@@ -181,7 +186,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
     auto commandContext = device.GetCommandContext();
     auto commandList = commandContext.m_commandList.get();
 
-    auto* ptr = GetModel(model);
+    auto* ptr = GetModel(device, *commandList, model);
     if (ptr)
     {
         for (auto node : ptr->nodes)
@@ -190,6 +195,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
             for (auto [mesh, material] : node.mesh_material_indices)
             {
+                if (!mesh) continue;
                 if (m_modelCount >= MAX_MESHES)
                 {
                     LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
@@ -199,7 +205,7 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 auto meshHandle = ptr->meshes[mesh];
                 auto mat = ptr->materials[material];
                  
-                std::shared_ptr<Mesh> meshPtr = GetMesh(device, commandList, meshHandle);
+                std::shared_ptr<Mesh> meshPtr = GetMesh(meshHandle);
                 std::string key = name + std::to_string(m_modelCount);
 
                 draw_queue[key] = KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform);
@@ -356,7 +362,7 @@ void KS::Scene::SetSkydome(Device& device, DXCommandList& commandList, ResourceH
     }
 }
 
-const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
+const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList, ResourceHandle<Model> model)
 {
     // Cached result
     if (auto it = model_cache.find(model); it != model_cache.end())
@@ -367,10 +373,133 @@ const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
     // Load result
     else if (auto fileread = FileIO::OpenReadStream(model.path))
     {
-        JSONLoader json{fileread.value()};
-        Model new_model{};
+        Assimp::Importer importer;
+        const aiScene* scene = nullptr;
 
-        json(new_model);
+        scene = importer.ReadFile(model.path, 0);
+        if (!scene)
+        {
+            LOG(Log::Severity::WARN, "Could not import cached model: {} ({})", model.path,
+                importer.GetErrorString());
+            return nullptr;
+        }
+
+        std::vector<ResourceHandle<Mesh>> mesh_paths;
+        mesh_paths.reserve(scene->mNumMeshes);
+        auto totalObjects = scene->mNumMeshes + scene->mNumTextures + scene->mNumMaterials;
+        // Process all meshes
+        {
+            for (size_t i = 0; i < scene->mNumMeshes; i++)
+            {
+                auto mesh = Model::ProcessMesh(scene->mMeshes[i]);
+                std::string mesh_name{};
+
+                if (scene->mMeshes[i]->mName.length == 0)
+                {
+                    mesh_name = "mesh" + std::to_string(i);
+                }
+                else
+                {
+                    mesh_name = scene->mMeshes[i]->mName.C_Str();
+                }
+
+                auto meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh,
+                                                      mesh_name.c_str(), static_cast<uint32_t>(mesh_cache.size()));
+
+                auto output_path = (FileIO::Path(model.path).make_preferred().parent_path() / mesh_name);
+
+                auto [obj, success] = mesh_cache.emplace(output_path.string(), std::move(meshPtr));
+                mesh_paths.emplace_back(output_path.string());
+
+                LOG(Log::Severity::INFO, "Processed mesh {}/{}, object {}/{}", i + 1, scene->mNumMeshes, i + 1, totalObjects);
+            }
+        }
+
+        std::vector<std::string> image_paths;
+        auto out_dir = FileIO::Path(model.path).make_preferred().parent_path();
+        image_paths.reserve(scene->mNumTextures);
+
+        // Process all Images
+        {
+            auto images_out = out_dir / "textures";
+            FileIO::MakeDirectory(images_out.string());
+
+            for (size_t i = 0; i < scene->mNumTextures; i++)
+            {
+                auto ai_image = scene->mTextures[i];
+                auto image = Model::ProcessImage(ai_image);
+
+                std::string image_name{};
+
+                if (scene->mTextures[i]->mFilename.length == 0)
+                {
+                    image_name = "texture" + std::to_string(i);
+                }
+                else
+                {
+                    image_name = scene->mTextures[i]->mFilename.C_Str();
+                }
+
+                auto output_path = (images_out / (image_name + ".png")).string();
+                image_paths.emplace_back(output_path);
+
+                if (std::filesystem::exists(output_path))
+                {
+                    continue;
+                }
+
+                auto output_file = FileIO::OpenWriteStream(output_path);
+                auto compressed_data = SaveImageToPNG(image);
+
+                if (output_file && compressed_data)
+                {
+                    auto ptr = compressed_data.value().GetView<char>().begin();
+                    auto size = compressed_data.value().GetView<char>().count();
+
+                    output_file.value().write(ptr, size);
+                }
+                else
+                {
+                    LOG(Log::Severity::WARN, "Failed to write output texture file {}", output_path);
+                }
+
+                LOG(Log::Severity::INFO, "Processed image {}/{}, object {}/{}", i + 1, scene->mNumTextures,
+                    i + 1 + scene->mNumMeshes, totalObjects);
+            }
+        }
+
+        std::vector<Material> materials;
+        materials.reserve(scene->mNumMaterials);
+
+        // Process Materials
+        {
+            for (size_t i = 0; i < scene->mNumMaterials; i++)
+            {
+                auto m = scene->mMaterials[i];
+                auto material = Model::ProcessMaterial(image_paths, m);
+
+                materials.emplace_back(material);
+                LOG(Log::Severity::INFO, "Processed material {}/{}, object {}/{}", i + 1, scene->mNumMaterials,
+                    i + 1 + scene->mNumMeshes + scene->mNumTextures, totalObjects);
+            }
+        }
+
+         std::vector<PointLightInfo> pointLights;
+         std::vector<DirLightInfo> dirLights;
+         std::vector<Model::Node> nodes;
+
+        // Process Nodes
+        {
+             Model::ProcessNodesRecursive(nodes, dirLights, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
+        }
+
+
+        Model new_model{.nodes = std::move(nodes),
+                        .meshes = std::move(mesh_paths),
+                        .materials = std::move(materials),
+                        .pointLights = std::move(pointLights),
+                        .dirLights = std::move(dirLights)};
+
 
         auto [obj, success] = model_cache.emplace(model, std::move(new_model));
         return &obj->second;
@@ -378,33 +507,16 @@ const KS::Model* KS::Scene::GetModel(ResourceHandle<Model> model)
     return nullptr;
 }
 
-const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(Device& device, DXCommandList* commandList, ResourceHandle<Mesh> meshHandle)
+const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHandle)
 {
     // Cached result
     if (auto it = mesh_cache.find(meshHandle); it != mesh_cache.end())
     {
         return it->second;
     }
-    else if (auto fileRead = FileIO::OpenReadStream(meshHandle.path))
-    {
-        BinaryLoader bin{fileRead.value()};
-        MeshData data{};
-        bin(data);
-
-        std::filesystem::path p(meshHandle.path);
-        std::string mesh_name_extracted = p.stem().string();
-
-        auto meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), *commandList, data,
-                                              mesh_name_extracted.c_str(),
-                                              static_cast<uint32_t>(mesh_cache.size()));
-
-        auto [obj, success] = mesh_cache.emplace(meshHandle, std::move(meshPtr));
-
-        return obj->second;
-    }
     else
     {
-        LOG(Log::Severity::WARN, "Model path ( {} ) was not found.", meshHandle.path);
+        LOG(Log::Severity::WARN, "Mesh ( {} ) was not found.", meshHandle.path);
         return nullptr;
     }
 }
