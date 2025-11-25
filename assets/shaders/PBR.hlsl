@@ -58,13 +58,13 @@ void GetBRDF(
 
     float3 diffuseBRDF = LambertianDiffuse(mat.diffuse, mat.F0, float3(1.0, 1.0, 1.0), vDotH);
 
-    float3 F = FSchlick(mat.F0, float3(1.0, 1.0, 1.0), vDotH);
-    float3 G = V_GGX(nDotL, nDotV, mat.roughness);
-    float3 D = D_GGX(nDotH, mat.roughness);
-    float3 specularBRDF = F * G * D;
+    //float3 F = FSchlick(mat.F0, float3(1.0, 1.0, 1.0), vDotH);
+    //float3 G = V_GGX(nDotL, nDotV, mat.roughness);
+    //float3 D = D_GGX(nDotH, mat.roughness);
+    //float3 specularBRDF = F * G * D;
 
     diffuse += colorIntensity * nDotL * diffuseBRDF;
-    specular += colorIntensity * nDotL * specularBRDF;
+    //specular += colorIntensity * nDotL * specularBRDF;
 }
 
 float Attenuation(float distance, float range)

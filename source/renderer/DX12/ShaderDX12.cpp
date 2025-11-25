@@ -193,7 +193,7 @@ void KS::Shader::RTShader(const Device& device)
                                      .ClosestHitShaderImport = m_shaders[CLOSEST_HIT].second.c_str()};
 
     D3D12_RAYTRACING_SHADER_CONFIG shaderCfg = {
-        .MaxPayloadSizeInBytes = sizeof(HitInfo),
+        .MaxPayloadSizeInBytes = 64,
         .MaxAttributeSizeInBytes = 8,
     };
 

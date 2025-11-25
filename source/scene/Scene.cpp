@@ -421,7 +421,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
         // Process all Images
         {
             auto images_out = out_dir / "textures";
-            FileIO::MakeDirectory(images_out.string());
+            FileIO::MakeDirectory(images_out);
 
             for (size_t i = 0; i < scene->mNumTextures; i++)
             {

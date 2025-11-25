@@ -1,4 +1,4 @@
-#include "Common.hlsl"
+#include "RTCommon.hlsl"
 #include "Structs.hlsl"
 #include "PBR.hlsl"
 
@@ -81,36 +81,43 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal, TBN, Lu, Lv);
     
     
-    float3 worldOrigin = WorldRayOrigin() + t * WorldRayDirection();
-    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldOrigin);
-    float3 diffuse = 0.f;
-    float3 specular = 0.f;
-    float3 result;
+    float3 result = 0.f;
 
-    for (uint i = 0; i < lightInfo.numDirLight; i++)
+    if (payload.albedoAndRayType.a == 0)
     {
-        DirLight light = dirLights[i];
-        GetBRDF(material, viewDirection, normalize(light.mDir.xyz)  * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
+        float3 diffuse = 0.f;
+        float3 specular = 0.f;
+        float3 viewDirection = normalize(WorldRayDirection());
+
+        for (uint i = 0; i < lightInfo.numDirLight; i++)
+        {
+            DirLight light = dirLights[i];
+            GetBRDF(material, viewDirection, normalize(light.mDir.xyz) * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
+        }
+    
+        result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
+
+    }
+    else
+    {
+        float3 viewDirection = normalize(-WorldRayDirection());
+        float3 diffuse = 0.f;
+        float3 specular = 0.f;
+        
+        for (uint i = 0; i < lightInfo.numDirLight; i++)
+        {
+            DirLight light = dirLights[i];
+            float3 L = normalize(light.mDir.xyz) * float3(1, 1, -1); // toward light
+            GetBRDF(material, viewDirection, L, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
+        }     
+        
+        result = diffuse;
     }
     
-    for (uint j = 0; j < lightInfo.numPointLight; j++)
-    {
-        PointLight light = pointLights[j];
-
-        float3 lightDirection = light.mPosition.xyz - vertexPos.xyz;
-        float dist = length(lightDirection);
-        lightDirection /= dist;
-        //float att = DistanceAttenuation(lightDirection, light.mConstantAttenuation, light.mLinearAttenuation, light.mQuadraticAttenuation, 1.f);
-        float att = Attenuation(dist, 3.f);
-
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, diffuse, specular);
-    }
-    
-    GetBRDF(material, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
-
-    result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
-    result = LinearToSRGB(result);
-    payload.colorAndDistance = float4(result, 1.f);
+    payload.lightIntensityAndDistance = float4(result, t);
+    payload.hitNormal = normal;
+    payload.hitPoint = vertexPos;
+    payload.albedoAndRayType.rgb = material.baseColor;
 }
 
 float3 NormalToColor(float3 normal)

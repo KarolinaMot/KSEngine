@@ -303,7 +303,7 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
     if (!std::filesystem::exists(out_model_file))
     {
-
+        FileIO::MakeDirectory(out_dir);
         auto file_data = FileIO::OpenReadStream(source_model, std::ios::binary);
         if (!file_data)
         {

@@ -115,7 +115,7 @@ int main()
     glm::mat4x4 transform = glm::mat4x4(1.f);
     transform = glm::mat4x4(1.f);
     scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube");
-    scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "San miguel");
+    scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "Cornell");
 
     device->EndFrame();
     bool recomp = false;
