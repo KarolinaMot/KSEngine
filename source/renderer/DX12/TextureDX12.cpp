@@ -75,7 +75,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
 }
 
 KS::Texture::Texture(Device& device, void* resourceHeap, DXCommandList& commandList, const Image& image) :
-    Texture(device, image.GetWidth(), image.GetHeight(), RW_TEXTURE, glm::vec4(0.f), R8G8B8A8_UNORM, image.GetName(), 4)
+    Texture(device, image.GetWidth(), image.GetHeight(), RW_TEXTURE, glm::vec4(0.f), image.GetFormat(), image.GetName(), 4)
 {
     UINT64 textureUploadBufferSize;
     auto resourceDesc = m_impl->mTextureBuffer->GetDesc();
@@ -94,10 +94,11 @@ KS::Texture::Texture(Device& device, void* resourceHeap, DXCommandList& commandL
 
     auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_impl->m_slice.m_pageID));
 
+    uint32_t bytesPerPixel = Image::BytesPerPixelFromFormat(m_format);
     D3D12_SUBRESOURCE_DATA textureData = {};
     textureData.pData = image.GetData().GetView<uint8_t>().begin();
-    textureData.RowPitch = static_cast<LONG_PTR>(m_width * 4);
-    textureData.SlicePitch = static_cast<LONG_PTR>(m_width * 4 * m_height);
+    textureData.RowPitch = static_cast<LONG_PTR>(m_width * bytesPerPixel);
+    textureData.SlicePitch = static_cast<LONG_PTR>(m_width * bytesPerPixel * m_height);
 
     UpdateSubresources(commandList.GetCommandList().Get(), m_impl->mTextureBuffer->GetResource().Get(),
                        uploadSource->GetResource().Get(), static_cast<UINT64>(m_impl->m_slice.m_head), 0, 1, &textureData);

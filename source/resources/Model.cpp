@@ -88,7 +88,7 @@ namespace KS
     {
         if (texture->mHeight == 0)
         {
-            if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth, texture->mFilename.C_Str()))
+            if (auto image_load = LoadImageFileFromMemory(texture->pcData, texture->mWidth, texture->mFilename.C_Str(), Formats::R8G8B8A8_UNORM))
             {
                 return image_load.value();
             }
@@ -110,7 +110,7 @@ namespace KS
             }
 
             return Image{ByteBuffer(reordered_data.data(), reordered_data.size()), texture->mWidth, texture->mHeight,
-                         texture->mFilename.C_Str()};
+                         texture->mFilename.C_Str(), Formats::R8G8B8A8_UNORM};
         }
     }
 

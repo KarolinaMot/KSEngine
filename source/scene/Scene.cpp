@@ -613,7 +613,14 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
 
         std::filesystem::path p(imgPath.path);
         auto fileName = p.stem().string();
-        if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size(), fileName))
+
+        std::string ext = p.extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        // Treat common HDR formats as HDR
+        bool isHdr = (ext == ".hdr" || ext == ".exr");
+
+        if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size(), fileName, isHdr ? Formats::R32G32B32A32_FLOAT : Formats::R8G8B8A8_UNORM))
         {
             auto new_tex = std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), *commandList, img.value());
             AddToMipmapQueue(new_tex);

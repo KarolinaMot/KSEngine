@@ -7,6 +7,7 @@ SamplerState mainSampler : register(s0);
 void Miss(inout HitInfo payload : SV_RayPayload)
 {
     float3 dir = normalize(WorldRayDirection());
-    payload.lightIntensityAndDistance = float4(0, 0, 0, 0);;
+    payload.lightIntensityAndDistance.rgb = skyMap.SampleLevel(mainSampler, dir, 0.f).rgb;
+    //payload.lightIntensityAndDistance.rgb = 1.f;
     payload.lightIntensityAndDistance.a = -1.f;
 }

@@ -10,22 +10,45 @@
 
 #include <tools/Log.hpp>
 
-std::optional<KS::Image> KS::LoadImageFileFromMemory(const void* filedata, size_t byte_length, std::string name)
+std::optional<KS::Image> KS::LoadImageFileFromMemory(const void* filedata, size_t byte_length, std::string name, Formats format)
 {
     int height {}, width {}, comp {};
-    auto* stbi_result = stbi_load_from_memory((const stbi_uc*)(filedata), static_cast<int>(byte_length), &width, &height, &comp, 4);
+    if (format == Formats::R32G32B32A32_FLOAT)  // or some “is HDR/float” flag
+    {
+        float* stbi_result = stbi_loadf_from_memory((const stbi_uc*)filedata, static_cast<int>(byte_length), &width, &height,
+                                                    &comp, 4);  // 4 float channels
 
-    if (stbi_result != nullptr)
-    {
-        ByteBuffer image_data { stbi_result, static_cast<uint32_t>(width * height * 4) };
-        STBI_FREE(stbi_result);
-        return Image{std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height), name};
+        if (stbi_result != nullptr)
+        {
+            // 16 bytes per pixel: 4 channels * 4 bytes
+            uint32_t byteSize = static_cast<uint32_t>(width * height * 4 * sizeof(float));
+
+            ByteBuffer image_data{reinterpret_cast<const std::byte*>(stbi_result), byteSize};
+
+            STBI_FREE(stbi_result);
+
+            return Image{std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height), name, format};
+        }
     }
-    else
+    else  // LDR / 8-bit path (R8G8B8A8_UNORM, etc.)
     {
-        LOG(Log::Severity::WARN, "Failure with STBI load: {}", stbi_failure_reason());
-        return std::nullopt;
+        stbi_uc* stbi_result = stbi_load_from_memory((const stbi_uc*)filedata, static_cast<int>(byte_length), &width, &height,
+                                                     &comp, 4);  // 4 u8 channels
+
+        if (stbi_result != nullptr)
+        {
+            uint32_t byteSize = static_cast<uint32_t>(width * height * 4);  // 4 bytes per pixel
+
+            ByteBuffer image_data{reinterpret_cast<const std::byte*>(stbi_result), byteSize};
+
+            STBI_FREE(stbi_result);
+
+            return Image{std::move(image_data), static_cast<uint32_t>(width), static_cast<uint32_t>(height), name, format};
+        }
     }
+
+    LOG(Log::Severity::WARN, "Failure with STBI load: {}", stbi_failure_reason());
+    return std::nullopt;
 }
 
 std::optional<KS::ByteBuffer> KS::SaveImageToPNG(const Image& image)
@@ -45,5 +68,24 @@ std::optional<KS::ByteBuffer> KS::SaveImageToPNG(const Image& image)
     {
         LOG(Log::Severity::WARN, "Failure with STBI write: {}", stbi_failure_reason());
         return std::nullopt;
+    }
+}
+
+uint32_t KS::Image::BytesPerPixelFromFormat(Formats format) 
+{ 
+    switch (format)
+    {
+        case Formats::R8G8B8A8_UNORM:
+            return 4;
+
+        case Formats::R16G16B16A16_FLOAT:
+            return 8;
+
+        case Formats::R32G32B32A32_FLOAT:
+            return 16;
+
+        default:
+            assert(false && "Unknown format in BytesPerPixelFromFormat");
+            return 4;
     }
 }

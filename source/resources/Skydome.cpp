@@ -28,7 +28,7 @@ KS::Skydome::Skydome(Device& device, void* resourceHeap, const Texture& tex) : S
     m_width = tex.GetWidth() / 4;
     m_height = tex.GetHeight() / 2;
 
-    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 6, m_width <= 5 ? 1 : 4, 1, 0, flags);
+    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, 6, m_width <= 5 ? 1 : 4, 1, 0, flags);
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->m_cubemap = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (tex.GetName() + " Cubemap Resource").c_str());
     m_mipLevels = resourceDesc.MipLevels;

@@ -103,7 +103,7 @@ float DistanceAttenuation(float3 Lvec, float kc, float kl, float kq, float radiu
 // see http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
 float3 LinearToSRGB(float3 color)
 {
-    return pow(color, float3(sInvGamma, sInvGamma, sInvGamma));
+    return pow(clamp(color, 0.f, 1.f), float3(sInvGamma, sInvGamma, sInvGamma));
 }
 
 float3 DirToFaceUV(float3 dir)

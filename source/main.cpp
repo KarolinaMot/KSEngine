@@ -106,16 +106,17 @@ int main()
     KS::Timer frametimer{};
     bool raytraced = true;
 
-    scenes[TEST_SCENE]->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
+    //scenes[TEST_SCENE]->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
 
     auto sanMiguelModel = KS::ModelImporter::ImportFromFile("assets/models/SanMiguel/SanMiguel.glb").value();
-    auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
+    //auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
+    //auto sphereModel = KS::ModelImporter::ImportFromFile("assets/models/Sphere.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     transform = glm::mat4x4(1.f);
     scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube");
-    scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "Cornell");
+    scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "San Miguel");
 
     device->EndFrame();
     bool recomp = false;

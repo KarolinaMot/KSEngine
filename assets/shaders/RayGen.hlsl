@@ -106,7 +106,7 @@ void RayGen()
     float3 Nt, Nb;
 
     CreateCoordinateSystem(payload.hitNormal, Nt, Nb);
-    uint smaples = 4;
+    uint smaples = 16;
     float bias = max(1e-4f, payload.lightIntensityAndDistance.w * 1e-4f);
     float3 indirectLighting = float3(0.f, 0.f, 0.f);
     
@@ -145,7 +145,7 @@ void RayGen()
     }
     indirectLighting /= (float) smaples;
     
-    float3 res = (directLighting + indirectLighting);
+    float3 res = payload.lightIntensityAndDistance.a >= 0 ? (directLighting + indirectLighting) : directLighting;
     //float3 res = directLighting;
     gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
     //gOutput[launchIndex] = float4(directLighting, 1.f);

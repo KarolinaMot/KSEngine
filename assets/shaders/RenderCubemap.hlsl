@@ -37,5 +37,5 @@ PS_INPUT mainVS(VS_INPUT input)
 
 float4 mainPS(PS_INPUT input) : SV_TARGET
 {
-    return float4(skyMap.SampleLevel(samplr, input.vertexPos.xyz, 0.f).rgb, 1.f);
+    return float4(clamp(skyMap.SampleLevel(samplr, input.vertexPos.xyz, 0.f).rgb, 0.f, 1.f), 1.f);
 }
