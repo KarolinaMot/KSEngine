@@ -100,7 +100,7 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         
         RayDesc shadowRay;
         shadowRay.Origin = vertexPos; // simpler & correct
-        shadowRay.Direction = -lightDir;
+        shadowRay.Direction = lightDir;
         shadowRay.TMin = 0;
         shadowRay.TMax = 100000;
         
@@ -122,9 +122,9 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
           // between the hit/miss shaders and the raygen
           shadowPayload);
         
-        bool hit = payload.lightIntensityAndDistance.a > 0;
-        diffuse += lightDiff * hit; /* * shadowPayload.hit*/;
-        specular += lightSpec * hit /* * shadowPayload.hit*/;
+        bool shadow = !shadowPayload.hit;
+        diffuse += lightDiff * shadow;
+        specular += lightSpec * shadow;
     }
     
     for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -135,9 +135,38 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         float dist = length(lightDirection);
         lightDirection /= dist;
         float att = Attenuation(dist, 3.f);
+        float3 lightDiff = 0.f;
+        float3 lightSpec = 0.f;
 
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, diffuse, specular);
+        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, lightDiff, lightSpec);
 
+        RayDesc shadowRay;
+        shadowRay.Origin = vertexPos; // simpler & correct
+        shadowRay.Direction = lightDirection;
+        shadowRay.TMin = 0;
+        shadowRay.TMax = dist - 1e-3f;
+        
+        ShadowPayload shadowPayload;
+        // Trace the ray
+        TraceRay(
+          // Acceleration structure
+          SceneBVH,
+          RAY_FLAG_NONE,
+          0xFF,
+          // Hit group
+          1,
+          0,
+          // Index of the miss shader
+          1,
+          // Ray information to trace
+          shadowRay,
+          // Payload associated to the ray, which will be used to communicate
+          // between the hit/miss shaders and the raygen
+          shadowPayload);
+        
+        bool shadow = !shadowPayload.hit;
+        diffuse += lightDiff * shadow;
+        specular += lightSpec * shadow;
     }
 
     if (payload.albedoAndRayType.a == 0)
