@@ -96,21 +96,6 @@
     <ClCompile Include="source\renderer\DX12\Helpers\DXResource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="source\device\DX12\DXFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -309,21 +294,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\renderer\DX12\Helpers\DXResource.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\DXR\nv_helpers_dx12\BottomLevelASGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\DXR\nv_helpers_dx12\RaytracingPipelineGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\DXR\nv_helpers_dx12\RootSignatureGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\DXR\nv_helpers_dx12\ShaderBindingTableGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\DXR\nv_helpers_dx12\TopLevelASGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="external\DXR\DXRHelper.h">
@@ -536,5 +506,8 @@
     <ClInclude Include="source\renderer\DX12\Helpers\DXShaderTable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -8,7 +8,7 @@ namespace KS
 class Device;
 class ShaderInputBlueprint;
 
-enum class ShaderType
+enum class PipelineType
 {
     ST_RT_MESH_RENDER,
 
@@ -17,6 +17,36 @@ enum class ShaderType
     ST_RAYTRACER,
 
     ST_COMPUTE
+};
+
+enum class ShaderType
+{
+    VERTEX_SHADER,
+
+    PIXEL_SHADER,
+
+    COMBINED_PS_VS,
+
+    COMPUTE_SHADER,
+
+    RAY_GEN_SHADER,
+
+    MISS_SHADER,
+
+    CLOSEST_HIT_SHADER
+};
+
+struct ShaderLibrary
+{
+    ShaderType type{};
+    std::string path;
+    std::wstring name;
+};
+
+struct ShaderHitGroup
+{
+    std::wstring hitGroupName;
+    std::wstring closestHitExport;
 };
 
 struct ShaderInputLink
@@ -28,15 +58,14 @@ struct ShaderInputLink
 class Shader
 {
 public:
-    Shader(const Device& device, ShaderType shaderType, std::vector<std::pair<std::string, std::wstring>>&& shaders,
-           std::vector<ShaderInputLink>&& links,
-           std::shared_ptr<ShaderInputBlueprint>& globalSignature, std::vector<Formats>&& rtFormats,
-           int flags = 0);
+    Shader(const Device& device, PipelineType shaderType, std::vector<ShaderLibrary>&& shaders,
+           std::vector<ShaderInputLink>&& links, std::shared_ptr<ShaderInputBlueprint>& globalSignature,
+           std::vector<ShaderHitGroup>&& hitGroups, std::vector<Formats>&& rtFormats, int flags = 0);
     
     ~Shader();
     std::shared_ptr<ShaderInputBlueprint> GetShaderInput() const {return m_globalRoot; };
     void* GetPipeline() const;
-    ShaderType GetShaderType() const { return m_shader_type; }
+    PipelineType GetShaderType() const { return m_shader_type; }
     int GetFlags() const { return m_flags; }
     void Compile(const Device& device);
 
@@ -50,14 +79,7 @@ public:
         NO_CULLING = 1 << 5,
         PBR_TEXTURES = 1 << 6
     };
-    
-    enum RTLibraryTypes
-    {
-        CLOSEST_HIT,
-        MISS,
-        RAY_GEN,
-        Count
-    };
+
 private:
 
     void MeshRenderShader(const Device& device);
@@ -66,11 +88,12 @@ private:
 
     class Impl;
     std::unique_ptr<Impl> m_impl;
-    std::vector<std::pair<std::string, std::wstring>> m_shaders;
+    std::vector<ShaderLibrary> m_shaders;
     std::vector<ShaderInputLink> m_links;
     std::shared_ptr<ShaderInputBlueprint> m_globalRoot;
+    std::vector<ShaderHitGroup> m_hitGroups{};
     std::vector<Formats> m_formats;
-    ShaderType m_shader_type;
+    PipelineType m_shader_type;
     int m_flags;
 };
 
@@ -80,9 +103,10 @@ public:
     ShaderBuilder(){};
     ~ShaderBuilder(){};
 
-    ShaderBuilder& AddShaderPath(std::string path, std::wstring shaderName)
+    ShaderBuilder& AddShaderPath(ShaderType type, std::string path, std::wstring shaderName)
     {
-        m_shaderPaths.push_back(std::pair<std::string, std::wstring>(path, shaderName));return *this;
+        m_shaderLibraries.push_back({type, path, shaderName});
+        return *this;
     };
 
     ShaderBuilder& AddLocalShaderInputLink(std::shared_ptr<ShaderInputBlueprint> localInput,
@@ -91,7 +115,7 @@ public:
         m_inputLinks.push_back({localInput, names});return *this;
     }
 
-    ShaderBuilder& SetType(ShaderType type) { m_type = type; return *this; };
+    ShaderBuilder& SetType(PipelineType type) { m_type = type; return *this; };
     ShaderBuilder& AddRenderTarget(Formats format) { m_rtFormats.push_back(format);return *this; };
     ShaderBuilder& SetGlobalSignature(std::shared_ptr<ShaderInputBlueprint>& signature) 
     {
@@ -99,18 +123,27 @@ public:
         return *this;
     };
 
+    ShaderBuilder& AddHitGroup(std::wstring hitGroupName, std::wstring closestHitName)
+    {
+        m_hitGroups.push_back({hitGroupName, closestHitName});
+        return *this;
+    };
+
     ShaderBuilder& SetFlags(int flags) { m_flags = flags; return *this;};
     std::shared_ptr<Shader> Build(const Device& device)
     {
-        return std::make_shared<Shader>(device, m_type, std::move(m_shaderPaths), std::move(m_inputLinks), m_globalRootSignature, std::move(m_rtFormats), m_flags);
+        return std::make_shared<Shader>(device, m_type, std::move(m_shaderLibraries), 
+            std::move(m_inputLinks), m_globalRootSignature, std::move(m_hitGroups), 
+            std::move(m_rtFormats), m_flags);
     };
 
 private:
-    std::vector<std::pair<std::string, std::wstring>> m_shaderPaths{};
+    std::vector<ShaderLibrary> m_shaderLibraries{};
+    std::vector<ShaderHitGroup> m_hitGroups{};
     std::vector<ShaderInputLink> m_inputLinks{};
     std::vector<Formats> m_rtFormats{};
     std::shared_ptr<ShaderInputBlueprint> m_globalRootSignature;
     int m_flags = 0;
-    ShaderType m_type = ShaderType::ST_RT_MESH_RENDER;
+    PipelineType m_type = PipelineType::ST_RT_MESH_RENDER;
 };
 }  // namespace KS

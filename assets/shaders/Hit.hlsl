@@ -2,6 +2,9 @@
 #include "Structs.hlsl"
 #include "PBR.hlsl"
 
+// Raytracing acceleration structure, accessed as a SRV
+RaytracingAccelerationStructure SceneBVH : register(t0);
+
 StructuredBuffer<MaterialInfo> matInfos : register(t1);
 StructuredBuffer<ModelMat> modelMats : register(t2);
 StructuredBuffer<DirLight> dirLights : register(t3);
@@ -55,7 +58,7 @@ void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu
 
 
 [shader("closesthit")] 
-void ClosestHit(inout HitInfo payload, Attributes attrib) 
+void MainClosestHit(inout HitInfo payload, Attributes attrib) 
 {
     uint vertId = 3 * PrimitiveIndex();
     uint instance = InstanceID();
@@ -89,7 +92,39 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     for (uint i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
-        GetBRDF(material, viewDirection, normalize(light.mDir.xyz) * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
+        float3 lightDir = normalize(light.mDir.xyz) * float3(1, 1, -1);
+        
+        float3 lightDiff = 0.f;
+        float3  lightSpec = 0.f;
+        GetBRDF(material, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, lightDiff, lightSpec);
+        
+        RayDesc shadowRay;
+        shadowRay.Origin = vertexPos; // simpler & correct
+        shadowRay.Direction = -lightDir;
+        shadowRay.TMin = 0;
+        shadowRay.TMax = 100000;
+        
+        ShadowPayload shadowPayload;
+        // Trace the ray
+        TraceRay(
+          // Acceleration structure
+          SceneBVH,
+          RAY_FLAG_NONE,
+          0xFF,
+          // Hit group
+          1,
+          0,
+          // Index of the miss shader
+          1,
+          // Ray information to trace
+          shadowRay,
+          // Payload associated to the ray, which will be used to communicate
+          // between the hit/miss shaders and the raygen
+          shadowPayload);
+        
+        bool hit = payload.lightIntensityAndDistance.a > 0;
+        diffuse += lightDiff * hit; /* * shadowPayload.hit*/;
+        specular += lightSpec * hit /* * shadowPayload.hit*/;
     }
     
     for (uint j = 0; j < lightInfo.numPointLight; j++)

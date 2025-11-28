@@ -4,7 +4,7 @@ TextureCube skyMap : register(t5);
 SamplerState mainSampler : register(s0);
 
 [shader("miss")]
-void Miss(inout HitInfo payload : SV_RayPayload)
+void MainMiss(inout HitInfo payload : SV_RayPayload)
 {
     float3 dir = normalize(WorldRayDirection());
     payload.lightIntensityAndDistance.rgb = skyMap.SampleLevel(mainSampler, dir, 0.f).rgb;

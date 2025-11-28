@@ -101,36 +101,36 @@ void RayGen()
       payload);
     
     float3 directLighting = payload.lightIntensityAndDistance.rgb;
-    
-    //Global illumination
-    float3 Nt, Nb;
-
-    CreateCoordinateSystem(payload.hitNormal, Nt, Nb);
-    uint smaples = 16;
-    float bias = max(1e-4f, payload.lightIntensityAndDistance.w * 1e-4f);
     float3 indirectLighting = float3(0.f, 0.f, 0.f);
-    
-    for (uint n = 0; n < smaples; ++n)
+
+    //Global illumination
+    if (payload.lightIntensityAndDistance.a > 0.f)
     {
+        float3 Nt, Nb;
+        CreateCoordinateSystem(payload.hitNormal, Nt, Nb);
+        uint smaples = 4;
+        float bias = max(1e-4f, payload.lightIntensityAndDistance.w * 1e-4f);
+        for (uint n = 0; n < smaples; ++n)
+        {
         //How high above the horizon of the hemisphere the line is
-        float r1 = Rand(seed);
+            float r1 = Rand(seed);
         //The spin around the axis
-        float r2 = Rand(seed);
-        float3 sample = UniformSampleHemisphere(r1, r2);
-        float3 sampleWorld =
+            float r2 = Rand(seed);
+            float3 sample = UniformSampleHemisphere(r1, r2);
+            float3 sampleWorld =
               sample.x * Nt
             + sample.y * Nb
             + sample.z * payload.hitNormal;
         
-        RayDesc indirectRay;
-        indirectRay.Origin = payload.hitPoint.xyz + sampleWorld * bias; // simpler & correct
-        indirectRay.Direction = sampleWorld;
-        indirectRay.TMin = 0;
-        indirectRay.TMax = 100000;
+            RayDesc indirectRay;
+            indirectRay.Origin = payload.hitPoint.xyz + sampleWorld * bias; // simpler & correct
+            indirectRay.Direction = sampleWorld;
+            indirectRay.TMin = 0;
+            indirectRay.TMax = 100000;
         
-        HitInfo indirectPayload;
-        indirectPayload.albedoAndRayType.a = 1;
-        TraceRay(
+            HitInfo indirectPayload;
+            indirectPayload.albedoAndRayType.a = 1;
+            TraceRay(
             SceneBVH,
             RAY_FLAG_NONE,
             0xFF,
@@ -140,10 +140,11 @@ void RayGen()
             indirectRay,
             indirectPayload);
         
-        float pdf = 1.f / (2.f * M_PI);
-        indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (payload.albedoAndRayType.rgb / M_PI) / pdf;
+            float pdf = 1.f / (2.f * M_PI);
+            indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (payload.albedoAndRayType.rgb / M_PI) / pdf;
+        }
+        indirectLighting /= (float) smaples;
     }
-    indirectLighting /= (float) smaples;
     
     float3 res = payload.lightIntensityAndDistance.a >= 0 ? (directLighting + indirectLighting) : directLighting;
     //float3 res = directLighting;

@@ -12,6 +12,11 @@ struct HitInfo
     float4 albedoAndRayType;  
 };
 
+struct ShadowPayload
+{
+    uint hit;
+};
+
 // Attributes output by the raytracing when hitting a surface,
 // here the barycentric coordinates
 struct Attributes

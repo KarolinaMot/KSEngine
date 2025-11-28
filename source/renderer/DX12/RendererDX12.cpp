@@ -85,8 +85,8 @@ KS::Renderer::Renderer(Device& device)
     int skyboxInputFlags = Shader::HAS_POSITIONS | Shader::DEPTH_DISABLED | Shader::NO_CULLING;
 
     std::shared_ptr<Shader> mainShader = ShaderBuilder()
-                                             .SetType(ShaderType::ST_MESH_RENDER)
-                                             .AddShaderPath("assets/shaders/Deferred.hlsl", L"main")
+                                             .SetType(PipelineType::ST_MESH_RENDER)
+                                             .AddShaderPath(ShaderType::COMBINED_PS_VS, "assets/shaders/Deferred.hlsl", L"main")
                                              .AddRenderTarget(Formats::R8G8B8A8_UNORM)
                                              .AddRenderTarget(Formats::R32G32B32A32_FLOAT)
                                              .AddRenderTarget(Formats::R8G8B8A8_UNORM)
@@ -96,59 +96,63 @@ KS::Renderer::Renderer(Device& device)
                                              .Build(device);
 
     std::shared_ptr<Shader> lightOccluderShader = ShaderBuilder()
-                                                      .SetType(ShaderType::ST_MESH_RENDER)
-                                                      .AddShaderPath("assets/shaders/OccluderShader.hlsl", L"main")
+                                                      .SetType(PipelineType::ST_MESH_RENDER)
+                                                      .AddShaderPath(ShaderType::COMBINED_PS_VS,"assets/shaders/OccluderShader.hlsl", L"main")
                                                       .AddRenderTarget(Formats::R8G8B8A8_UNORM)
                                                       .SetFlags(positionsInputFlags)
                                                       .SetGlobalSignature(m_mainInputs)
                                                       .Build(device);
 
     std::shared_ptr<Shader> skyboxRenderShader = ShaderBuilder()
-                                                     .SetType(ShaderType::ST_MESH_RENDER)
-                                                     .AddShaderPath("assets/shaders/RenderCubemap.hlsl", L"main")
+                                                     .SetType(PipelineType::ST_MESH_RENDER)
+                                                     .AddShaderPath(ShaderType::COMBINED_PS_VS,"assets/shaders/RenderCubemap.hlsl", L"main")
                                                      .AddRenderTarget(Formats::R8G8B8A8_UNORM)
                                                      .SetFlags(skyboxInputFlags)
                                                      .SetGlobalSignature(m_mainInputs)
                                                      .Build(device);
 
     std::shared_ptr<Shader> computePBRShader = ShaderBuilder()
-                                                   .SetType(ShaderType::ST_COMPUTE)
-                                                   .AddShaderPath("assets/shaders/Main.hlsl", L"main")
+                                                   .SetType(PipelineType::ST_COMPUTE)
+                                                   .AddShaderPath(ShaderType::COMPUTE_SHADER, "assets/shaders/Main.hlsl", L"main")
                                                    .SetGlobalSignature(m_mainInputs)
                                                    .Build(device);
         
 
     std::shared_ptr<Shader> lightRendererShader = ShaderBuilder()
-                                                      .SetType(ShaderType::ST_COMPUTE)
-                                                      .AddShaderPath("assets/shaders/LightRenderer.hlsl", L"main")
+                                                      .SetType(PipelineType::ST_COMPUTE)
+                                                      .AddShaderPath(ShaderType::COMPUTE_SHADER,"assets/shaders/LightRenderer.hlsl", L"main")
                                                       .SetGlobalSignature(m_mainInputs)
                                                       .Build(device);
 
     std::shared_ptr<Shader> lightShaftShader = ShaderBuilder()
-                                                   .SetType(ShaderType::ST_COMPUTE)
-                                                   .AddShaderPath("assets/shaders/LightShaftShader.hlsl", L"main")
+                                                   .SetType(PipelineType::ST_COMPUTE)
+                                                   .AddShaderPath(ShaderType::COMPUTE_SHADER,"assets/shaders/LightShaftShader.hlsl", L"main")
                                                    .SetGlobalSignature(m_mainInputs)
                                                    .Build(device);
 
     std::shared_ptr<Shader> upscalingShader = ShaderBuilder()
-                                                  .SetType(ShaderType::ST_COMPUTE)
-                                                  .AddShaderPath("assets/shaders/Upscaling.hlsl", L"main")
+                                                  .SetType(PipelineType::ST_COMPUTE)
+                                                  .AddShaderPath(ShaderType::COMPUTE_SHADER,"assets/shaders/Upscaling.hlsl", L"main")
                                                   .SetGlobalSignature(m_mainInputs)
                                                   .Build(device);
 
     std::shared_ptr<Shader> rtShader = ShaderBuilder()
-                                           .SetType(ShaderType::ST_RAYTRACER)
-                                           .AddShaderPath("assets/shaders/Hit.hlsl", L"ClosestHit")
-                                           .AddShaderPath("assets/shaders/Miss.hlsl", L"Miss")
-                                           .AddShaderPath("assets/shaders/RayGen.hlsl", L"RayGen")
-                                           .AddLocalShaderInputLink(m_rtInputs, std::initializer_list<LPCWSTR>{L"ClosestHit", L"Miss", L"RayGen"})
-                                           //.SetGlobalSignature(m_rtInputs)     
+                                           .SetType(PipelineType::ST_RAYTRACER)
+                                           .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/Hit.hlsl", L"MainClosestHit")
+                                           .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowClosestHit")
+                                           .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/Miss.hlsl", L"MainMiss")
+                                           .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/ShadowMiss.hlsl", L"ShadowMiss")
+                                           .AddShaderPath(ShaderType::RAY_GEN_SHADER, "assets/shaders/RayGen.hlsl", L"RayGen")
+                                           .AddHitGroup(L"MainHitGroup", L"MainClosestHit")
+                                           .AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit")
+                                           .AddLocalShaderInputLink(m_rtInputs, std::initializer_list<LPCWSTR>{L"MainClosestHit", L"MainMiss", L"RayGen",
+                                                                                L"ShadowMiss", L"ShadowClosestHit"})
                                            .Build(device);
 
 
     std::shared_ptr<Shader> skyboxShader = ShaderBuilder()
-                                               .SetType(ShaderType::ST_COMPUTE)
-                                               .AddShaderPath("assets/shaders/SkyboxGen.hlsl", L"main")
+                                               .SetType(PipelineType::ST_COMPUTE)
+                                               .AddShaderPath(ShaderType::COMPUTE_SHADER, "assets/shaders/SkyboxGen.hlsl", L"main")
                                                .SetGlobalSignature(m_mainInputs)
                                                .Build(device);
 
@@ -188,8 +192,8 @@ KS::Renderer::Renderer(Device& device)
                                .Build(device, "MIPMAP SIGNATURE");
 
     std::shared_ptr<Shader> mipMapShader = ShaderBuilder()
-                                               .SetType(ShaderType::ST_COMPUTE)
-                                               .AddShaderPath("assets/shaders/MipGen.hlsl", L"main")
+                                               .SetType(PipelineType::ST_COMPUTE)
+                                               .AddShaderPath(ShaderType::COMPUTE_SHADER, "assets/shaders/MipGen.hlsl", L"main")
                                                .SetGlobalSignature(m_mipMapShaderInputs)
                                                .Build(device);
         
