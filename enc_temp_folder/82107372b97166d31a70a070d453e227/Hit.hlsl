@@ -138,9 +138,6 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         float3 lightDiff = 0.f;
         float3 lightSpec = 0.f;
 
-        if(att <=0.001f)
-            continue;
-        
         GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, lightDiff, lightSpec);
 
         RayDesc shadowRay;

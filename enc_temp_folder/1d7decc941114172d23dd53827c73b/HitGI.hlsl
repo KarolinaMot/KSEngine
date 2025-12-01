@@ -57,8 +57,8 @@ void Compute_dPdu_dPdv(Vtx v0, Vtx v1, Vtx v2,
 void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu, out float Lv);
 
 
-[shader("closesthit")] 
-void MainClosestHit(inout HitInfo payload, Attributes attrib) 
+[shader("closesthit")]
+void GIClosestHit(inout HitInfo payload, Attributes attrib)
 {
     uint vertId = 3 * PrimitiveIndex();
     uint instance = InstanceID();
@@ -83,48 +83,17 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     
     PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal, TBN, Lu, Lv);
     
-    
     float3 result = 0.f;
-    float3 diffuse = 0.f;
-    float3 specular = 0.f;
     float3 viewDirection = normalize(WorldRayDirection());
 
     for (uint i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
         float3 lightDir = normalize(light.mDir.xyz) * float3(1, 1, -1);
-        
-        float3 lightDiff = 0.f;
-        float3  lightSpec = 0.f;
-        GetBRDF(material, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, lightDiff, lightSpec);
-        
-        RayDesc shadowRay;
-        shadowRay.Origin = vertexPos; // simpler & correct
-        shadowRay.Direction = lightDir;
-        shadowRay.TMin = 0;
-        shadowRay.TMax = 100000;
-        
-        ShadowPayload shadowPayload;
-        // Trace the ray
-        TraceRay(
-          // Acceleration structure
-          SceneBVH,
-          RAY_FLAG_NONE,
-          0xFF,
-          // Hit group
-          1,
-          0,
-          // Index of the miss shader
-          1,
-          // Ray information to trace
-          shadowRay,
-          // Payload associated to the ray, which will be used to communicate
-          // between the hit/miss shaders and the raygen
-          shadowPayload);
-        
-        bool shadow = !shadowPayload.hit;
-        diffuse += lightDiff * shadow;
-        specular += lightSpec * shadow;
+        float3 halfAngle = normalize(viewDirection + lightDir);
+        float vDotH = clamp(dot(viewDirection, halfAngle), 0.0, 1.0);
+        float nDotL = clamp(dot(material.normalColor, lightDir), 0.0, 1.0);
+        result += LambertianDiffuse(material.diffuse, material.F0, float3(1.0, 1.0, 1.0), vDotH) * light.mColorAndIntensity.rgb * light.mColorAndIntensity.a * 0.005f * nDotL;
     }
     
     for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -135,50 +104,10 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         float dist = length(lightDirection);
         lightDirection /= dist;
         float att = Attenuation(dist, 3.f);
-        float3 lightDiff = 0.f;
-        float3 lightSpec = 0.f;
-
-        if(att <=0.001f)
-            continue;
-        
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, lightDiff, lightSpec);
-
-        RayDesc shadowRay;
-        shadowRay.Origin = vertexPos; // simpler & correct
-        shadowRay.Direction = lightDirection;
-        shadowRay.TMin = 0;
-        shadowRay.TMax = dist - 1e-3f;
-        
-        ShadowPayload shadowPayload;
-        // Trace the ray
-        TraceRay(
-          // Acceleration structure
-          SceneBVH,
-          RAY_FLAG_NONE,
-          0xFF,
-          // Hit group
-          1,
-          0,
-          // Index of the miss shader
-          1,
-          // Ray information to trace
-          shadowRay,
-          // Payload associated to the ray, which will be used to communicate
-          // between the hit/miss shaders and the raygen
-          shadowPayload);
-        
-        bool shadow = !shadowPayload.hit;
-        diffuse += lightDiff * shadow;
-        specular += lightSpec * shadow;
-    }
-
-    if (payload.albedoAndRayType.a == 0)
-    {
-        result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
-    }
-    else
-    {
-        result = diffuse;
+        float3 halfAngle = normalize(viewDirection + lightDirection);
+        float vDotH = clamp(dot(viewDirection, halfAngle), 0.0, 1.0);
+        float nDotL = clamp(dot(material.normalColor, lightDirection), 0.0, 1.0);
+        result += LambertianDiffuse(material.diffuse, material.F0, float3(1.0, 1.0, 1.0), vDotH) * light.mColorAndIntensity.rgb * light.mColorAndIntensity.a * 0.005f * att * nDotL;
     }
     
     payload.lightIntensityAndDistance = float4(result, t);
@@ -231,7 +160,7 @@ float3 GetTangent(int instance, int vertId, float3 barycentrics)
 float3 GetNormalInVector(int instance, int index)
 {
     float3 normal = normals[instance][index].xyz;
-    normal = normalize(mul(normal, (float3x3)modelMats[instance].mInvTransposeMat));
+    normal = normalize(mul(normal, (float3x3) modelMats[instance].mInvTransposeMat));
     return normal;
 }
 

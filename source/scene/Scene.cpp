@@ -588,20 +588,20 @@ void KS::Scene::InitializeShaderTable()
         heapPointers.push_back(reinterpret_cast<void*>(textures.ptr));
         heapPointers.push_back(reinterpret_cast<void*>(GetUniformBuffer(LIGHT_INFO_BUFFER)->GetGPUAddress(0, i)));
 
-        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen", heapPointers.data(),
-                                            static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen"/*, heapPointers.data(),
+                                            static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
 
-        m_impl->m_shaderTable[i]->AddHitGroup(L"MainHitGroup", heapPointers.data(),
-                                              static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+        m_impl->m_shaderTable[i]->AddHitGroup(L"MainHitGroup"/*, heapPointers.data(),
+                                              static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
 
-        m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup", heapPointers.data(),
-                                              static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+        m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup"/*, heapPointers.data(),
+                                              static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
 
-        m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup", heapPointers.data(),
-                                              static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+        m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup"/*, heapPointers.data(),
+                                              static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
 
-        m_impl->m_shaderTable[i]->AddMiss(L"MainMiss", heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size()));
-        m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss", heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+        m_impl->m_shaderTable[i]->AddMiss(L"MainMiss"/*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
+        m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss"/*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
     }
 }
 
