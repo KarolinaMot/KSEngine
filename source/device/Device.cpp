@@ -284,7 +284,7 @@ void KS::Device::Impl::StartFrame(int cpuFrame)
 void KS::Device::Impl::EndFrame(int cpuFrame)
 {
     // PRESENT
-    if (FAILED(m_swapchain->Present(0, 0)))
+    if (FAILED(m_swapchain->Present(1, 0)))
     {
         LOG(Log::Severity::FATAL, "Failed to present");
     }
