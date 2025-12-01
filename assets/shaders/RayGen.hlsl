@@ -134,7 +134,7 @@ void RayGen()
             SceneBVH,
             RAY_FLAG_NONE,
             0xFF,
-            0,
+            2,
             0,
             0,
             indirectRay,

@@ -140,13 +140,15 @@ KS::Renderer::Renderer(Device& device)
                                            .SetType(PipelineType::ST_RAYTRACER)
                                            .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/Hit.hlsl", L"MainClosestHit")
                                            .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowClosestHit")
+                                           .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/HitGI.hlsl", L"GIClosestHit")
                                            .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/Miss.hlsl", L"MainMiss")
                                            .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/ShadowMiss.hlsl", L"ShadowMiss")
                                            .AddShaderPath(ShaderType::RAY_GEN_SHADER, "assets/shaders/RayGen.hlsl", L"RayGen")
                                            .AddHitGroup(L"MainHitGroup", L"MainClosestHit")
                                            .AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit")
-                                           .AddLocalShaderInputLink(m_rtInputs, std::initializer_list<LPCWSTR>{L"MainClosestHit", L"MainMiss", L"RayGen",
-                                                                                L"ShadowMiss", L"ShadowClosestHit"})
+                                           .AddHitGroup(L"GIHitGroup", L"GIClosestHit")
+                                           .AddLocalShaderInputLink(m_rtInputs, std::initializer_list<LPCWSTR>{L"MainClosestHit", L"MainMiss", L"RayGen", L"ShadowMiss",
+                                                                    L"ShadowClosestHit", L"GIClosestHit"})
                                            .Build(device);
 
 

@@ -597,6 +597,9 @@ void KS::Scene::InitializeShaderTable()
         m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup", heapPointers.data(),
                                               static_cast<UINT>(sizeof(void*) * heapPointers.size()));
 
+        m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup", heapPointers.data(),
+                                              static_cast<UINT>(sizeof(void*) * heapPointers.size()));
+
         m_impl->m_shaderTable[i]->AddMiss(L"MainMiss", heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size()));
         m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss", heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size()));
     }
