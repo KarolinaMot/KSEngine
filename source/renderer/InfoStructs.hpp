@@ -88,6 +88,7 @@ enum VertexDataBuffers
 enum Formats
 {
     R8G8B8A8_UNORM = 0,
+    R8G8B8A8_UNORM_SRGB,
     R16G16B16A16_FLOAT,
     R32G32B32A32_FLOAT,
     R32_FLOAT,

@@ -221,12 +221,12 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 auto occlusionHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME);
 
                 MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
-                auto baseTex = GetTexture(device, commandList, *baseTexHandle);
+                auto baseTex = GetTexture(device, commandList, *baseTexHandle, true);
                 if (!baseTex)
                     LOG(Log::Severity::WARN, "Empty texture warning.");
 
                 auto normalTex = GetTexture(device, commandList, *normalTexHandle);
-                auto emissiveTex = GetTexture(device, commandList, *emissiveTexHandle);
+                auto emissiveTex = GetTexture(device, commandList, *emissiveTexHandle, true);
                 auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
                 auto occlusionTex = GetTexture(device, commandList, *occlusionHandle);
 
@@ -605,7 +605,7 @@ void KS::Scene::InitializeShaderTable()
     }
 }
 
-std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath)
+std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath, bool isSrgb)
 {
     // Cached result
     if (auto it = tex_cache.find(imgPath); it != tex_cache.end())
@@ -627,6 +627,10 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
         // Treat common HDR formats as HDR
         bool isHdr = (ext == ".hdr" || ext == ".exr");
 
+        Formats format = isSrgb ? Formats::R8G8B8A8_UNORM_SRGB : Formats::R8G8B8A8_UNORM;
+        format = isHdr ? Formats::R32G32B32A32_FLOAT : format;
+            
+            
         if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size(), fileName, isHdr ? Formats::R32G32B32A32_FLOAT : Formats::R8G8B8A8_UNORM))
         {
             auto new_tex = std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), *commandList, img.value());
@@ -683,12 +687,12 @@ KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, in
     meshSet.mesh = draw_entry.mesh.get();
     meshSet.baseTex =
         GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME));
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME), true);
     meshSet.normalTex =
         GetTexture(device, commandList,
                    *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
     meshSet.emissiveTex = GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME));
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME), true);
     meshSet.roughMetTex = GetTexture(device, commandList,
                    *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
     meshSet.occlusionTex = GetTexture(device, commandList,

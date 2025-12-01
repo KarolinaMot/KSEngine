@@ -88,7 +88,8 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     float3 diffuse = 0.f;
     float3 specular = 0.f;
     float3 viewDirection = normalize(WorldRayDirection());
-
+    const float shadowBias = 1e-3f; // tune for your scene scale
+    
     for (uint i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
@@ -99,7 +100,7 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         GetBRDF(material, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, lightDiff, lightSpec);
         
         RayDesc shadowRay;
-        shadowRay.Origin = vertexPos; // simpler & correct
+        shadowRay.Origin = vertexPos.xyz + normal * shadowBias; // simpler & correct
         shadowRay.Direction = lightDir;
         shadowRay.TMin = 0;
         shadowRay.TMax = 100000;
@@ -144,7 +145,7 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, lightDiff, lightSpec);
 
         RayDesc shadowRay;
-        shadowRay.Origin = vertexPos; // simpler & correct
+        shadowRay.Origin = vertexPos.xyz + normal * shadowBias; // simpler & correct
         shadowRay.Direction = lightDirection;
         shadowRay.TMin = 0;
         shadowRay.TMax = dist - 1e-3f;
@@ -334,10 +335,10 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     
     
     PBRMaterial mat;
-    mat.baseColor = pow(abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor).rgb), sGamma);
+    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor).rgb);
     mat.baseColor *= info.colorFactor.rgb;
 
-    mat.emissiveColor = pow(abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb), sGamma);
+    mat.emissiveColor = abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb);
     mat.emissiveColor *= info.emissiveFactor.rgb;
 
     float3 metallicRoughnessColor = textures[info.metallicRoughnessTexIndex].SampleLevel(mainSampler, uv, lodMR).rgb;

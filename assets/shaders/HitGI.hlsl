@@ -262,10 +262,10 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     
     
     PBRMaterial mat;
-    mat.baseColor = pow(abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor).rgb), sGamma);
+    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor).rgb);
     mat.baseColor *= info.colorFactor.rgb;
 
-    mat.emissiveColor = pow(abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb), sGamma);
+    mat.emissiveColor = abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb);
     mat.emissiveColor *= info.emissiveFactor.rgb;
 
     float3 metallicRoughnessColor = textures[info.metallicRoughnessTexIndex].SampleLevel(mainSampler, uv, lodMR).rgb;

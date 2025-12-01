@@ -24,6 +24,9 @@ static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
         case R8G8B8A8_UNORM:
             return DXGI_FORMAT_R8G8B8A8_UNORM;
             break;
+        case R8G8B8A8_UNORM_SRGB:
+            return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+            break;
         case R16G16B16A16_FLOAT:
             return DXGI_FORMAT_R16G16B16A16_FLOAT;
             break;
