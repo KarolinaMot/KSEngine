@@ -108,7 +108,7 @@ void RayGen()
     {
         float3 Nt, Nb;
         CreateCoordinateSystem(payload.hitNormal, Nt, Nb);
-        uint smaples = 4;
+        uint smaples = 16;
         float bias = max(1e-4f, payload.lightIntensityAndDistance.w * 1e-4f);
         for (uint n = 0; n < smaples; ++n)
         {

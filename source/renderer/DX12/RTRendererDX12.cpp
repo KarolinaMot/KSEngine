@@ -67,7 +67,9 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
         shaderTable->Build(engineDevice, pipeline->m_stateObjectProps.Get());
     }
 
-    D3D12_DISPATCH_RAYS_DESC desc = shaderTable->FillDispatchDesc(device.GetSwapchainWidth(), device.GetSwapchainHeight(), 1);
+
+
+    D3D12_DISPATCH_RAYS_DESC desc = shaderTable->FillDispatchDesc(par.rt->GetWidth(), par.rt->GetHeight(), 1);
 
     // Bind the raytracing pipeline
     commandList->GetCommandList()->SetPipelineState1(pipeline->m_pipeline.Get());
