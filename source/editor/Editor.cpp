@@ -26,6 +26,7 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
                                bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
                                ComponentTransform& camTransform)
 {
+    ImGui::DockSpaceOverViewport();
     ChooseScene(scenes, sceneCount, sceneIndex);
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
@@ -335,11 +336,14 @@ void KS::Editor::AmbientLightInspector(Scene& scene)
     scene.SetAmbientLight(glm::vec3(lightInfo.mAmbientAndIntensity), lightInfo.mAmbientAndIntensity.a);
 }
 
-void KS::Editor::Viewport(uint64_t imagePtr, uint32_t width, uint32_t height)
+void KS::Editor::Viewport(uint64_t imagePtr, uint32_t, uint32_t)
 {
     ImGui::Begin("Viewport");
     // Note that we pass the GPU SRV handle here, *not* the CPU handle. We're passing the internal pointer value, cast to an
     // ImTextureID
-    ImGui::Image((ImTextureID)imagePtr, ImVec2((float)width, (float)height));
+    ImVec2 viewportSize = ImGui::GetWindowSize();
+    m_viewportSize.x = viewportSize.x;
+    m_viewportSize.y = viewportSize.y;
+    ImGui::Image((ImTextureID)imagePtr, viewportSize);
     ImGui::End();
 }

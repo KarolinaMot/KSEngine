@@ -17,7 +17,7 @@
 
 using namespace KS;
 
-KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& registry, float dt)
+KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& registry, float dt, float aspectRatio)
 {
     constexpr float MOUSE_SENSITIVITY = 0.003f;
     constexpr float CAM_SPEED = 0.003f;
@@ -60,6 +60,7 @@ KS::Camera FreeCamSystem(std::shared_ptr<KS::RawInput> input, entt::registry& re
     auto it = view.each().begin();
     auto [e, camera, transform] = *it;
 
+    camera.aspectRatio = aspectRatio;
     camera.eulerAngles += eulerDelta;
     camera.eulerAngles.x = glm::clamp(camera.eulerAngles.x, -glm::radians(89.9f), glm::radians(89.9f));
 
@@ -129,8 +130,10 @@ int main()
         input->ProcessInput();
         device->NewFrame();
 
-        auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count());
+        glm::vec2 viewportSize = editor->GetViewportSize();
 
+        auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count(), viewportSize.x / viewportSize.y);
+        
         auto renderParams = KS::RenderTickParams();
         renderParams.cpuFrame = device->GetFrameIndex();
         renderParams.projectionMatrix = camera.GetProjection();
