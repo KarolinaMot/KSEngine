@@ -27,6 +27,7 @@ class KS::Device::Impl
 public:
     void InitializeWindow(const DeviceInitParams& params);
     void InitializeDevice(const DeviceInitParams& params);
+    void CreateSwapchain(uint32_t newWidth, uint32_t newHeight, DXFactory* factory, HWND HWNDwindow);
     UINT GetFramebufferIndex();
 
     // void BindSwapchainRT();
@@ -114,18 +115,30 @@ void KS::Device::NewFrame()
 {
     auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
     auto& commandList = commandContext.m_commandList;
+
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
+    glfwGetWindowSize(m_impl->m_window, &m_windowWidth, &m_windowHeight);
     m_frame_index = m_impl->GetFramebufferIndex();
+    if (m_windowWidth != m_swapchainWidth || m_windowHeight != m_swapchainHeight)
+    {
+        //EndFrame();
+        int waitFrame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
+        m_impl->m_fence_values[m_frame_index].Wait();
+        m_impl->m_fence_values[waitFrame].Wait();
+        m_impl->m_commandPool->RetireCompleted();
+
+        ResizeSwapchain(m_windowWidth, m_windowHeight);
+    }
+
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
     m_impl->StartFrame(m_cpu_frame);
 
     m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
     m_swapchainRT->Clear(*commandList, m_cpu_frame);
     m_swapchainDS->Clear(*commandList);
-    glfwGetWindowSize(m_impl->m_window, &m_windowWidth, &m_windowHeight);
 
-    //ImGui::GetIO().DisplaySize.x = static_cast<float>(m_windowWidth);
-    //ImGui::GetIO().DisplaySize.y = static_cast<float>(m_windowHeight);
+    ImGui::GetIO().DisplaySize.x = static_cast<float>(m_windowWidth);
+    ImGui::GetIO().DisplaySize.y = static_cast<float>(m_windowHeight);
     auto io = ImGui::GetIO();
     io.DisplayFramebufferScale = ImVec2(m_windowWidth / (float)m_swapchainWidth, m_windowHeight / (float)m_swapchainHeight);
     double mx, my;
@@ -137,6 +150,7 @@ void KS::Device::NewFrame()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     commandContext.Close();
+
 }
 
 void KS::Device::EndFrame()
@@ -149,7 +163,7 @@ void KS::Device::EndFrame()
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::IMGUI_HEAP].get();
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    GetRenderTarget()->Bind(*commandList, m_cpu_frame, GetDepthStencil().get());
+    m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
     glfwSwapBuffers(m_impl->m_window);
@@ -162,12 +176,10 @@ void KS::Device::EndFrame()
     ImGui::UpdatePlatformWindows();
 }
 
-//KS::UploadArena* KS::Device::GetUploadArena() const
-//{ return m_impl->m_uploadArena.get(); }
-
 void KS::Device::InitializeSwapchain()
 {
     // CREATE RENDER TARGETS
+    std::shared_ptr<Texture> swapchainTex[FRAME_BUFFER_COUNT];
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
         ComPtr<ID3D12Resource> res;
@@ -177,15 +189,15 @@ void KS::Device::InitializeSwapchain()
             LOG(Log::Severity::FATAL, "Failed to get swapchain buffer");
         }
 
-        m_swapchainTex[i] = std::make_shared<Texture>(res.Get(), m_swapchainWidth, m_swapchainHeight, Texture::RENDER_TARGET);
+        swapchainTex[i] = std::make_shared<Texture>(res.Get(), m_swapchainWidth, m_swapchainHeight, Texture::RENDER_TARGET);
     }
 
     m_swapchainRT = std::make_shared<RenderTarget>();
-    m_swapchainRT->AddTexture(*this, m_swapchainTex[0], m_swapchainTex[1], "Swapchain render target");
+    m_swapchainRT->AddTexture(*this, swapchainTex[0], swapchainTex[1], "Swapchain render target");
 
-    m_swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE,
+    auto swapchainDepthTex = std::make_shared<Texture>(*this, m_swapchainWidth, m_swapchainHeight, Texture::DEPTH_TEXTURE,
                                                     glm::vec4(1.f), Formats::D32_FLOAT, "swapchain depth", 1u);
-    m_swapchainDS = std::make_shared<DepthStencil>(*this, m_swapchainDepthTex);
+    m_swapchainDS = std::make_shared<DepthStencil>(*this, swapchainDepthTex);
 }
 
 void KS::Device::FinishInitialization()
@@ -221,8 +233,65 @@ void KS::Device::InitializeImGUI()
     ImGui_ImplGlfw_SetCallbacksChainForAllWindows(true);
 }
 
-void KS::Device::TrackResource(std::shared_ptr<void> buffer)
+void KS::Device::ResizeSwapchain(uint32_t newWidth, uint32_t newHeight)
 {
+    m_swapchainWidth = newWidth;
+    m_swapchainHeight = newHeight;
+
+    //EndFrame();
+    //m_impl->m_fence_values[nextCpuFrame].Wait();
+
+    // Release old render targets and depth buffer
+    m_swapchainRT.reset();
+    m_swapchainDS.reset();
+
+    // Resize swapchain buffers
+    DXGI_SWAP_CHAIN_DESC desc = {};
+    m_impl->m_swapchain->GetDesc(&desc);
+
+    HRESULT hr = m_impl->m_swapchain->ResizeBuffers(FRAME_BUFFER_COUNT, m_swapchainWidth, m_swapchainHeight, desc.BufferDesc.Format,
+                                       desc.Flags);
+    CheckDX(hr);
+
+    InitializeSwapchain();
+    // Note: buffer count, format, and flags should match original creation.
+
+    m_frame_index = m_impl->m_swapchain->GetCurrentBackBufferIndex();
+}
+
+void KS::Device::Impl::CreateSwapchain(uint32_t newWidth, uint32_t newHeight, DXFactory* factory, HWND HWNDwindow)
+{
+    DXGI_SWAP_CHAIN_DESC1 swapchain_info = {};
+
+    swapchain_info.Width = newWidth;
+    swapchain_info.Height = newHeight;
+
+    swapchain_info.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapchain_info.Stereo = FALSE;
+
+    swapchain_info.SampleDesc = {1, 0};
+
+    swapchain_info.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapchain_info.BufferCount = FRAME_BUFFER_COUNT;
+
+    swapchain_info.Scaling = DXGI_SCALING_STRETCH;
+    swapchain_info.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapchain_info.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+    swapchain_info.Flags = 0;
+
+    ComPtr<IDXGISwapChain1> tempSwapChain;
+    HRESULT hr = factory->Handle()->CreateSwapChainForHwnd(m_command_queue->Get(), HWNDwindow, &swapchain_info, nullptr, nullptr,
+                                                   &tempSwapChain);
+
+    CheckDX(hr);
+
+    tempSwapChain.As(&m_swapchain);
+}
+
+
+void KS::Device::CopyToSwapchainRT(DXCommandList& commandList, std::shared_ptr<RenderTarget> rt)
+{
+    m_swapchainRT->CopyTo(commandList, m_cpu_frame, rt, 0, 0);
 }
 
 KS::UploadArena* KS::Device::GetUploadArena() const { return m_impl->m_uploadArena.get(); }
@@ -276,7 +345,6 @@ UINT KS::Device::Impl::GetFramebufferIndex()
 void KS::Device::Impl::StartFrame(int cpuFrame)
 {
     // Wait until the current swapchain is available;
-    m_fence_values[cpuFrame].Wait();
     m_commandPool->RetireCompleted();
     m_uploadArena->Recycle(m_fence_values[cpuFrame].GetFutureValue());
 }
@@ -291,6 +359,7 @@ void KS::Device::Impl::EndFrame(int cpuFrame)
 
     m_fence_values[cpuFrame] = m_commandPool->Execute(*m_command_queue.get());
     m_uploadArena->OnSubmit(m_fence_values[cpuFrame].GetFutureValue());
+    m_fence_values[cpuFrame].Wait();
 }
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID, LPCSTR pDescription, void*)
@@ -349,7 +418,6 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
 {
     // CREATE DXGI FACTORY
     auto factory = std::make_unique<KS::DXFactory>(params.debug_context);
-    bool uncappedFPS = factory->SupportsTearing();
 
     // CREATE DEVICE
 
@@ -402,36 +470,7 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
 
         // Create Swapchain
 
-        DXGI_SWAP_CHAIN_DESC1 swapchain_info = {};
-
-        swapchain_info.Width = params.window_width;
-        swapchain_info.Height = params.window_height;
-
-        swapchain_info.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        swapchain_info.Stereo = FALSE;
-
-        swapchain_info.SampleDesc = { 1, 0 };
-
-        swapchain_info.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        swapchain_info.BufferCount = FRAME_BUFFER_COUNT;
-
-        swapchain_info.Scaling = DXGI_SCALING_STRETCH;
-        swapchain_info.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        swapchain_info.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-
-        swapchain_info.Flags = 0;
-        if (uncappedFPS)
-            swapchain_info.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-
-        ComPtr<IDXGISwapChain1> tempSwapChain;
-        hr = factory->Handle()->CreateSwapChainForHwnd(
-            m_command_queue->Get(), HWNDwindow, &swapchain_info, nullptr, nullptr,
-            &tempSwapChain);
-        if (FAILED(hr))
-        {
-            LOG(Log::Severity::FATAL, "Failed to create swap chain");
-        }
-        tempSwapChain.As(&m_swapchain);
+        CreateSwapchain(params.window_width, params.window_height, factory.get(), HWNDwindow);
     }
 
     m_commandPool = std::make_shared<DXCommandContextPool>();

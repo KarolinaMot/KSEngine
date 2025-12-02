@@ -389,7 +389,7 @@ void KS::Renderer::Main(Device& device, Scene& scene)
 
     m_subrenderers[PBR_RENDER]->Render(device, &commandContext, pbrPar);
 
-    device.GetRenderTarget()->CopyTo(*commandList, frameIndex, scene.GetRenderTarget(PBR_RENDER), 0, 0);
+    //device.GetRenderTarget()->CopyTo(*commandList, frameIndex, scene.GetRenderTarget(PBR_RENDER), 0, 0);
 
     commandContext.Close();
 }
@@ -440,7 +440,7 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
 void KS::Renderer::Raytrace(Device& device, Scene& scene)
 {
     auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
+    //auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[RT_RENDER]->GetShader()->GetShaderInput();
     auto frameIndex = device.GetCPUFrameIndex();
 
@@ -473,8 +473,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
 
     m_subrenderers[RT_RENDER]->Render(device, &commandContext, defPar);
 
-    auto boundRT = scene.GetRenderTarget(RT_RENDER);
-    device.GetRenderTarget()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
+    //auto boundRT = scene.GetRenderTarget(RT_RENDER);
+    //device.GetRenderTarget()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
 
     commandContext.Close();
 }

@@ -11,6 +11,7 @@ class DepthStencil
     friend class RenderTarget;
 
 public:
+    DepthStencil();
     DepthStencil(Device& device, std::shared_ptr<Texture> texture);
     ~DepthStencil();
     void Clear(DXCommandList& commandList);

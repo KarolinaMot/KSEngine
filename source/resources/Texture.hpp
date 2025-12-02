@@ -26,6 +26,7 @@ public:
         DEPTH_TEXTURE = 1 << 3
     };
 
+    Texture();
     Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format,
             std::string name,
             uint32_t mipLevels =1);

@@ -44,13 +44,14 @@ public:
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;
     void* GetWindowHandle() const;
-
+    
     inline bool IsWindowOpen() const { return m_window_open; }
     void NewFrame();
     void EndFrame();
     void InitializeSwapchain();
     void FinishInitialization();
     void InitializeImGUI();
+    void ResizeSwapchain(uint32_t newWidth, uint32_t newHeight);
 
     unsigned int GetFrameIndex() const { return m_frame_index; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
@@ -60,11 +61,9 @@ public:
     int GetWindowWidth() const { return m_windowWidth; }
     int GetWindowHeight() const { return m_windowHeight; }
 
-    void TrackResource(::std::shared_ptr<void> buffer);
-    std::shared_ptr<RenderTarget> GetRenderTarget() { return m_swapchainRT; };
-    std::shared_ptr<Texture> GetRenderTargetTexture(int index) { return m_swapchainTex[index]; };
-    std::shared_ptr<DepthStencil> GetDepthStencil() { return m_swapchainDS; };
-    std::shared_ptr<Texture> GetDepthStencilTex() { return m_swapchainDepthTex; };
+    //RenderTarget* GetRenderTarget() { return m_swapchainRT.get(); };
+    //DepthStencil* GetDepthStencil() { return m_swapchainDS.get(); };
+    void CopyToSwapchainRT(DXCommandList& commandList, std::shared_ptr<RenderTarget> rt);
     UploadArena* GetUploadArena() const;
 
     // Blocks until all rendering operations are finished
@@ -84,9 +83,7 @@ private:
     int m_windowWidth, m_windowHeight;
     glm::vec4 m_clear_color;
     std::shared_ptr<RenderTarget> m_swapchainRT;
-    std::shared_ptr<Texture> m_swapchainTex[2];
     std::shared_ptr<DepthStencil> m_swapchainDS;
-    std::shared_ptr<Texture> m_swapchainDepthTex;
 };
 
 } // namespace KS

@@ -29,6 +29,8 @@ public:
     void AllocateAsSRV(DXDescHeap* descriptorHeap, int slot);
 };
 
+KS::Texture::Texture() {}
+
 KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int type, glm::vec4 clearColor, Formats format,
                      std::string name, uint32_t mipLevels)
 {
@@ -399,6 +401,7 @@ KS::RenderTarget::RenderTarget()
 
 KS::RenderTarget::~RenderTarget()
 {
+
 }
 
 void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> texture1, std::shared_ptr<Texture> texture2, std::string name)
@@ -575,6 +578,8 @@ std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(uint32_t frameIndex, i
 {
     return m_textures[frameIndex][index];
 }
+
+KS::DepthStencil::DepthStencil() {}
 
 KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)
 {
