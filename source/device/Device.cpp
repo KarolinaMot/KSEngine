@@ -103,8 +103,10 @@ void* KS::Device::GetDepthHeap() const
 
 void* KS::Device::GetRenderTargetHeap() const
 {
-    return m_impl->m_descriptor_heaps[Impl::DXHeaps::RT_HEAP].get();
-}
+    return m_impl->m_descriptor_heaps[Impl::DXHeaps::RT_HEAP].get(); }
+
+void* KS::Device::GetImguiHeap() const { return m_impl->m_descriptor_heaps[Impl::DXHeaps::IMGUI_HEAP].get(); }
+
 
 void* KS::Device::GetWindowHandle() const
 {
@@ -451,8 +453,8 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
         m_descriptor_heaps[DEPTH_HEAP] = DXDescHeap::Construct(
             m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
         m_descriptor_heaps[IMGUI_HEAP] =
-            DXDescHeap::Construct(m_device, 8, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"IMGUI RESOURCE HEAP",
-                                  0,
+            DXDescHeap::Construct(m_device, 9, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"IMGUI RESOURCE HEAP",
+                                  7,
                                   D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
         // CREATE DEPTH STENCIL
         D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};

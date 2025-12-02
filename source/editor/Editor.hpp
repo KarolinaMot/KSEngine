@@ -18,6 +18,7 @@ public:
                        bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
                        ComponentTransform& camTransform);
 
+
 private:
 
     void ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount, int& index);
@@ -30,6 +31,7 @@ private:
     void PointLightInspector(Scene& scene);
     void DirLightInspector(Scene& scene);
     void AmbientLightInspector(Scene& scene);
+    void Viewport(uint64_t imagePtr, uint32_t width, uint32_t height);
 
     int m_selectedObject = -1;
     SceneObjectTypes m_type = MESH;

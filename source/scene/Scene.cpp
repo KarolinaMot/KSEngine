@@ -96,6 +96,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     std::shared_ptr<Texture> lightRenderingTex[2];
     std::shared_ptr<Texture> lightShaftTex[2];
     std::shared_ptr<Texture> upscaledLightShaftTex[2];
+    std::shared_ptr<Texture> finalRT[2];
 
     for (int i = 0; i < 2; i++)
     {
@@ -139,6 +140,11 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
             std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
             Formats::R8G8B8A8_UNORM, "upscaledLightShaftTex " + std::to_string(i));
+
+        finalRT[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                  Texture::TextureFlags::RENDER_TARGET,
+                                  glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R8G8B8A8_UNORM,
+                                  "finalRT " + std::to_string(i));
     }
 
 
@@ -171,6 +177,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_renderTargets[UPSCALING_RENDER]->AddTexture(device, upscaledLightShaftTex[0], upscaledLightShaftTex[1],
                                                   "UPSCALED LIGHT SHAFT RENDER RES");
 
+    m_finalRT = std::make_shared<RenderTarget>();
+    m_finalRT->AddTexture(device, finalRT[0], finalRT[1],
+                                                  "FINAL RENDER TARGET");
     m_BVH = std::make_unique<TLAS>();
     InitializeShaderTable();
 
@@ -342,6 +351,24 @@ void KS::Scene::Tick(Device& device)
     m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);
 
+    commandContext.Close();
+}
+
+void KS::Scene::GetFinalRTInfo(Device& device, DXDescHeap* heap,  uint32_t frameIndex, uint64_t& gpuPtr, uint32_t& width, uint32_t& height)
+{
+    auto commandContext = device.GetCommandContext();
+    auto commandList = commandContext.m_commandList.get();
+
+    auto tex = m_finalRT->GetTexture(frameIndex, 0);
+    tex->TransitionToRO(heap, *commandList);
+
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+    gpuHandle.ptr += static_cast<uint64_t>(tex->GetHandleIndex(true)) *
+                     m_impl->m_resourceHeap->GetDescriptorSize();
+
+    gpuPtr = gpuHandle.ptr;
+    width = m_finalRT->GetWidth();
+    height = m_finalRT->GetHeight();
     commandContext.Close();
 }
 

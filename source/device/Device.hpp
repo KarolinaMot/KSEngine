@@ -43,6 +43,7 @@ public:
     DXCommandContext GetCommandContext() const;
     void* GetDepthHeap() const;
     void* GetRenderTargetHeap() const;
+    void* GetImguiHeap() const;
     void* GetWindowHandle() const;
     
     inline bool IsWindowOpen() const { return m_window_open; }

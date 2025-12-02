@@ -24,6 +24,9 @@ public:
     void SetCopyFrom(DXCommandList& commandList, uint32_t frameIndex, int rtIndex);
     void PrepareToPresent(DXCommandList& commandList, uint32_t frameIndex);
     std::shared_ptr<Texture> GetTexture(uint32_t frameIndex, int index);
+    uint32_t GetWidth() const;
+    uint32_t GetHeight() const;
+
 
 private:
     class Impl;

@@ -61,6 +61,10 @@ public:
 
     void Tick(Device& device);
 
+    void GetFinalRTInfo(Device& device, DXDescHeap* heap, uint32_t frameIndex, uint64_t& gpuPtr, uint32_t& width,
+                        uint32_t& height);
+    RenderTarget* GetFinalRT() const { return m_finalRT.get(); };
+
     int32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
     MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
@@ -116,6 +120,7 @@ public:
     std::shared_ptr<StorageBuffer> mStorageBuffers[NUM_SBUFFER];
     std::shared_ptr<UniformBuffer> mUniformBuffers[NUM_UBUFFER];
     std::shared_ptr<RenderTarget> m_renderTargets[NUM_SUBRENDER];
+    std::shared_ptr<RenderTarget> m_finalRT;
     std::shared_ptr<DepthStencil> m_deferredRendererDepthStencil;
     std::vector<DirLightInfo> m_directionalLights;
     std::vector<PointLightInfo> m_pointLights;

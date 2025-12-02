@@ -579,6 +579,10 @@ std::shared_ptr<KS::Texture> KS::RenderTarget::GetTexture(uint32_t frameIndex, i
     return m_textures[frameIndex][index];
 }
 
+uint32_t KS::RenderTarget::GetWidth() const { return static_cast<uint32_t>(m_impl->m_viewport.Width); }
+
+uint32_t KS::RenderTarget::GetHeight() const { return static_cast<uint32_t>(m_impl->m_viewport.Height); }
+
 KS::DepthStencil::DepthStencil() {}
 
 KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)

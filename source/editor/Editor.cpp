@@ -16,6 +16,7 @@
 #include <components/ComponentCamera.hpp>
 #include <components/ComponentTransform.hpp>
 #include <scene/Scene.hpp>
+#include <renderer/DX12/Helpers/DXDescHeap.hpp>
 
 KS::Editor::Editor(Device& device) { device.InitializeImGUI(); }
 
@@ -31,6 +32,13 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     FogWindow(device, *scenes[sceneIndex].get());
     InfoWindow(device, deltaTime, recompileShaders, raytraced);
     CameraWindow(info, camTransform);
+
+    auto frameIndex = device.GetCPUFrameIndex();
+    uint64_t gpuPtr;
+    uint32_t width, height;
+    auto heap = reinterpret_cast<DXDescHeap*>(device.GetImguiHeap());
+    scenes[sceneIndex]->GetFinalRTInfo(device, heap, frameIndex, gpuPtr, width, height);
+    Viewport(gpuPtr, width, height);
 }
 
 void KS::Editor::ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount, int& index)
@@ -325,4 +333,13 @@ void KS::Editor::AmbientLightInspector(Scene& scene)
     auto lightInfo = scene.GetLightInfo();
     ImGui::DragFloat4("Color and intensity", &lightInfo.mAmbientAndIntensity.x, 0.1f);
     scene.SetAmbientLight(glm::vec3(lightInfo.mAmbientAndIntensity), lightInfo.mAmbientAndIntensity.a);
+}
+
+void KS::Editor::Viewport(uint64_t imagePtr, uint32_t width, uint32_t height)
+{
+    ImGui::Begin("Viewport");
+    // Note that we pass the GPU SRV handle here, *not* the CPU handle. We're passing the internal pointer value, cast to an
+    // ImTextureID
+    ImGui::Image((ImTextureID)imagePtr, ImVec2((float)width, (float)height));
+    ImGui::End();
 }
