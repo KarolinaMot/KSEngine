@@ -3,8 +3,8 @@
 #include <memory>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 
-// Wait times of more than 5 secs not allowed!
-constexpr DWORD MAX_TIMEOUT_PERIOD = 5 * 1000;
+// Wait times of more than 15 secs not allowed!
+constexpr DWORD MAX_TIMEOUT_PERIOD = 15 * 1000;
 
 class DXGPUFence
 {

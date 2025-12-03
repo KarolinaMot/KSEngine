@@ -86,7 +86,7 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     Texture2D occlusionTex = textures[matInfo.occlusionTexIndex];
     Texture2D normalTex = textures[matInfo.normalTexIndex];
 
-    mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
+    mat.baseColor = pow(abs(baseColorTex.SampleLevel(mainSampler, input.uv, 0).rgb), sGamma);
     mat.baseColor *= matInfo.colorFactor.rgb;
 
     mat.emissiveColor = pow(abs(emissiveTex.SampleLevel(mainSampler, input.uv, 0.f).rgb), sGamma);

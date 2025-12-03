@@ -1,4 +1,5 @@
 #include <device/Device.hpp>
+#include <windows.h>
 #include <renderer/DX12/Helpers/DXDescHeap.hpp>
 #include <renderer/DX12/Helpers/DXHeapHandle.hpp>
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
@@ -67,6 +68,13 @@ public:
 
 KS::Device::Device(const DeviceInitParams& params)
 {
+#if _DEBUG
+    HMODULE pixModule = LoadLibraryW(L"C:/Program Files/Microsoft PIX Preview/2505.30-preview/WinPixGpuCapturer.dll");
+    if (!pixModule)
+        LOG(Log::Severity::WARN, "Failed to load gpu capturer");
+
+#endif
+
     m_impl = std::make_unique<Impl>();
     m_fullscreen = false;
 
@@ -74,7 +82,6 @@ KS::Device::Device(const DeviceInitParams& params)
     m_swapchainHeight = params.window_height;
     m_windowHeight = params.window_height;
     m_windowWidth = params.window_width;
-
     m_impl->InitializeWindow(params);
     m_window_open = true;
     m_clear_color = params.clear_color;

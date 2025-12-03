@@ -13,7 +13,7 @@ class KS::Skydome::Impl
 public:
     std::unique_ptr<DXResource> m_cubemap{};
     DXHeapHandle mSRVHeapSlot{};
-    DXHeapHandle mUAVHeapSlot[4]{};
+    DXHeapHandle mUAVHeapSlots[4]{};
     UploadSlice m_slice;
 };
 
@@ -49,7 +49,7 @@ KS::Skydome::Skydome(Device& device, void* resourceHeap, const Texture& tex) : S
         uavDesc.Texture2DArray.MipSlice = i;
         uavDesc.Texture2DArray.FirstArraySlice = 0;
         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-        m_impl->mUAVHeapSlot[i] = descriptorHeap->AllocateUAV(m_impl->m_cubemap.get(), &uavDesc);
+        m_impl->mUAVHeapSlots[i] = descriptorHeap->AllocateUAV(m_impl->m_cubemap.get(), &uavDesc);
 
     }
 }
@@ -67,7 +67,7 @@ void KS::Skydome::Bind(const Device&, void*, DXCommandList& commandList, const S
     {
 
         commandList.TransitionResource(*m_impl->m_cubemap, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        commandList.BindHeapResource(*m_impl->m_cubemap, m_impl->mUAVHeapSlot[mip], desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->m_cubemap, m_impl->mUAVHeapSlots[mip], desc.rootIndex);
         m_ready = true;
     }
 }
@@ -85,6 +85,6 @@ uint32_t KS::Skydome::GetHandleIndex(bool readOnly) const
     }
     else
     {
-        return m_impl->mUAVHeapSlot[0].GetIndex();
+        return m_impl->mUAVHeapSlots[0].GetIndex();
     }
 }

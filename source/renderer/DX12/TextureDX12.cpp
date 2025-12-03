@@ -20,7 +20,7 @@ public:
     std::unique_ptr<DXResource> mTextureBuffer{};
     std::unique_ptr<UniformBuffer> mMipmapUB{};
     DXHeapHandle mSRVHeapSlot{};
-    DXHeapHandle mUAVHeapSlot[4]{};
+    std::vector<DXHeapHandle> mUAVHeapSlots{};
     UploadSlice m_slice;
 
     void AllocateAsUAV(DXDescHeap* descriptorHeap, int mipSlice);
@@ -42,15 +42,14 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     m_format = format;
     m_flag = type;
     m_clearColor = clearColor;
-    m_mipLevels = mipLevels;
-    auto mipInfo = GetMipmapInfo();
-    m_mipLevels = glm::min(mipInfo.NumMipLevels, mipLevels);
+
+    uint32_t maxDim = std::max(width, height);
+    m_mipLevels = 1 + (uint32_t)std::floor(std::log2(maxDim));
+    m_mipLevels = std::min(mipLevels, m_mipLevels);
+    m_impl->mUAVHeapSlots.resize(m_mipLevels);
 
     if (m_mipLevels==0) 
        LOG(Log::Severity::WARN, "Tried to create texture with 0 mip levels.");
-
-    m_mipLevels = glm::max(m_mipLevels, 1u);
-    
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = Conversion::KSFormatsToDXGI(format);
@@ -77,7 +76,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
 }
 
 KS::Texture::Texture(Device& device, void* resourceHeap, DXCommandList& commandList, const Image& image) :
-    Texture(device, image.GetWidth(), image.GetHeight(), RW_TEXTURE, glm::vec4(0.f), image.GetFormat(), image.GetName(), 4)
+    Texture(device, image.GetWidth(), image.GetHeight(), RW_TEXTURE, glm::vec4(0.f), image.GetFormat(), image.GetName(), 4000)
 {
     UINT64 textureUploadBufferSize;
     auto resourceDesc = m_impl->mTextureBuffer->GetDesc();
@@ -123,8 +122,8 @@ KS::Texture::Texture(Device& device, void* resourceHeap, DXCommandList& commandL
 }
 
 KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
-                     Formats format, std::string name, uint32_t mipLevels)
-    : Texture(device, width, height, type, clearColor, format, name, mipLevels)
+                     Formats format, std::string name)
+    : Texture(device, width, height, type, clearColor, format, name, 4000)
 {
     auto descriptorHeap = reinterpret_cast<DXDescHeap*>(resourceHeap);
     auto resourceDesc = m_impl->mTextureBuffer->GetDesc();
@@ -160,16 +159,18 @@ uint32_t KS::Texture::GetHandleIndex(bool readOnly) const
     }
     else
     {
-        if (!m_impl->mUAVHeapSlot[0].IsValid())
+        if (!m_impl->mUAVHeapSlots[0].IsValid())
         {
             LOG(Log::Severity::FATAL, "Tried to get UAV index of texture with no allocated UAV.");
             assert(false);
             return 0;
         }
 
-        return m_impl->mUAVHeapSlot[0].GetIndex();
+        return m_impl->mUAVHeapSlots[0].GetIndex();
     }
 }
+
+void* KS::Texture::GetResource() { return m_impl->mTextureBuffer.get(); }
 
 KS::Texture::Texture(void* resource, uint32_t width, uint32_t height, int type)
 {
@@ -180,6 +181,7 @@ KS::Texture::Texture(void* resource, uint32_t width, uint32_t height, int type)
     m_width = width;
     m_height = height;
     m_flag = type;
+    m_impl->mUAVHeapSlots.resize(1);
 }
 
 KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
@@ -194,6 +196,7 @@ KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, u
     m_flag = type;
     m_clearColor = clearColor;
     m_mipLevels = 1;
+    m_impl->mUAVHeapSlots.resize(1);
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = Conversion::KSFormatsToDXGI(format);
@@ -253,10 +256,10 @@ void KS::Texture::Bind(const Device&, void* resourceHeap, DXCommandList& command
             mipLevel = m_mipLevels - 1;
         }
 
-         if (!m_impl->mUAVHeapSlot[mipLevel].IsValid())
+         if (!m_impl->mUAVHeapSlots[mipLevel].IsValid())
                m_impl->AllocateAsUAV(heap, mipLevel);
 
-        commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVHeapSlot[mipLevel], desc.rootIndex);
+        commandList.BindHeapResource(*m_impl->mTextureBuffer, m_impl->mUAVHeapSlots[mipLevel], desc.rootIndex);
     }
 }
 
@@ -275,7 +278,7 @@ void KS::Texture::TransitionToRW(void* resourceHeap, DXCommandList& commandList)
 {
     auto heap = reinterpret_cast<DXDescHeap*>(resourceHeap);
 
-    if (!m_impl->mUAVHeapSlot[0].IsValid())
+    if (!m_impl->mUAVHeapSlots[0].IsValid())
     {
         m_impl->AllocateAsUAV(heap, 0);
     }
@@ -296,31 +299,43 @@ static inline uint32_t FloorLog2(uint32_t v)
 }
 
 
-KS::GenerateMipsInfo KS::Texture::GetMipmapInfo() const
+KS::GenerateMipsInfo KS::Texture::GetMipmapInfo(uint32_t srcMip) const
 {
-    GenerateMipsInfo generateMipsCB{};
-    generateMipsCB.IsSRGB = false;  // TODO: set based on format
+    DWORD mipCount = 0;
 
-    const uint32_t srcWidth = m_width;
-    const uint32_t srcHeight = m_height;
+    GenerateMipsInfo generateMipsCB;
+    generateMipsCB.IsSRGB = m_format == Formats::R8G8B8A8_UNORM_SRGB;
+    uint64_t srcWidth = m_width >> srcMip;
+    uint32_t srcHeight = m_height >> srcMip;
+    uint32_t dstWidth = static_cast<uint32_t>(srcWidth >> 1);
+    uint32_t dstHeight = srcHeight >> 1;
 
-    // First destination level size (next mip)
-    uint32_t dstWidth = std::max(1u, srcWidth >> 1);
-    uint32_t dstHeight = std::max(1u, srcHeight >> 1);
+    // 0b00(0): Both width and height are even.
+    // 0b01(1): Width is odd, height is even.
+    // 0b10(2): Width is even, height is odd.
+    // 0b11(3): Both width and height are odd.
+    generateMipsCB.SrcDimension = (srcHeight & 1) << 1 | (srcWidth & 1);
 
-    // Parity flags for shader to know how to sample border texels on odd sizes.
-    // 0b00: both even, 0b01: width odd, 0b10: height odd, 0b11: both odd.
-    generateMipsCB.SrcDimension = ((srcHeight & 1u) << 1) | (srcWidth & 1u);
+    // The number of times we can half the size of the texture and get
+    // exactly a 50% reduction in size.
+    // A 1 bit in the width or height indicates an odd dimension.
+    // The case where either the width or the height is exactly 1 is handled
+    // as a special case (as the dimension does not require reduction).
+    _BitScanForward(&mipCount, (dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
+    // Maximum number of mips to generate is 4.
+    mipCount = std::min<DWORD>(3, mipCount + 1);
+    // Clamp to total number of mips left over.
+    mipCount = (srcMip + mipCount) >= m_mipLevels ? m_mipLevels - srcMip - 1 : mipCount;
 
-    // We’re setting up the first dispatch from mip 0 downward.
-    // If your compute path generates multiple mips per dispatch, keep mipCount as-is.
-    // If it generates exactly one level per dispatch, set mipCount = 1 here.
-    generateMipsCB.SrcMipLevel = 0;
-    generateMipsCB.NumMipLevels = m_mipLevels;
+    // Dimensions should not reduce to 0.
+    // This can happen if the width and height are not the same.
+    dstWidth = std::max<DWORD>(1, dstWidth);
+    dstHeight = std::max<DWORD>(1, dstHeight);
 
-    // Safe even for NPOT because we clamped dst to at least 1.
-    generateMipsCB.TexelSize.x = 1.0f / float(dstWidth);
-    generateMipsCB.TexelSize.y = 1.0f / float(dstHeight);
+    generateMipsCB.SrcMipLevel = srcMip;
+    generateMipsCB.NumMipLevels = mipCount;
+    generateMipsCB.TexelSize.x = 1.0f / (float)dstWidth;
+    generateMipsCB.TexelSize.y = 1.0f / (float)dstHeight;
 
     return generateMipsCB;
 }
@@ -334,7 +349,7 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int mipSlice)
     uavDesc.Format = mTextureBuffer->GetDesc().Format;
     uavDesc.Texture2D.MipSlice = mipSlice;
     uavDesc.Texture2D.PlaneSlice = 0;
-    mUAVHeapSlot[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc);
+    mUAVHeapSlots[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc);
 }
 
 void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot, int mipSlice)
@@ -349,7 +364,7 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot, int 
     uavDesc.Format = mTextureBuffer->GetDesc().Format;
     uavDesc.Texture2D.MipSlice = mipSlice;
     uavDesc.Texture2D.PlaneSlice = 0;
-    mUAVHeapSlot[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc, slot);
+    mUAVHeapSlots[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc, slot);
 }
 
 void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)

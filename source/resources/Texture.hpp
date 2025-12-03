@@ -34,7 +34,7 @@ public:
     Texture(Device& device, void* resourceHeap, DXCommandList& commandList, const Image& image);
 
     Texture(const Device& device, void* resourceHeap, uint32_t width, uint32_t height, int type, glm::vec4 clearColor,
-            Formats format, std::string name, uint32_t mipLevels);
+            Formats format, std::string name);
 
     Texture(void* resource, uint32_t width, uint32_t height, int type);
 
@@ -48,13 +48,15 @@ public:
     void TransitionToRW(void* resourceHeap, DXCommandList& commandList) const;
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format; }
-    GenerateMipsInfo GetMipmapInfo() const;
+    GenerateMipsInfo GetMipmapInfo(uint32_t srcMip) const;
 
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
     uint32_t GetHandleIndex(bool readOnly) const;
+    uint32_t GetMipLevel() const { return m_mipLevels; }
     std::string GetName() const { return m_name; }
+    void* GetResource();
    // void GenerateMipmaps(const Device& device, DXCommandList& commandList);
 
 private:

@@ -54,5 +54,8 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
             m_dispatchWidth, m_dispatchHeight, m_dispatchDepth);
         return;
     }
-    commandList->DispatchShader(m_dispatchWidth / 8, m_dispatchHeight / 8, m_dispatchDepth);
+
+    uint32_t dispatchWidth = (m_dispatchWidth + 8u - 1u) / 8u;
+    uint32_t dispatchHeight = (m_dispatchHeight + 8u - 1u) / 8u;
+    commandList->DispatchShader(dispatchWidth, dispatchHeight, m_dispatchDepth);
 }

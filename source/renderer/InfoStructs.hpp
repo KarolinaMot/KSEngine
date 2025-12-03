@@ -107,11 +107,11 @@ struct DrawEntry
 
 struct GenerateMipsInfo
 {
-    uint32_t SrcMipLevel;   // Texture level of source mip
-    uint32_t NumMipLevels;  // Number of OutMips to write: [1-4]
-    uint32_t SrcDimension;  // Width and height of the source texture are even or odd.
-    uint32_t IsSRGB;        // Must apply gamma correction to sRGB textures.
-    glm::vec2 TexelSize;    // 1.0 / OutMip1.Dimensions
+    uint32_t SrcMipLevel = 0;   // Texture level of source mip
+    uint32_t NumMipLevels=0;  // Number of OutMips to write: [1-4]
+    uint32_t SrcDimension = 0;  // Width and height of the source texture are even or odd.
+    uint32_t IsSRGB = 0;        // Must apply gamma correction to sRGB textures.
+    glm::vec2 TexelSize{};      // 1.0 / OutMip1.Dimensions
 };
 
 struct ModelMat

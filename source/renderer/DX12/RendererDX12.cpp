@@ -389,7 +389,8 @@ void KS::Renderer::Main(Device& device, Scene& scene)
 
     m_subrenderers[PBR_RENDER]->Render(device, &commandContext, pbrPar);
 
-    //device.GetRenderTarget()->CopyTo(*commandList, frameIndex, scene.GetRenderTarget(PBR_RENDER), 0, 0);
+    auto boundRT = scene.GetRenderTarget(PBR_RENDER);
+    scene.GetFinalRT()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
 
     commandContext.Close();
 }
@@ -399,38 +400,58 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
     auto commandContext = device.GetCommandContext();
     auto commandList = commandContext.m_commandList;
     auto texCount = scene.GetTexWithoutMipmapCount();
-
+    uint32_t mipCount = 0;
     for (int i = 0; i < texCount; i++)
     {
         auto texture = scene.GetTextureForMipmapGen(i);
         if (!texture) continue;
 
-        auto mipDesc = texture->GetMipmapInfo();
-        scene.GetUniformBuffer(MIP_GEN_INFO)->Update(device, mipDesc, i);
+        uint32_t j = 0;
+        auto mipLevel = texture->GetMipLevel();
+        LOG(Log::Severity::INFO, "Creating mip chain for texture {} / {}", i, texCount);
+        GenerateMipsInfo mipDesc{};
 
-        m_inputs[MIP_GEN][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-            scene.GetUniformBuffer(MIP_GEN_INFO), ShaderInputBindDesc(i, m_mipMapShaderInputs->GetInput("mipmap_info")));
+        while (true)
+        {
+            mipDesc = texture->GetMipmapInfo(j);
+            if (mipDesc.NumMipLevels == 0) 
+                break;
+            scene.GetUniformBuffer(MIP_GEN_INFO)->Update(device, mipDesc, mipCount);
 
-        m_inputs[MIP_GEN][1] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-            texture, ShaderInputBindDesc(1, m_mipMapShaderInputs->GetInput("mip_1")));
-        m_inputs[MIP_GEN][2] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-            texture, ShaderInputBindDesc(2, m_mipMapShaderInputs->GetInput("mip_2")));
-        m_inputs[MIP_GEN][3] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-            texture, ShaderInputBindDesc(3, m_mipMapShaderInputs->GetInput("mip_3")));
+            m_inputs[MIP_GEN][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+                scene.GetUniformBuffer(MIP_GEN_INFO),
+                ShaderInputBindDesc(mipCount, m_mipMapShaderInputs->GetInput("mipmap_info")));
 
-        m_inputs[MIP_GEN][4] =
-            std::pair<ShaderInput*, ShaderInputBindDesc>(texture, ShaderInputBindDesc(m_mipMapShaderInputs->GetInput("mip_0")));
+            if (j + 1 < mipLevel)
+                m_inputs[MIP_GEN][1] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+                texture, ShaderInputBindDesc(j + 1, m_mipMapShaderInputs->GetInput("mip_1")));
+            if (j + 2 < mipLevel)
+                m_inputs[MIP_GEN][2] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+                texture, ShaderInputBindDesc(j + 2, m_mipMapShaderInputs->GetInput("mip_2")));
+            if (j + 3 < mipLevel)
+                m_inputs[MIP_GEN][3] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+                texture, ShaderInputBindDesc(j + 3, m_mipMapShaderInputs->GetInput("mip_3")));
 
-        reinterpret_cast<ComputeRenderer*>(m_subrenderers[MIP_GEN].get())
-            ->SetDispatchSize(static_cast<uint32_t>(1.f / mipDesc.TexelSize.x),
-                              static_cast<uint32_t>(1.f / mipDesc.TexelSize.y));
+            m_inputs[MIP_GEN][4] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+                texture, ShaderInputBindDesc(m_mipMapShaderInputs->GetInput("mip_0")));
 
-        RenderParameters defPar{};
-        defPar.clearRt = false;
-        defPar.scene = &scene;
-        defPar.inputs = &m_inputs[MIP_GEN];
+            reinterpret_cast<ComputeRenderer*>(m_subrenderers[MIP_GEN].get())
+                ->SetDispatchSize(static_cast<uint32_t>(1.f / mipDesc.TexelSize.x),
+                                  static_cast<uint32_t>(1.f / mipDesc.TexelSize.y));
 
-        m_subrenderers[MIP_GEN]->Render(device, &commandContext, defPar);
+            RenderParameters defPar{};
+            defPar.clearRt = false;
+            defPar.scene = &scene;
+            defPar.inputs = &m_inputs[MIP_GEN];
+
+            m_subrenderers[MIP_GEN]->Render(device, &commandContext, defPar);
+            auto resource = reinterpret_cast<DXResource*>(texture->GetResource());
+            commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
+            LOG(Log::Severity::INFO, "Creating mips for texture {}-{}/ {}", mipDesc.SrcMipLevel, j + mipDesc.NumMipLevels, mipLevel-1);
+            if (j + mipDesc.NumMipLevels == mipLevel - 1) break;
+            j += mipDesc.NumMipLevels;
+            mipCount++;
+        }
     }
 
     scene.ClearMipmapQueue();
