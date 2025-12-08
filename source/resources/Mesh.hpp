@@ -81,6 +81,15 @@ inline void MeshData::load(A& ar, const uint32_t v)
     }
 }
 
+struct MappedMeshAttributes
+{
+    StorageBuffer* positions = nullptr;
+    StorageBuffer* normals = nullptr;
+    StorageBuffer* uvs = nullptr;
+    StorageBuffer* tangents = nullptr;
+    StorageBuffer* indices = nullptr;
+};
+
 class Device;
 class Mesh
 {
@@ -101,13 +110,17 @@ public:
     std::shared_ptr<DXResource> GetBLASRes() const;
     std::string GetName() const { return m_name; }
     uint32_t GetMeshIndex() const { return m_meshIndex; }
+    MappedMeshAttributes GetAttributes() { return m_attributes; }
 
 private:
     void BuildBLAS(const Device& device, DXCommandList& cmd);
+    MappedMeshAttributes m_attributes;
 
     std::unordered_map<std::string, std::shared_ptr<StorageBuffer>> m_data;
     std::string m_name;
     uint32_t m_meshIndex = 0;
+
+
 
     class Impl;
     std::unique_ptr<Impl> m_impl;

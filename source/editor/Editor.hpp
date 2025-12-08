@@ -14,7 +14,7 @@ public:
     Editor(Device& device);
     ~Editor();
 
-    void RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float deltaTime,
+    void RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float fps, float ms,
                        bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
                        ComponentTransform& camTransform);
     glm::vec2 GetViewportSize() const { return m_viewportSize; }
@@ -25,7 +25,7 @@ private:
     void SceneHierarchy(Scene& scene);
     void TransformWindow(Scene& scene);
     void FogWindow(Device& device, Scene& scene);
-    void InfoWindow(Device&, float deltaTime, bool& recompileShaders, bool& raytraced);
+    void InfoWindow(Device&, float fps, float ms, bool& recompileShaders, bool& raytraced);
     void CameraWindow(ComponentFirstPersonCamera& info, ComponentTransform& camTransform);
     void MeshInspector(Scene& scene);
     void PointLightInspector(Scene& scene);

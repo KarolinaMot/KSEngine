@@ -214,9 +214,8 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 auto mat = ptr->materials[material];
                  
                 std::shared_ptr<Mesh> meshPtr = GetMesh(meshHandle);
-                std::string key = name + std::to_string(m_modelCount);
 
-                draw_queue[key] = KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform);
+                draw_queue[m_modelCount] = KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform);
 
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
@@ -245,13 +244,13 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 matInfo.occlusionTexIndex = occlusionTex->GetHandleIndex(true);
                 matInfo.metallicRoughnessTexIndex = roughMetTex->GetHandleIndex(true);
 
-                matInfo.modelIndex = draw_queue[key].mesh->GetMeshIndex();
+                matInfo.modelIndex = draw_queue[m_modelCount].mesh->GetMeshIndex();
 
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
 
                 m_materialInstances[m_modelCount] = matInfo;
                 m_modelCount++;
-                m_BVH->AddInstance(&draw_queue[key], modelMat.mModel);
+                m_BVH->AddInstance(&draw_queue[m_modelCount], modelMat.mModel);
             }
         }
 
@@ -279,9 +278,9 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
     commandContext.Close();
 }
 
-void KS::Scene::ApplyModelTransform(std::string name, const glm::mat4& transfrom)
+void KS::Scene::ApplyModelTransform(uint32_t index, const glm::mat4& transfrom)
 {
-    auto& entry = draw_queue[name];
+    auto& entry = draw_queue[index];
     ModelMat modelMat;
     modelMat.mModel = m_modelMatrices[entry.modelIndex].mModel * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
@@ -704,28 +703,4 @@ KS::MaterialInfo KS::Scene::GetMaterialInfo(const Material& material) const
     info.normalScale = NEAFactor.x;
     info.roughnessFactor = ORMFactor.y;
     return info;
-}
-
-KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, int index)
-{
-    auto draw_entry = (*std::next(draw_queue.begin(), index)).second;
-
-    MeshSet meshSet;
-    meshSet.mesh = draw_entry.mesh.get();
-    meshSet.baseTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME), true);
-    meshSet.normalTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-    meshSet.emissiveTex = GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME), true);
-    meshSet.roughMetTex = GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-    meshSet.occlusionTex = GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
-    meshSet.modelIndex = draw_entry.modelIndex;
-    meshSet.transform = draw_entry.modelMat;
-
-    return meshSet;
 }

@@ -106,7 +106,7 @@ KS::Editor::Editor(Device& device)
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float deltaTime,
+void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float fps, float ms,
                                bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
                                ComponentTransform& camTransform)
 {
@@ -115,7 +115,7 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
     FogWindow(device, *scenes[sceneIndex].get());
-    InfoWindow(device, deltaTime, recompileShaders, raytraced);
+    InfoWindow(device, fps, ms, recompileShaders, raytraced);
     CameraWindow(info, camTransform);
 
     auto frameIndex = device.GetCPUFrameIndex();
@@ -143,7 +143,7 @@ void KS::Editor::ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount
 
 void KS::Editor::SceneHierarchy(Scene& scene)
 {
-    const auto& drawQueue = scene.GetQueue();
+    //const auto& drawQueue = scene.GetQueue();
     bool open = true;
     auto lightInfo = scene.GetLightInfo();
 
@@ -200,13 +200,13 @@ void KS::Editor::SceneHierarchy(Scene& scene)
 
     if (ImGui::CollapsingHeader("Scene meshes"))
     {
-        int i = 0;
+        auto meshCount = scene.GetModelCount();
 
-        for (const auto& drawObject : drawQueue)
+        for (uint32_t i = 0; i < meshCount; i++)
         {
-            const auto& objectName = drawObject.second.mesh->GetName() + "##" + drawObject.first;
+            const auto& objectName = scene.GetDrawEntry(i)->mesh->GetName() + "##" + std::to_string(i);
 
-            const bool is_selected = (m_selectedObject == i);
+            const bool is_selected = (m_selectedObject == static_cast<int>(i));
             if (ImGui::Selectable(objectName.c_str(), is_selected))
             {
                 m_selectedObject = i;
@@ -214,7 +214,6 @@ void KS::Editor::SceneHierarchy(Scene& scene)
             }
             // Optionally focus selected item
             if (is_selected) ImGui::SetItemDefaultFocus();
-            i++;
         }
     }
 
@@ -292,13 +291,12 @@ void KS::Editor::FogWindow(Device& device, Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(Device&, float, bool& recompileShaders, bool& raytraced)
+void KS::Editor::InfoWindow(Device&, float fps, float ms, bool& recompileShaders, bool& raytraced)
 { 
-    float FPS = 1.f / ImGui::GetIO().DeltaTime;
     bool open = true;
     ImGui::Begin("DT window", &open); 
-    ImGui::Text(("FPS: " + std::to_string(FPS)).c_str());
-    ImGui::Text(("Ms: " + std::to_string(ImGui::GetIO().DeltaTime * 1000.f)).c_str());
+    ImGui::Text(("FPS: " + std::format("{:.2f}", fps)).c_str());
+    ImGui::Text(("Ms: " + std::format("{:.2f}", ms)).c_str());
 
     if (ImGui::Button("Recompile shaders")) { recompileShaders = true; }
 
@@ -329,9 +327,7 @@ void KS::Editor::CameraWindow(ComponentFirstPersonCamera& info, ComponentTransfo
 
 void KS::Editor::MeshInspector(Scene& scene)
 {
-    auto& drawQueue = scene.GetQueue();
-
-    if (m_selectedObject >= drawQueue.size())
+    if (m_selectedObject >= static_cast<int>(scene.GetModelCount()))
     {
         m_selectedObject = -1;
     }
@@ -342,10 +338,11 @@ void KS::Editor::MeshInspector(Scene& scene)
         return;
     }
 
-    auto& object = *std::next(drawQueue.begin(), m_selectedObject);
+
+    auto object = scene.GetDrawEntry(m_selectedObject);
 
     glm::vec3 translation, rotation, scale;
-    glm::mat4 oldTransform = object.second.modelMat;
+    glm::mat4 oldTransform = object->modelMat;
     DecomposeTransform(oldTransform, translation, rotation, scale);
     bool transfromChanged = false;
 
@@ -357,7 +354,7 @@ void KS::Editor::MeshInspector(Scene& scene)
     {
         glm::mat4 newTransform = RecomposeTransform(translation, rotation, scale);
         glm::mat4 delta = glm::inverse(newTransform) * oldTransform;
-        scene.ApplyModelTransform(object.first, delta);
+        scene.ApplyModelTransform(m_selectedObject, delta);
     }
 }
 

@@ -18,7 +18,7 @@ public:
     ComPtr<ID3D12Resource> GetResource() const { return mResource; }
     ID3D12Resource* Get() const { return mResource.Get(); }
     void SetResource(ComPtr<ID3D12Resource> res) { mResource = res; }
-
+    D3D12_GPU_VIRTUAL_ADDRESS GetGPUVA() { return m_gpuVA; }
     CD3DX12_RESOURCE_DESC GetDesc() const { return mDesc; }
     D3D12_RESOURCE_STATES GetState() const { return mState; }
     uint32_t GetResourceSize() const { return mResourceSize; }
@@ -31,5 +31,5 @@ private:
     CD3DX12_RESOURCE_DESC mDesc{};
     ComPtr<ID3D12Resource> mResource;
     uint32_t mResourceSize = 0;
-    // std::vector<std::unique_ptr<DXResource>> mUploadBuffers;
+    D3D12_GPU_VIRTUAL_ADDRESS m_gpuVA; 
 };

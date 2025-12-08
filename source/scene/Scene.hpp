@@ -31,18 +31,6 @@ struct SBTInfo
     uint32_t HitGroupEntrySize = 0;
 };
 
-struct MeshSet
-{
-    const Mesh* mesh;
-    std::shared_ptr<Texture> baseTex;
-    std::shared_ptr<Texture> normalTex;
-    std::shared_ptr<Texture> emissiveTex;
-    std::shared_ptr<Texture> roughMetTex;
-    std::shared_ptr<Texture> occlusionTex;
-    int modelIndex;
-    glm::mat4x4 transform;
-};
-
 class Scene
 {
 public:
@@ -51,7 +39,7 @@ public:
     ~Scene();
 
     void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name);
-    void ApplyModelTransform(std::string name, const glm::mat4& transfrom);
+    void ApplyModelTransform(uint32_t index, const glm::mat4& transfrom);
     void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
     void QueuePointLight(PointLightInfo info);
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
@@ -65,15 +53,13 @@ public:
                         uint32_t& height);
     RenderTarget* GetFinalRT() const { return m_finalRT.get(); };
 
-    int32_t GetModelCount() const { return m_modelCount; }
+    uint32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
-    MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
-    size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
-    std::unordered_map<std::string, DrawEntry>& GetQueue() { return draw_queue; }
+    DrawEntry* GetDrawEntry(uint32_t index) { return &draw_queue[index]; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
@@ -112,7 +98,7 @@ public:
     const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle);
     void InitializeShaderTable();
 
-    std::unordered_map<std::string, DrawEntry> draw_queue{};
+    DrawEntry draw_queue[MAX_MESHES];
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
@@ -130,7 +116,7 @@ public:
 
     std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
     std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);
-    int32_t m_modelCount = 0;
+    uint32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;

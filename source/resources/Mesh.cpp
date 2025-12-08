@@ -58,15 +58,30 @@ KS::Mesh::Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, c
                                                           static_cast<uint32_t>(size / stride), false);
 
         if (attrName == MeshConstants::ATTRIBUTE_NORMALS_NAME)
+        {
             buffer->AllocateAsReadOnly(resourceHeap, NORMALS_SLOT + meshIndex);
+            m_attributes.normals = buffer.get();
+        }
         else if (attrName == MeshConstants::ATTRIBUTE_INDICES_NAME)
+        {
             buffer->AllocateAsReadOnly(resourceHeap, INDICES_SLOT + meshIndex);
+            m_attributes.indices = buffer.get();
+        }
         else if (attrName == MeshConstants::ATTRIBUTE_POSITIONS_NAME)
+        {
             buffer->AllocateAsReadOnly(resourceHeap, VPOS_SLOT + meshIndex);
+            m_attributes.positions = buffer.get();
+        }
         else if (attrName == MeshConstants::ATTRIBUTE_TEXTURE_UVS_NAME)
+        {
             buffer->AllocateAsReadOnly(resourceHeap, UVS_SLOT + meshIndex);
+            m_attributes.uvs = buffer.get();
+        }
         else if (attrName == MeshConstants::ATTRIBUTE_TANGENTS_NAME)
+        {
             buffer->AllocateAsReadOnly(resourceHeap, TAN_SLOT + meshIndex);
+            m_attributes.tangents = buffer.get();
+        }
 
         m_data.emplace(attrName, buffer);
     }

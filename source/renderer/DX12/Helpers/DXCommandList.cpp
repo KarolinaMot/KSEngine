@@ -263,10 +263,10 @@ void DXCommandList::BindVertexData(DXResource& buffer, uint32_t bufferStride, ui
         return;
     }
 
-    TransitionResource(buffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    //TransitionResource(buffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
-    vertexBufferView.BufferLocation = buffer.Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
+    vertexBufferView.BufferLocation = buffer.GetGPUVA() + elementOffset * bufferStride;
     vertexBufferView.StrideInBytes = bufferStride;
     vertexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
 

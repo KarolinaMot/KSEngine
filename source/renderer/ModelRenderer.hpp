@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include "InfoStructs.hpp"
 
+class DXDescHeap;
+
 namespace KS
 {
 class StorageBuffer;
@@ -35,7 +37,9 @@ public:
 
 private:
 
-    void DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index);
+    void DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, uint32_t index,
+                  const ShaderInputDesc& modelIndexInputDesc, DXDescHeap* resourceHeap, UniformBuffer* modelIndexUBO,
+                  int shaderFlags, uint32_t texturesRootIndex);
 
     bool m_raytraced = false;
     int32_t m_frameCount = 0;

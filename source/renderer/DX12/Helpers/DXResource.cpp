@@ -24,6 +24,8 @@ DXResource::DXResource(const ComPtr<ID3D12Device5>& device, const CD3DX12_HEAP_P
     wchar_t wString[4096];
     MultiByteToWideChar(CP_ACP, 0, name, -1, wString, 4096);
     mResource->SetName(wString);
+
+    m_gpuVA = mResource->GetGPUVirtualAddress();
 }
 
 DXResource::DXResource(const ComPtr<ID3D12Device5>& device, ComPtr<ID3D12Resource> res, D3D12_RESOURCE_STATES resState)
@@ -34,6 +36,7 @@ DXResource::DXResource(const ComPtr<ID3D12Device5>& device, ComPtr<ID3D12Resourc
     size_t size;
     device->GetCopyableFootprints(&description, 0, 1, 0, nullptr, nullptr, nullptr, &size);
     mResourceSize = static_cast<uint32_t>(size);
+    m_gpuVA = mResource->GetGPUVirtualAddress();
 }
 
 DXResource::~DXResource() {}

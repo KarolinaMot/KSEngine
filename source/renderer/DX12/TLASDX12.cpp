@@ -177,7 +177,6 @@ void KS::TLAS::EnsureScratch(const Device& device, uint64_t neededBytes)
 void KS::TLAS::Build(const Device& device, const Scene& scene, DXCommandList& cmd)
 {
     auto frameIndex = device.GetCPUFrameIndex();
-    m_Impl->m_updateStructure[frameIndex] = true;
     if (!m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex]) return;
 
     const UINT count = static_cast<UINT>(m_instances.size());

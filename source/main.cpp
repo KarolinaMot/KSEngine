@@ -79,6 +79,11 @@ int main()
     KS::DeviceInitParams params {};
     params.window_width = 1280;
     params.window_height = 720;
+#if _DEBUG
+    params.debug_context = true;
+#else
+    params.debug_context = false;
+#endif
 
     // Initialize device
     auto device = std::make_shared<KS::Device>(params);
@@ -155,7 +160,9 @@ int main()
         auto view = ecs->GetWorld().view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
         auto it = view.each().begin();
         auto [e, cameraInfo, camTransform] = *it;
-        editor->RenderWindows(*device, scenes, KS::ScenesToChoose::COUNT, dt.count(), recomp, raytraced, chosenScene,
+        editor->RenderWindows(*device, scenes, KS::ScenesToChoose::COUNT, frametimer.GetFPS(), frametimer.GetMS(), recomp,
+                              raytraced,
+                              chosenScene,
                               cameraInfo, camTransform);
         device->EndFrame();
 

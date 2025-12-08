@@ -48,14 +48,17 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
-    int drawQueueSize = static_cast<int>(par.scene->GetDrawQueueSize());
+    auto drawQueueSize = par.scene->GetModelCount();
     if (drawQueueSize == 0) return;
 
-    auto commandList = commandContext->m_commandList.get();
-
-    auto pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
-    auto rootSignature = m_shader->GetShaderInput();
+    auto* commandList = commandContext->m_commandList.get();
+    auto* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
+    auto shaderInput = m_shader->GetShaderInput();
+    auto* resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
+    auto* modelIndexUBO = par.scene->GetUniformBuffer(MODEL_INDEX_BUFFER);
+    auto modelIndexInp = shaderInput->GetInput("model_index");
+    auto texturesRoot = shaderInput->GetInput("textures").rootIndex;
+    int shaderFlags = m_shader->GetFlags();
     auto frameIndex = device.GetCPUFrameIndex();
 
     par.rt->Bind(*commandList, frameIndex, par.ds.get());
@@ -69,30 +72,30 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     auto BindDrawResources = [&](DXCommandList* cmdList)
     {
         cmdList->BindPipeline(pipeline);
-        cmdList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(m_shader->GetShaderInput()->GetSignature()), false);
+        cmdList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(shaderInput->GetSignature()), false);
         cmdList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
         for (int i = 0; i < par.inputs->size(); i++)
         {
             auto& input = (*par.inputs)[i];
-            if (input.first) 
+            if (input.first)
                 input.first->Bind(device, resourceHeap, *cmdList, input.second.desc, input.second.bindOffset);
             else
-                LOG(Log::Severity::WARN,
-                    "One of the inputs {} in a model renderer was empty command will be ignored", i);
+                LOG(Log::Severity::WARN, "One of the inputs {} in a model renderer was empty", i);
         }
 
         par.rt->Bind(*cmdList, frameIndex, par.ds.get());
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
 
+
     if (m_onlyCubemap)
     {
-        BindDrawResources(commandList);
         auto skydomeMesh = par.scene->GetSkydomeMesh().first;
         using namespace MeshConstants;
         auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
         auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+        BindDrawResources(commandList);
 
         positions->BindAsVertexData(*commandList, 0);
         indices->BindAsIndexData(*commandList);
@@ -106,13 +109,13 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
     auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device)
     {
-        // Reuse the existing lambda
         auto context = device.GetCommandContext();
         BindDrawResources(context.m_commandList.get());
 
-        for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
+        for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; ++meshIndex)
         {
-            DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex);
+            DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex, modelIndexInp, resourceHeap, modelIndexUBO,
+                     shaderFlags, texturesRoot);
         }
         context.Close();
     };
@@ -134,34 +137,33 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     }
 }
 
-void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, int index)
+void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, uint32_t index,
+                                 const ShaderInputDesc& modelIndexInputDesc, DXDescHeap* resourceHeap,
+                                 UniformBuffer* modelIndexUBO, int shaderFlags, uint32_t texturesRootIndex)
 {
-    if (index >= scene.GetDrawQueueSize()) return;
+    if (index >= scene.GetModelCount()) return;
 
-    MeshSet meshSet = scene.GetMeshSet(device, &commandList, index);
-    if (meshSet.mesh == nullptr || meshSet.baseTex == nullptr) return;
+    auto drawEntry = scene.GetDrawEntry(index);  // make sure this is O(1)
+    if (!drawEntry || !drawEntry->mesh) return;
 
-    using namespace MeshConstants;
-    auto resourceHeap = reinterpret_cast<DXDescHeap*>(scene.GetResourceHeap());
+    auto& mesh = drawEntry->mesh;
 
-    auto positions = meshSet.mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-    auto normals = meshSet.mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
-    auto uvs = meshSet.mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
-    auto tangents = meshSet.mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
-    auto indices = meshSet.mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+    // Ideally this is just a reference to a prebuilt struct,
+    // not doing lookups or allocations inside.
+    const auto& attributes = mesh->GetAttributes();
 
-    scene.GetUniformBuffer(MODEL_INDEX_BUFFER)
-        ->Bind(device, resourceHeap, commandList, m_shader->GetShaderInput()->GetInput("model_index"), meshSet.modelIndex);
+    // model index UBO: we already know the buffer & input desc
+    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, drawEntry->modelIndex);
 
-    int shaderFlags = m_shader->GetFlags();
+    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) attributes.positions->BindAsVertexData(commandList, 0);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) attributes.normals->BindAsVertexData(commandList, 1);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) attributes.uvs->BindAsVertexData(commandList, 2);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) attributes.tangents->BindAsVertexData(commandList, 3);
 
-    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
+    attributes.indices->BindAsIndexData(commandList);
 
-    indices->BindAsIndexData(commandList);
-    commandList.BindHeapSlot(*resourceHeap, 0, m_shader->GetShaderInput()->GetInput("textures").rootIndex);
+    // This should be cheap if your DXCommandList caches the last root-table binding.
+    commandList.BindHeapSlot(*resourceHeap, 0, texturesRootIndex);
 
-    commandList.DrawIndexed(indices->GetElementCount());
+    commandList.DrawIndexed(attributes.indices->GetElementCount());
 }

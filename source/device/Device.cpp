@@ -450,37 +450,37 @@ void KS::Device::Impl::InitializeDevice(const DeviceInitParams& params)
     if (params.debug_context)
     {
         SetupDebugOutputToConsole(m_device);
-
-        // CREATE COMMAND QUEUE
-        m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
-
-        // CREATE DESCRIPTOR HEAPS
-        m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 64, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-            L"MAIN RENDER TARGETS HEAP");
-        m_descriptor_heaps[DEPTH_HEAP] = DXDescHeap::Construct(
-            m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
-        m_descriptor_heaps[IMGUI_HEAP] =
-            DXDescHeap::Construct(m_device, 9, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"IMGUI RESOURCE HEAP",
-                                  7,
-                                  D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-        // CREATE DEPTH STENCIL
-        D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
-        depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
-        depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
-        depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
-
-        D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-        depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-        depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
-        depthOptimizedClearValue.DepthStencil.Stencil = 0;
-
-        HWND HWNDwindow
-            = reinterpret_cast<HWND>(glfwGetWin32Window(m_window));
-
-        // Create Swapchain
-
-        CreateSwapchain(params.window_width, params.window_height, factory.get(), HWNDwindow);
     }
+
+    // CREATE COMMAND QUEUE
+    m_command_queue = std::make_unique<DXCommandQueue>(m_device, L"Main command queue");
+
+    // CREATE DESCRIPTOR HEAPS
+    m_descriptor_heaps[RT_HEAP] = DXDescHeap::Construct(m_device, 64, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        L"MAIN RENDER TARGETS HEAP");
+    m_descriptor_heaps[DEPTH_HEAP] = DXDescHeap::Construct(
+        m_device, 32, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, L"DEPTH DESCRIPTOR HEAP");
+    m_descriptor_heaps[IMGUI_HEAP] =
+        DXDescHeap::Construct(m_device, 9, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, L"IMGUI RESOURCE HEAP",
+                                7,
+                                D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    // CREATE DEPTH STENCIL
+    D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+    depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+    depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+    D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+    depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
+    depthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+    HWND HWNDwindow
+        = reinterpret_cast<HWND>(glfwGetWin32Window(m_window));
+
+    // Create Swapchain
+
+    CreateSwapchain(params.window_width, params.window_height, factory.get(), HWNDwindow);
 
     m_commandPool = std::make_shared<DXCommandContextPool>();
 }

@@ -106,22 +106,22 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         shadowRay.TMax = 100000;
         
         ShadowPayload shadowPayload;
-        // Trace the ray
-        TraceRay(
-          // Acceleration structure
-          SceneBVH,
-          RAY_FLAG_NONE,
-          0xFF,
-          // Hit group
-          1,
-          0,
-          // Index of the miss shader
-          1,
-          // Ray information to trace
-          shadowRay,
-          // Payload associated to the ray, which will be used to communicate
-          // between the hit/miss shaders and the raygen
-          shadowPayload);
+        //// Trace the ray
+        //TraceRay(
+        //  // Acceleration structure
+        //  SceneBVH,
+        //  RAY_FLAG_NONE,
+        //  0xFF,
+        //  // Hit group
+        //  1,
+        //  0,
+        //  // Index of the miss shader
+        //  1,
+        //  // Ray information to trace
+        //  shadowRay,
+        //  // Payload associated to the ray, which will be used to communicate
+        //  // between the hit/miss shaders and the raygen
+        //  shadowPayload);
         
         bool shadow = !shadowPayload.hit;
         diffuse += lightDiff * shadow;
@@ -151,22 +151,22 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         shadowRay.TMax = dist - 1e-3f;
         
         ShadowPayload shadowPayload;
-        // Trace the ray
-        TraceRay(
-          // Acceleration structure
-          SceneBVH,
-          RAY_FLAG_NONE,
-          0xFF,
-          // Hit group
-          1,
-          0,
-          // Index of the miss shader
-          1,
-          // Ray information to trace
-          shadowRay,
-          // Payload associated to the ray, which will be used to communicate
-          // between the hit/miss shaders and the raygen
-          shadowPayload);
+        //// Trace the ray
+        //TraceRay(
+        //  // Acceleration structure
+        //  SceneBVH,
+        //  RAY_FLAG_NONE,
+        //  0xFF,
+        //  // Hit group
+        //  1,
+        //  0,
+        //  // Index of the miss shader
+        //  1,
+        //  // Ray information to trace
+        //  shadowRay,
+        //  // Payload associated to the ray, which will be used to communicate
+        //  // between the hit/miss shaders and the raygen
+        //  shadowPayload);
         
         bool shadow = !shadowPayload.hit;
         diffuse += lightDiff * shadow;

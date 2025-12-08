@@ -86,20 +86,20 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     Texture2D occlusionTex = textures[matInfo.occlusionTexIndex];
     Texture2D normalTex = textures[matInfo.normalTexIndex];
 
-    mat.baseColor = pow(abs(baseColorTex.SampleLevel(mainSampler, input.uv, 0).rgb), sGamma);
+    mat.baseColor = pow(abs(baseColorTex.Sample(mainSampler, input.uv).rgb), sGamma);
     mat.baseColor *= matInfo.colorFactor.rgb;
 
-    mat.emissiveColor = pow(abs(emissiveTex.SampleLevel(mainSampler, input.uv, 0.f).rgb), sGamma);
+    mat.emissiveColor = pow(abs(emissiveTex.Sample(mainSampler, input.uv).rgb), sGamma);
     mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
 
-    float3 metallicRoughnessColor = metallicRoughnessTex.SampleLevel(mainSampler, input.uv, 0.f).rgb;
+    float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
     mat.roughness = metallicRoughnessColor.g * matInfos[meshIndex].metallicFactor;
     mat.metallic = metallicRoughnessColor.b * matInfos[meshIndex].roughnessFactor;
 
     // Occlusion if it is not in matallic roughness texture
-    mat.occlusionColor = occlusionTex.SampleLevel(mainSampler, input.uv, 0.f).r;
+    mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
 
-    mat.normalColor = normalTex.SampleLevel(mainSampler, input.uv, 0.f).rgb;
+    mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
     mat.normalColor = mat.normalColor * 2.0 - 1.0;
     mat.normalColor = mul(mat.normalColor, input.tangentBasis);
     mat.normalColor = (mat.normalColor + 1) * 0.5f;
