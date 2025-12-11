@@ -31,7 +31,7 @@ RWTexture2D<float4> FinalRes : register(u0);
 RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
 RWTexture2D<float4> GBufferC : register(u3);
-RWTexture2D<float4> GBufferD : register(u4);
+Texture2D<float> Depth : register(t3);
 
 SamplerState mainSampler : register(s0);
 
@@ -43,22 +43,26 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
 
 [numthreads(8, 8, 1)] void main(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
-    PBRMaterial mat;
-    float3 vertexPos = GBufferA.Load(DispatchThreadID.xy).xyz;
-    mat.baseColor = GBufferB.Load(DispatchThreadID.xy).rgb;
-    mat.normalColor = GBufferC.Load(DispatchThreadID.xy).rgb;
-    mat.emissiveColor = GBufferD.Load(DispatchThreadID.xy).rgb;
-    mat.metallic = GBufferB.Load(DispatchThreadID.xy).a;
-    mat.roughness = GBufferA.Load(DispatchThreadID.xy).a;
-    mat.occlusionColor = GBufferD.Load(DispatchThreadID.xy).a;
-
-    float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
-    //mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-    
     float2 screenSize;
     FinalRes.GetDimensions(screenSize.x, screenSize.y);
+
     float2 UV = DispatchThreadID.xy / screenSize;
-    float3 result = float4(0.25f, 0.25f, 0.25f, 1.f);
+    float depth = Depth.SampleLevel(mainSampler, UV, 0).r;
+
+    PBRMaterial mat;
+
+    float3 vertexPos = ReconstructWorldPos(DispatchThreadID.xy, screenSize, cameraMats.minvCamera, depth);
+    mat.baseColor = GBufferA.Load(DispatchThreadID.xy).rgb;
+    mat.normalColor = GBufferB.Load(DispatchThreadID.xy).rgb;
+    mat.emissiveColor = GBufferC.Load(DispatchThreadID.xy).rgb;
+    mat.metallic = GBufferA.Load(DispatchThreadID.xy).a;
+    mat.roughness = GBufferB.Load(DispatchThreadID.xy).a;
+    mat.occlusionColor = GBufferC.Load(DispatchThreadID.xy).a;
+
+    float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
+    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    
+    float4 result = float4(0.25f, 0.25f, 0.25f, 0.f);
     float3 diffuse = 0.f;
     float3 specular = 0.f;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - vertexPos.xyz);
@@ -72,7 +76,7 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
-            GetBRDF(mat, viewDirection, light.mDir.xyz * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
+            GetBRDF(mat, viewDirection, light.mDir.xyz * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
         }
 
         for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -87,17 +91,12 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
             GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
         }
 
-        GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
+        GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a * 0.005f, 1.f, diffuse, specular);
 
-        result = pointLights[0].mColorAndIntensity.rgb;
-        //result = LinearToSRGB(result);
-        //result = mat.baseColor;
-        
-        FinalRes[DispatchThreadID.xy] = float4(pointLights[0].mColorAndIntensity.rgb, 1.f);
+        result.rgb = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;\
+        result.a = 1.f;
+        FinalRes[DispatchThreadID.xy] = result;
     }
     
-    float4 lightShaftColor = LightShafts.SampleLevel(mainSampler, UV, 0);
-    result += lightShaftColor.rgb;
-    FinalRes[DispatchThreadID.xy] = float4(mat.baseColor, 1.f);
 
 }

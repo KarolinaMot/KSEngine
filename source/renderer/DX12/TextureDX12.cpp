@@ -51,8 +51,11 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     if (m_mipLevels==0) 
        LOG(Log::Severity::WARN, "Tried to create texture with 0 mip levels.");
 
+    auto DXGIformat = Conversion::KSFormatsToDXGI(format);
+    DXGIformat = DXGIformat == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_D32_FLOAT : DXGIformat;
+
     D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = Conversion::KSFormatsToDXGI(format);
+    clearValue.Format = DXGIformat;
     clearValue.Color[0] = clearColor.x;  // Red component
     clearValue.Color[1] = clearColor.y;  // Green component
     clearValue.Color[2] = clearColor.z;  // Blue component
@@ -198,8 +201,11 @@ KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, u
     m_mipLevels = 1;
     m_impl->mUAVHeapSlots.resize(1);
 
+    auto DXGIformat = Conversion::KSFormatsToDXGI(format);
+    DXGIformat = DXGIformat == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_D32_FLOAT : DXGIformat;
+
     D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = Conversion::KSFormatsToDXGI(format);
+    clearValue.Format = DXGIformat;
     clearValue.Color[0] = clearColor.x;  // Red component
     clearValue.Color[1] = clearColor.y;  // Green component
     clearValue.Color[2] = clearColor.z;  // Blue component
@@ -238,7 +244,7 @@ void KS::Texture::Bind(const Device&, void* resourceHeap, DXCommandList& command
     }
     else
     {
-        if (!(m_flag & RW_TEXTURE) && mip == 0)
+        if (!(m_flag & RW_TEXTURE) && !(m_flag & DEPTH_TEXTURE) && mip == 0)
         {
             LOG(Log::Severity::WARN,
                 "Tried to bind a texture as read write, when it was not created witht he read-write flag. Command ignored.");
@@ -346,7 +352,8 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int mipSlice)
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uavDesc.Format = mTextureBuffer->GetDesc().Format;
+    uavDesc.Format =
+        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
     uavDesc.Texture2D.MipSlice = mipSlice;
     uavDesc.Texture2D.PlaneSlice = 0;
     mUAVHeapSlots[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc);
@@ -361,7 +368,8 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot, int 
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uavDesc.Format = mTextureBuffer->GetDesc().Format;
+    uavDesc.Format =
+        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
     uavDesc.Texture2D.MipSlice = mipSlice;
     uavDesc.Texture2D.PlaneSlice = 0;
     mUAVHeapSlots[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc, slot);
@@ -371,7 +379,8 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = mTextureBuffer->GetDesc().Format;
+    srvDesc.Format =
+        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
     srvDesc.Texture2D.MipLevels = mTextureBuffer->GetDesc().MipLevels;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -387,7 +396,8 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap, int slot)
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = mTextureBuffer->GetDesc().Format;
+    srvDesc.Format =
+        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -612,9 +622,12 @@ KS::DepthStencil::DepthStencil(Device& device, std::shared_ptr<Texture> texture)
 
     m_texture = texture;
 
+    auto DXGIformat = Conversion::KSFormatsToDXGI(texture->GetFormat());
+    DXGIformat = DXGIformat == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_D32_FLOAT : DXGIformat;
+
     auto depthHeap = reinterpret_cast<DXDescHeap*>(device.GetDepthHeap());
     D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
-    depthStencilDesc.Format = Conversion::KSFormatsToDXGI(texture->GetFormat());
+    depthStencilDesc.Format = DXGIformat;
     depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
     m_impl->mDepthHandle = depthHeap->AllocateDepthStencil(m_texture->m_impl->mTextureBuffer.get(), &depthStencilDesc);

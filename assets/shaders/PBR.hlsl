@@ -67,6 +67,27 @@ void GetBRDF(
     specular += colorIntensity * nDotL * specularBRDF;
 }
 
+float3 ReconstructWorldPos(uint2 pixelCoord,
+                           uint2 screenSize,
+                           float4x4 invViewProj,
+                           float depth)
+{
+    float2 uv = (pixelCoord + 0.5) / screenSize;
+
+    // D3D: depth already in [0,1] NDC
+    float4 ndc;
+    ndc.x = uv.x * 2.0f - 1.0f;
+    ndc.y = (1.0f - uv.y) * 2.0f - 1.0f; // flip Y
+    ndc.z = depth;
+    ndc.w = 1.0f;
+
+    // NDC -> world
+    float4 worldPos = mul(invViewProj, ndc); // vector * matrix (see CPU side below)
+    worldPos /= worldPos.w;
+
+    return worldPos.xyz;
+}
+
 float Attenuation(float distance, float range)
 {
     float distance2 = distance * distance;

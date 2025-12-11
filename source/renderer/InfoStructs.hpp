@@ -93,6 +93,7 @@ enum Formats
     R32G32B32A32_FLOAT,
     R32_FLOAT,
     D32_FLOAT,
+    R32_TYPELESS,
     R16_FLOAT,
 };
 
@@ -185,6 +186,7 @@ struct CameraMats
     glm::mat4x4 m_view = glm::mat4x4(1.f);
     glm::mat4x4 m_invView = glm::mat4x4(1.f);
     glm::mat4x4 m_camera = glm::mat4x4(1.f);
+    glm::mat4x4 m_invCamera = glm::mat4x4(1.f);
     glm::mat4x4 m_cameraNoTranslation = glm::mat4x4(1.f);
     glm::vec4 m_cameraPos = glm::vec4(1.f);
 };

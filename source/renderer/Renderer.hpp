@@ -41,7 +41,8 @@ public:
 
 private:
     void GodRays(Device& device, Scene& scene);
-    void Main(Device& device, Scene& scene, const std::array<Plane, 6>& plane);
+    void Main(Device& device, Scene& scene, const std::array<Plane, 6>& plane, bool raytraced);
+
     void GenerateMipmaps(Device& device, Scene& scene);
     void Raytrace(Device& device, Scene& scene);
     void GenCubemap(Device& device, Scene& scene);

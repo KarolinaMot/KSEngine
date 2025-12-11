@@ -42,6 +42,9 @@ static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
         case D32_FLOAT:
             return DXGI_FORMAT_D32_FLOAT;
             break;
+        case R32_TYPELESS:
+            return DXGI_FORMAT_R32_TYPELESS;
+            break;
         default:
             return DXGI_FORMAT_R8G8B8A8_UNORM;
             break;

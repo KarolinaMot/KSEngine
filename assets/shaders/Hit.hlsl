@@ -80,9 +80,7 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     float Lu, Lv;
     ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
     
-    
     PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal, TBN, Lu, Lv);
-    
     
     float3 result = 0.f;
     float3 diffuse = 0.f;

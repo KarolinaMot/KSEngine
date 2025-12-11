@@ -16,6 +16,7 @@ public:
     ~DepthStencil();
     void Clear(DXCommandList& commandList);
     bool IsValid() const { return m_texture != nullptr; }
+    Texture* GetTexture() const { return m_texture.get(); }
 
 private:
     class Impl;

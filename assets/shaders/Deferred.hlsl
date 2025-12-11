@@ -19,9 +19,8 @@ struct PS_INPUT
 
 struct PSOutput
 {
-    float4 vertexPos : SV_Target1;
     float4 albedo : SV_Target0;
-    float4 normals : SV_Target2;
+    float4 normals : SV_Target1;
     float4 emissive : SV_Target2;
 };
 
@@ -46,6 +45,7 @@ PBRMaterial GenerateMaterial(PS_INPUT input);
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
+    
     output.vertexPos = mul(modelMats[meshIndex].mModelMat, float4(input.pos, 1.f));
     output.pos = mul(cameraMats.mCamera, output.vertexPos);
     output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)modelMats[meshIndex].mInvTransposeMat)), 0.f);
@@ -69,8 +69,7 @@ PSOutput mainPS(PS_INPUT input)
     float metallic, roughness;
     PSOutput output;
     output.albedo = float4(material.baseColor.rgb, material.metallic);
-    output.normals = float4(material.normalColor, 1.f);
-    output.vertexPos = float4(input.vertexPos.xyz, material.roughness);
+    output.normals = float4(material.normalColor, material.roughness);
     output.emissive = float4(material.emissiveColor, material.occlusionColor);
 
     return output;
