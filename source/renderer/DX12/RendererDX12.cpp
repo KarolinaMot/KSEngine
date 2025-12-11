@@ -216,6 +216,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_camera = params.projectionMatrix * params.viewMatrix;
     cam.m_cameraNoTranslation = params.projectionMatrix * glm::mat4(glm::mat3(params.viewMatrix));
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
+
     scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->Update(device, cam, 0);
 
     if (recompileShaders)
@@ -236,7 +237,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     else
     {
         RenderCubemap(device, scene);
-        Main(device, scene);
+        Main(device, scene, params.frustum);
     }
 
 }
@@ -325,7 +326,7 @@ void KS::Renderer::GodRays(Device& device, Scene& scene)
     commandContext.Close();
 }
 
-void KS::Renderer::Main(Device& device, Scene& scene)
+void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>& plane)
 {
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
@@ -354,6 +355,7 @@ void KS::Renderer::Main(Device& device, Scene& scene)
     defPar.rt = scene.GetRenderTarget(DEFERRED_RENDER);
     defPar.scene = &scene;
     defPar.inputs = &m_inputs[DEFERRED_RENDER];
+    defPar.cameraFrustum = plane;
     m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, defPar);
 
     commandContext = device.GetCommandContext();

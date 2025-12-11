@@ -17,6 +17,7 @@ namespace KS
 class Mesh;
 class Image;
 
+
 // Imported models are flat, without a transform hierarchy
 class Model
 {
@@ -35,7 +36,6 @@ public:
     std::vector<Material> materials;
     std::vector<PointLightInfo> pointLights;
     std::vector<DirLightInfo> dirLights;
-
     static Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material);
     static void ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
                                       std::vector<PointLightInfo>& pointLights, const aiScene* scene, const aiNode* target_node,

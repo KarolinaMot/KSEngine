@@ -43,6 +43,8 @@ struct UploadSlice
     std::uint8_t* m_cpu = nullptr;  // mapped base
     std::uint64_t m_head = 0;       // next free offset
     size_t m_pageID = 0;
+    size_t m_size = 0;
+
 };
 
 class UploadArena 

@@ -112,9 +112,11 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         auto context = device.GetCommandContext();
         BindDrawResources(context.m_commandList.get());
 
-        for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; ++meshIndex)
+        for (int i = startMeshIndex; i < endMeshIndex; ++i)
         {
-            DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex, modelIndexInp, resourceHeap, modelIndexUBO,
+            auto mesh = par.scene->GetDrawEntry(i);
+            if (!mesh->bounds.FrustumTest(par.cameraFrustum)) continue;
+            DrawMesh(device, *par.scene, *context.m_commandList.get(), i, modelIndexInp, resourceHeap, modelIndexUBO,
                      shaderFlags, texturesRoot);
         }
         context.Close();
@@ -124,6 +126,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
+
         int start, end = 0;
         bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
         if (!enoughMeshes) break;

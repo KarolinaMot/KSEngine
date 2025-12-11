@@ -20,12 +20,14 @@ class Texture;
 class UniformBuffer;
 class Scene;
 
+
 struct RenderTickParams
 {
     glm::mat4x4 projectionMatrix;
     glm::mat4x4 viewMatrix;
     glm::vec3 cameraPos;
     glm::vec3 cameraRight;
+    std::array<Plane, 6> frustum;
     int cpuFrame;
 };
 
@@ -39,7 +41,7 @@ public:
 
 private:
     void GodRays(Device& device, Scene& scene);
-    void Main(Device& device, Scene& scene);
+    void Main(Device& device, Scene& scene, const std::array<Plane, 6>& plane);
     void GenerateMipmaps(Device& device, Scene& scene);
     void Raytrace(Device& device, Scene& scene);
     void GenCubemap(Device& device, Scene& scene);

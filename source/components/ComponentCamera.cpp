@@ -24,5 +24,6 @@ KS::Camera KS::ComponentFirstPersonCamera::GenerateCamera(const glm::mat4& world
             farPlane);
     }
 
+
     return Result;
 }

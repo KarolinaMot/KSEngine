@@ -74,7 +74,6 @@ KS::Device::Device(const DeviceInitParams& params)
         LOG(Log::Severity::WARN, "Failed to load gpu capturer");
 
 #endif
-
     m_impl = std::make_unique<Impl>();
     m_fullscreen = false;
 

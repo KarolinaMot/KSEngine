@@ -145,6 +145,7 @@ int main()
         renderParams.viewMatrix = camera.GetView();
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
+        renderParams.frustum = camera.GetFrustum();
  
         Scene* activeScene = scenes[TEST_SCENE].get();
         switch(chosenScene){

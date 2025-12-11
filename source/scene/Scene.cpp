@@ -215,7 +215,11 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                  
                 std::shared_ptr<Mesh> meshPtr = GetMesh(meshHandle);
 
-                draw_queue[m_modelCount] = KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform);
+                auto AABB = meshPtr->GetLocalBounds();
+                AABB = AABB.ApplyTransform(scene_transform);
+                
+                draw_queue[m_modelCount] =
+                    KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform, 0, AABB);
 
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
@@ -233,9 +237,9 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 if (!baseTex)
                     LOG(Log::Severity::WARN, "Empty texture warning.");
 
+                auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
                 auto normalTex = GetTexture(device, commandList, *normalTexHandle);
                 auto emissiveTex = GetTexture(device, commandList, *emissiveTexHandle, true);
-                auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
                 auto occlusionTex = GetTexture(device, commandList, *occlusionHandle);
 
                 matInfo.colorTexIndex = baseTex->GetHandleIndex(true);
@@ -287,6 +291,8 @@ void KS::Scene::ApplyModelTransform(uint32_t index, const glm::mat4& transfrom)
     m_modelMatrices[entry.modelIndex] = modelMat;
 
     m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
+    auto AABB = entry.mesh->GetLocalBounds();
+    entry.bounds = AABB.ApplyTransform(modelMat.mModel);
 }
 
 void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float att)
@@ -427,10 +433,11 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
                 {
                     mesh_name = scene->mMeshes[i]->mName.C_Str();
                 }
+                
 
                 auto meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh,
                                                       mesh_name.c_str(), static_cast<uint32_t>(mesh_cache.size()));
-
+                
                 auto output_path = (FileIO::Path(model.path).make_preferred().parent_path() / mesh_name);
 
                 auto [obj, success] = mesh_cache.emplace(output_path.string(), std::move(meshPtr));

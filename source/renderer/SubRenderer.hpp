@@ -21,6 +21,7 @@ struct RenderParameters
     std::shared_ptr<RenderTarget> rt{};
     std::shared_ptr<DepthStencil> ds{};
     std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>* inputs;
+    std::array<Plane, 6> cameraFrustum;
     bool clearRt = true;
 };
 

@@ -100,9 +100,10 @@ struct DrawEntry
 {
     std::shared_ptr<Mesh> mesh{};
     Material material{};
-    int modelIndex;
-    glm::mat4x4 modelMat;
-    uint32_t tlasHandle;
+    int modelIndex{};
+    glm::mat4x4 modelMat{};
+    uint32_t tlasHandle{};
+    BoundingBox bounds{};
 };
 
 struct GenerateMipsInfo

@@ -38,6 +38,28 @@ static DXGI_FORMAT IndexFormatFromStride(UINT stride)
 
 static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 
+KS::BoundingBox ComputeAABB(const glm::vec3* vertices, size_t vCount)
+{
+    using namespace KS;
+
+    if (!vertices)
+        return BoundingBox();
+
+    glm::vec3 minV(std::numeric_limits<float>::max());
+    glm::vec3 maxV(-std::numeric_limits<float>::max());
+
+    for (size_t i = 0; i < vCount; i++)
+    {
+        minV = glm::min(minV, vertices[i]);
+        maxV = glm::max(maxV, vertices[i]);
+    }
+
+    glm::vec3 center = (minV + maxV) * 0.5f;  // middle of the box
+    glm::vec3 extents = (maxV - minV) * 0.5f;  // half-size along each axis
+    BoundingBox box(center, extents);
+    return box;
+}
+
 KS::Mesh::Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, const MeshData& data, const char* name,
                uint32_t meshIndex)
 {
@@ -53,10 +75,11 @@ KS::Mesh::Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, c
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
+        
         auto buffer =
             std::make_shared<KS::StorageBuffer>(device, resourceHeap, commandList, attrName, start, static_cast<uint32_t>(stride),
                                                           static_cast<uint32_t>(size / stride), false);
-
+        
         if (attrName == MeshConstants::ATTRIBUTE_NORMALS_NAME)
         {
             buffer->AllocateAsReadOnly(resourceHeap, NORMALS_SLOT + meshIndex);
@@ -89,6 +112,9 @@ KS::Mesh::Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, c
     m_name = name;
     m_meshIndex = meshIndex;
     BuildBLAS(device, commandList);
+
+    auto vertices = data.GetAttribute(MeshConstants::ATTRIBUTE_POSITIONS_NAME)->GetView<glm::vec3>();
+    m_localBounds = ComputeAABB(vertices.begin(), vertices.count());
 
     if (!m_impl->m_BLAS)
     {

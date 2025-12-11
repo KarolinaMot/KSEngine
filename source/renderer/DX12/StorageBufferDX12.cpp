@@ -25,7 +25,7 @@ KS::StorageBuffer::~StorageBuffer() { delete m_impl; }
 
 void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, DXCommandList& commandList,
                                      const std::string& name,
-                                     uint32_t numOfElements)
+                                     uint32_t)
 {
     m_impl = new Impl();
     auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
@@ -37,21 +37,21 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, D
 
     m_name = name.c_str();
     auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    size_t sizeOfBuffer = m_buffer_stride * m_num_elements;
-    auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeOfBuffer, m_impl->m_flags);
+    auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(m_total_buffer_size, m_impl->m_flags);
     m_impl->m_resource = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
 
     AllocateAsReadOnly(resourceHeap);
     if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) AllocateAsReadWrite(resourceHeap);
 
-    const UINT64 bytes = m_buffer_stride * numOfElements;
     auto upl = device.GetUploadArena();
-    m_impl->m_slice = upl->Allocate(device, commandList, bytes, 255);
+    m_impl->m_slice = upl->Allocate(device, commandList, m_total_buffer_size, 255);
+    m_impl->m_slice.m_size = m_total_buffer_size;
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
                                          uint32_t numOfElements, uint64_t dstOffset)
 {
+    
     if (!data)
     {
         LOG(Log::Severity::WARN,
@@ -66,6 +66,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
 
     const UINT64 bytes = m_buffer_stride * numOfElements;
     auto upl = device.GetUploadArena();
+
     memcpy(m_impl->m_slice.m_cpu + m_impl->m_slice.m_head + dstOffset, data, size_t(bytes));
 
     auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_impl->m_slice.m_pageID));
@@ -77,6 +78,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
                                                    bytes);
 
     commandList.TransitionResource(*m_impl->m_resource, destState);
+    
 }
 
 void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, void* resourceHeap, uint32_t newNumOfElements)
