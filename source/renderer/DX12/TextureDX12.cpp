@@ -51,8 +51,9 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     if (m_mipLevels==0) 
        LOG(Log::Severity::WARN, "Tried to create texture with 0 mip levels.");
 
-    auto DXGIformat = Conversion::KSFormatsToDXGI(format);
+    auto DXGIformat = Conversion::KSFormatsToDXGI(m_format);
     DXGIformat = DXGIformat == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_D32_FLOAT : DXGIformat;
+    DXGIformat = DXGIformat == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ? DXGI_FORMAT_R8G8B8A8_TYPELESS : DXGIformat;
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format = DXGIformat;
@@ -67,7 +68,7 @@ KS::Texture::Texture(const Device& device, uint32_t width, uint32_t height, int 
     if (m_flag & TextureFlags::RW_TEXTURE) flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto resourceDesc =
-        CD3DX12_RESOURCE_DESC::Tex2D(KS::Conversion::KSFormatsToDXGI(m_format), m_width, m_height, 1, static_cast<UINT16>(m_mipLevels), 1, 0, flags);
+        CD3DX12_RESOURCE_DESC::Tex2D(DXGIformat, m_width, m_height, 1, static_cast<UINT16>(m_mipLevels), 1, 0, flags);
 
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     m_impl->mTextureBuffer =
@@ -350,10 +351,13 @@ size_t KS::Texture::GetGPUAddress(int, int) const { return m_impl->mTextureBuffe
 
 void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int mipSlice)
 {
+    auto DXGIFormat = mTextureBuffer->GetDesc().Format;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_R8G8B8A8_TYPELESS ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGIFormat;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : DXGIFormat;
+
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uavDesc.Format =
-        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
+    uavDesc.Format = DXGIFormat;
     uavDesc.Texture2D.MipSlice = mipSlice;
     uavDesc.Texture2D.PlaneSlice = 0;
     mUAVHeapSlots[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc);
@@ -366,10 +370,13 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot, int 
         return;
     }
 
+    auto DXGIFormat = mTextureBuffer->GetDesc().Format;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_R8G8B8A8_TYPELESS ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGIFormat;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : DXGIFormat;
+
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uavDesc.Format =
-        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
+    uavDesc.Format = DXGIFormat;
     uavDesc.Texture2D.MipSlice = mipSlice;
     uavDesc.Texture2D.PlaneSlice = 0;
     mUAVHeapSlots[mipSlice] = descriptorHeap->AllocateUAV(mTextureBuffer.get(), &uavDesc, slot);
@@ -377,10 +384,13 @@ void KS::Texture::Impl::AllocateAsUAV(DXDescHeap* descriptorHeap, int slot, int 
 
 void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap)
 {
+    auto DXGIFormat = mTextureBuffer->GetDesc().Format;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_R8G8B8A8_TYPELESS ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGIFormat;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : DXGIFormat;
+
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format =
-        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
+    srvDesc.Format = DXGIFormat;
     srvDesc.Texture2D.MipLevels = mTextureBuffer->GetDesc().MipLevels;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -394,10 +404,13 @@ void KS::Texture::Impl::AllocateAsSRV(DXDescHeap* descriptorHeap, int slot)
         return;
     }
 
+    auto DXGIFormat = mTextureBuffer->GetDesc().Format;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_R8G8B8A8_TYPELESS ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGIFormat;
+    DXGIFormat = DXGIFormat == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : DXGIFormat;
+
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format =
-        mTextureBuffer->GetDesc().Format == DXGI_FORMAT_R32_TYPELESS ? DXGI_FORMAT_R32_FLOAT : mTextureBuffer->GetDesc().Format;
+    srvDesc.Format = DXGIFormat;
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;

@@ -109,14 +109,13 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
     auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device)
     {
+        // Reuse the existing lambda
         auto context = device.GetCommandContext();
         BindDrawResources(context.m_commandList.get());
 
-        for (int i = startMeshIndex; i < endMeshIndex; ++i)
+        for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
         {
-            auto mesh = par.scene->GetDrawEntry(i);
-            if (!mesh->bounds.FrustumTest(par.cameraFrustum)) continue;
-            DrawMesh(device, *par.scene, *context.m_commandList.get(), i, modelIndexInp, resourceHeap, modelIndexUBO,
+            DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex, modelIndexInp, resourceHeap, modelIndexUBO,
                      shaderFlags, texturesRoot);
         }
         context.Close();
@@ -144,29 +143,28 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
                                  const ShaderInputDesc& modelIndexInputDesc, DXDescHeap* resourceHeap,
                                  UniformBuffer* modelIndexUBO, int shaderFlags, uint32_t texturesRootIndex)
 {
-    if (index >= scene.GetModelCount()) return;
+    if (index >= scene.GetDrawQueueSize()) return;
 
-    auto drawEntry = scene.GetDrawEntry(index);  // make sure this is O(1)
-    if (!drawEntry || !drawEntry->mesh) return;
+    DrawEntry meshSet = scene.GetDrawEntry(index);
+    if (meshSet.mesh == nullptr) return;
 
-    auto& mesh = drawEntry->mesh;
+    using namespace MeshConstants;
 
-    // Ideally this is just a reference to a prebuilt struct,
-    // not doing lookups or allocations inside.
-    const auto& attributes = mesh->GetAttributes();
+    auto positions = meshSet.mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+    auto normals = meshSet.mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
+    auto uvs = meshSet.mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
+    auto tangents = meshSet.mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
+    auto indices = meshSet.mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-    // model index UBO: we already know the buffer & input desc
-    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, drawEntry->modelIndex);
+    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, meshSet.modelIndex);
 
-    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) attributes.positions->BindAsVertexData(commandList, 0);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) attributes.normals->BindAsVertexData(commandList, 1);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) attributes.uvs->BindAsVertexData(commandList, 2);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) attributes.tangents->BindAsVertexData(commandList, 3);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
 
-    attributes.indices->BindAsIndexData(commandList);
-
-    // This should be cheap if your DXCommandList caches the last root-table binding.
+    indices->BindAsIndexData(commandList);
     commandList.BindHeapSlot(*resourceHeap, 0, texturesRootIndex);
 
-    commandList.DrawIndexed(attributes.indices->GetElementCount());
+    commandList.DrawIndexed(indices->GetElementCount());
 }

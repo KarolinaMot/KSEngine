@@ -58,7 +58,6 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
         commandList->BindHeapSlot(*resourceHeap, 0, m_shader->GetShaderInput()->GetInput("textures").rootIndex);
     }
 
-
     auto shaderTable = par.scene->GetShaderTable(cpuFrameIndex);
     auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
 

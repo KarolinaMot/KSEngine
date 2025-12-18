@@ -76,7 +76,7 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
-            GetBRDF(mat, viewDirection, light.mDir.xyz * float3(1, 1, -1), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
+            GetBRDF(mat, viewDirection, normalize(light.mDir.xyz * float3(1, 1, -1)), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
         }
 
         for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -93,7 +93,7 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
 
         GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a * 0.005f, 1.f, diffuse, specular);
 
-        result.rgb = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;\
+        result.rgb = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
         result.a = 1.f;
         FinalRes[DispatchThreadID.xy] = result;
     }

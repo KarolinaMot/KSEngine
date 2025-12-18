@@ -2,7 +2,7 @@
 #include <fileio/ResourceHandle.hpp>
 #include <renderer/InfoStructs.hpp>
 
-class DXDescHeap;
+    class DXDescHeap;
 class DXShaderTable;
 namespace KS
 {
@@ -31,6 +31,18 @@ struct SBTInfo
     uint32_t HitGroupEntrySize = 0;
 };
 
+struct MeshSet
+{
+    const Mesh* mesh;
+    std::shared_ptr<Texture> baseTex;
+    std::shared_ptr<Texture> normalTex;
+    std::shared_ptr<Texture> emissiveTex;
+    std::shared_ptr<Texture> roughMetTex;
+    std::shared_ptr<Texture> occlusionTex;
+    int modelIndex;
+    glm::mat4x4 transform;
+};
+
 class Scene
 {
 public:
@@ -38,8 +50,8 @@ public:
     Scene(Device& device, std::string name, ScenesToChoose id);
     ~Scene();
 
-    void QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name);
-    void ApplyModelTransform(uint32_t index, const glm::mat4& transfrom);
+    uint32_t QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name);
+    void ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom);
     void QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float radius);
     void QueuePointLight(PointLightInfo info);
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
@@ -55,11 +67,13 @@ public:
 
     uint32_t GetModelCount() const { return m_modelCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
+    MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
+    size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
-    DrawEntry* GetDrawEntry(uint32_t index) { return &draw_queue[index]; }
+    DrawEntry& GetDrawEntry(uint32_t index) { return draw_queue[index]; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
@@ -90,7 +104,7 @@ public:
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
 
-    private:
+private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
 
@@ -98,7 +112,7 @@ public:
     const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle);
     void InitializeShaderTable();
 
-    DrawEntry draw_queue[MAX_MESHES];
+    std::vector<DrawEntry> draw_queue{};
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};

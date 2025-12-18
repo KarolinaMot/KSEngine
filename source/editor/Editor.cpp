@@ -143,7 +143,6 @@ void KS::Editor::ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount
 
 void KS::Editor::SceneHierarchy(Scene& scene)
 {
-    //const auto& drawQueue = scene.GetQueue();
     bool open = true;
     auto lightInfo = scene.GetLightInfo();
 
@@ -200,11 +199,12 @@ void KS::Editor::SceneHierarchy(Scene& scene)
 
     if (ImGui::CollapsingHeader("Scene meshes"))
     {
-        auto meshCount = scene.GetModelCount();
+        auto queueSize = scene.GetModelCount();
 
-        for (uint32_t i = 0; i < meshCount; i++)
+        for (uint32_t i = 0; i < queueSize; i++)
         {
-            const auto& objectName = scene.GetDrawEntry(i)->mesh->GetName() + "##" + std::to_string(i);
+            auto drawObject = scene.GetDrawEntry(i);
+            const auto& objectName = drawObject.mesh->GetName() + "##" + std::to_string(i);
 
             const bool is_selected = (m_selectedObject == static_cast<int>(i));
             if (ImGui::Selectable(objectName.c_str(), is_selected))
@@ -214,6 +214,7 @@ void KS::Editor::SceneHierarchy(Scene& scene)
             }
             // Optionally focus selected item
             if (is_selected) ImGui::SetItemDefaultFocus();
+            i++;
         }
     }
 
@@ -338,11 +339,10 @@ void KS::Editor::MeshInspector(Scene& scene)
         return;
     }
 
-
-    auto object = scene.GetDrawEntry(m_selectedObject);
+    auto& object = scene.GetDrawEntry(m_selectedObject);
 
     glm::vec3 translation, rotation, scale;
-    glm::mat4 oldTransform = object->modelMat;
+    glm::mat4 oldTransform = object.modelMat;
     DecomposeTransform(oldTransform, translation, rotation, scale);
     bool transfromChanged = false;
 

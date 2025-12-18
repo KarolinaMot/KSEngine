@@ -1,36 +1,32 @@
-#include <scene/Scene.hpp>
-
-#include <renderer/Shader.hpp>
-#include <renderer/ShaderInputBlueprint.hpp>
-#include <renderer/DX12/Helpers/DXResource.hpp>
-#include <renderer/DX12/Helpers/DXCommandList.hpp>
-#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
-#include <renderer/DX12/Helpers/DX12Conversion.hpp>
-#include <renderer/DX12/Helpers/DXShaderTable.hpp>
-#include <renderer/DX12/Helpers/DXDescHeap.hpp>
-#include <renderer/DX12/Helpers/DX12Conversion.hpp>
-
-#include <device/Device.hpp>
-#include <renderer/StorageBuffer.hpp>
-#include <renderer/UniformBuffer.hpp>
-#include <renderer/TLAS.hpp>
-#include <resources/Model.hpp>
-#include <resources/Texture.hpp>
-#include <resources/Skydome.hpp>
-#include <resources/Image.hpp>
-#include <resources/Mesh.hpp>
-
-#include <assimp/Importer.hpp>
 #include <assimp/GltfMaterial.h>
 #include <assimp/scene.h>
 
-class KS::Scene::Impl
+#include <assimp/Importer.hpp>
+#include <device/Device.hpp>
+#include <renderer/DX12/Helpers/DX12Conversion.hpp>
+#include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
+#include <renderer/DX12/Helpers/DXCommandList.hpp>
+#include <renderer/DX12/Helpers/DXDescHeap.hpp>
+#include <renderer/DX12/Helpers/DXResource.hpp>
+#include <renderer/DX12/Helpers/DXShaderTable.hpp>
+#include <renderer/Shader.hpp>
+#include <renderer/ShaderInputBlueprint.hpp>
+#include <renderer/StorageBuffer.hpp>
+#include <renderer/TLAS.hpp>
+#include <renderer/UniformBuffer.hpp>
+#include <resources/Image.hpp>
+#include <resources/Mesh.hpp>
+#include <resources/Model.hpp>
+#include <resources/Skydome.hpp>
+#include <resources/Texture.hpp>
+#include <scene/Scene.hpp>
+
+    class KS::Scene::Impl
 {
 public:
     std::shared_ptr<DXDescHeap> m_resourceHeap;
     std::unique_ptr<DXShaderTable> m_shaderTable[FRAME_BUFFER_COUNT];
 };
-
 
 KS::Scene::Scene() {}
 
@@ -38,7 +34,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 {
     m_name = name;
     m_identifyingIndex = id;
-
+    draw_queue.resize(MAX_MESHES);
     m_impl = std::make_unique<Impl>();
 
     auto commandContext = device.GetCommandContext();
@@ -47,10 +43,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     std::string heapName = m_name + " resource heap";
 
-    m_impl->m_resourceHeap =
-        DXDescHeap::Construct(engineDevice, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                              Conversion::utf8_to_wide(heapName).c_str(),
-                              OTHER_RESOURCES_START, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    m_impl->m_resourceHeap = DXDescHeap::Construct(engineDevice, RESOURCE_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                                                   Conversion::utf8_to_wide(heapName).c_str(), OTHER_RESOURCES_START,
+                                                   D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     m_pointLights.reserve(100);
     m_directionalLights.reserve(100);
@@ -62,10 +57,12 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     CameraMats cam{};
 
-    mStorageBuffers[MODEL_MAT_BUFFER] = std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), * commandList, "MODEL MATRIX RESOURCE",
+    mStorageBuffers[MODEL_MAT_BUFFER] =
+        std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL MATRIX RESOURCE",
                                         &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
     mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, m_impl->m_resourceHeap.get(), *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0], static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
+        device, m_impl->m_resourceHeap.get(), *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0],
+        static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
     mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
@@ -81,8 +78,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_fogInfo.weight = 0.05f;
     m_fogInfo.decay = 0.99f;
 
-    mUniformBuffers[KS::LIGHT_INFO_BUFFER] =
-        std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
+    mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
     mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1, false);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(
         device, m_impl->m_resourceHeap.get(), *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
@@ -100,26 +96,26 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     for (int i = 0; i < 2; i++)
     {
-        deferredRendererTex[i][0] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
+        deferredRendererTex[i][0] = std::make_shared<Texture>(
+            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
             Formats::R8G8B8A8_UNORM, "deferredRendererRTTexA " + std::to_string(i));
-        deferredRendererTex[i][1] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
+        deferredRendererTex[i][1] = std::make_shared<Texture>(
+            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
             Formats::R8G8B8A8_UNORM, "deferredRendererRTTexB " + std::to_string(i));
-        deferredRendererTex[i][2] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
+        deferredRendererTex[i][2] = std::make_shared<Texture>(
+            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
             Formats::R8G8B8A8_UNORM, "deferredRendererRTTexC " + std::to_string(i));
 
         compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
                                                       glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM,
                                                       "PBRRTTexC " + std::to_string(i));
-        raytracingResTex[i] =
-            std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.5f, 0.5f, 0.5f, 1.f),
+        raytracingResTex[i] = std::make_shared<Texture>(
+            device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.5f, 0.5f, 0.5f, 1.f),
             Formats::R8G8B8A8_UNORM, "RTX_RT " + std::to_string(i), -1, RAYTRACE_RT_SLOT + i);
 
         lightRenderingTex[i] = std::make_shared<Texture>(
@@ -132,21 +128,18 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
                                                      glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT,
                                                      "lightShaftTex " + std::to_string(i));
 
-        upscaledLightShaftTex[i] =
-            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
+        upscaledLightShaftTex[i] = std::make_shared<Texture>(
+            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
             Formats::R8G8B8A8_UNORM, "upscaledLightShaftTex " + std::to_string(i));
 
         finalRT[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                  Texture::TextureFlags::RENDER_TARGET,
-                                  glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R8G8B8A8_UNORM,
-                                  "finalRT " + std::to_string(i));
+                                               Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.f, 0.f, 0.f, 0.f),
+                                               Formats::R8G8B8A8_UNORM, "finalRT " + std::to_string(i));
     }
 
-
-    deferredRendererDepthTex =
-        std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                  Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f),
+    deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                                         Texture::TextureFlags::DEPTH_TEXTURE, glm::vec4(1.f),
                                                          Formats::R32_TYPELESS, "deferredRendererDepthTex");
 
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, deferredRendererDepthTex);
@@ -175,19 +168,16 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
                                                   "UPSCALED LIGHT SHAFT RENDER RES");
 
     m_finalRT = std::make_shared<RenderTarget>();
-    m_finalRT->AddTexture(device, finalRT[0], finalRT[1],
-                                                  "FINAL RENDER TARGET");
+    m_finalRT->AddTexture(device, finalRT[0], finalRT[1], "FINAL RENDER TARGET");
     m_BVH = std::make_unique<TLAS>();
     InitializeShaderTable();
-
-
 
     commandContext.Close();
 }
 
 KS::Scene::~Scene() {}
 
-void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name)
+uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const glm::mat4& transform, std::string name)
 {
     auto commandContext = device.GetCommandContext();
     auto commandList = commandContext.m_commandList.get();
@@ -209,12 +199,13 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
                 auto meshHandle = ptr->meshes[mesh];
                 auto mat = ptr->materials[material];
-                 
+
                 std::shared_ptr<Mesh> meshPtr = GetMesh(meshHandle);
+                std::string key = name + std::to_string(m_modelCount);
 
                 auto AABB = meshPtr->GetLocalBounds();
                 AABB = AABB.ApplyTransform(scene_transform);
-                
+
                 draw_queue[m_modelCount] =
                     KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform, 0, AABB);
 
@@ -231,12 +222,11 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
 
                 MaterialInfo matInfo = GetMaterialInfo(ptr->materials[material]);
                 auto baseTex = GetTexture(device, commandList, *baseTexHandle, true);
-                if (!baseTex)
-                    LOG(Log::Severity::WARN, "Empty texture warning.");
+                if (!baseTex) LOG(Log::Severity::WARN, "Empty texture warning.");
 
-                auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
                 auto normalTex = GetTexture(device, commandList, *normalTexHandle);
                 auto emissiveTex = GetTexture(device, commandList, *emissiveTexHandle, true);
+                auto roughMetTex = GetTexture(device, commandList, *roughMetHandle);
                 auto occlusionTex = GetTexture(device, commandList, *occlusionHandle);
 
                 matInfo.colorTexIndex = baseTex->GetHandleIndex(true);
@@ -250,15 +240,15 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
 
                 m_materialInstances[m_modelCount] = matInfo;
-                m_modelCount++;
                 m_BVH->AddInstance(&draw_queue[m_modelCount], modelMat.mModel);
+                m_modelCount++;
             }
         }
 
         for (int i = 0; i < ptr->pointLights.size(); i++)
         {
             auto light = ptr->pointLights[i];
-            glm::vec4 hp = transform * light.mPosition; 
+            glm::vec4 hp = transform * light.mPosition;
             light.mPosition = hp;
             QueuePointLight(light);
         }
@@ -267,29 +257,30 @@ void KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, const gl
         {
             QueueDirectionalLight(ptr->dirLights[i]);
         }
-
     }
 
-    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), & m_modelMatrices[0],
+    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_modelMatrices[0],
                                               m_modelCount);
     mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_materialInstances[0],
                                                   m_modelCount);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
     commandContext.Close();
+
+    return m_modelCount;
 }
 
-void KS::Scene::ApplyModelTransform(uint32_t index, const glm::mat4& transfrom)
+void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
 {
-    auto& entry = draw_queue[index];
+    auto& entry = draw_queue[meshId];
     ModelMat modelMat;
     modelMat.mModel = m_modelMatrices[entry.modelIndex].mModel * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
     m_modelMatrices[entry.modelIndex] = modelMat;
-
-    m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
     auto AABB = entry.mesh->GetLocalBounds();
     entry.bounds = AABB.ApplyTransform(modelMat.mModel);
+
+    m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
 }
 
 void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float att)
@@ -338,7 +329,6 @@ void KS::Scene::SetFogValues(Device& device, const FogInfo& newFogInfo)
 
 void KS::Scene::Tick(Device& device)
 {
-
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
@@ -356,7 +346,8 @@ void KS::Scene::Tick(Device& device)
     commandContext.Close();
 }
 
-void KS::Scene::GetFinalRTInfo(Device& device, DXDescHeap* heap,  uint32_t frameIndex, uint64_t& gpuPtr, uint32_t& width, uint32_t& height)
+void KS::Scene::GetFinalRTInfo(Device& device, DXDescHeap* heap, uint32_t frameIndex, uint64_t& gpuPtr, uint32_t& width,
+                               uint32_t& height)
 {
     auto commandContext = device.GetCommandContext();
     auto commandList = commandContext.m_commandList.get();
@@ -365,8 +356,7 @@ void KS::Scene::GetFinalRTInfo(Device& device, DXDescHeap* heap,  uint32_t frame
     tex->TransitionToRO(heap, *commandList);
 
     D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
-    gpuHandle.ptr += static_cast<uint64_t>(tex->GetHandleIndex(true)) *
-                     m_impl->m_resourceHeap->GetDescriptorSize();
+    gpuHandle.ptr += static_cast<uint64_t>(tex->GetHandleIndex(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
 
     gpuPtr = gpuHandle.ptr;
     width = m_finalRT->GetWidth();
@@ -375,7 +365,7 @@ void KS::Scene::GetFinalRTInfo(Device& device, DXDescHeap* heap,  uint32_t frame
 }
 
 void KS::Scene::SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture)
-{ 
+{
     if (skydomeTexture.path == "")
     {
         LOG(Log::Severity::WARN, "Skydome texture handle was empty, so it won't be set.");
@@ -407,8 +397,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
         scene = importer.ReadFile(model.path, 0);
         if (!scene)
         {
-            LOG(Log::Severity::WARN, "Could not import cached model: {} ({})", model.path,
-                importer.GetErrorString());
+            LOG(Log::Severity::WARN, "Could not import cached model: {} ({})", model.path, importer.GetErrorString());
             return nullptr;
         }
 
@@ -430,11 +419,10 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
                 {
                     mesh_name = scene->mMeshes[i]->mName.C_Str();
                 }
-                
 
                 auto meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh,
                                                       mesh_name.c_str(), static_cast<uint32_t>(mesh_cache.size()));
-                
+
                 auto output_path = (FileIO::Path(model.path).make_preferred().parent_path() / mesh_name);
 
                 auto [obj, success] = mesh_cache.emplace(output_path.string(), std::move(meshPtr));
@@ -513,22 +501,20 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
             }
         }
 
-         std::vector<PointLightInfo> pointLights;
-         std::vector<DirLightInfo> dirLights;
-         std::vector<Model::Node> nodes;
+        std::vector<PointLightInfo> pointLights;
+        std::vector<DirLightInfo> dirLights;
+        std::vector<Model::Node> nodes;
 
         // Process Nodes
         {
-             Model::ProcessNodesRecursive(nodes, dirLights, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
+            Model::ProcessNodesRecursive(nodes, dirLights, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
         }
-
 
         Model new_model{.nodes = std::move(nodes),
                         .meshes = std::move(mesh_paths),
                         .materials = std::move(materials),
                         .pointLights = std::move(pointLights),
                         .dirLights = std::move(dirLights)};
-
 
         auto [obj, success] = model_cache.emplace(model, std::move(new_model));
         return &obj->second;
@@ -563,26 +549,26 @@ void KS::Scene::InitializeShaderTable()
         outputHandle.ptr += static_cast<uint64_t>((RAYTRACE_RT_SLOT + i) * m_impl->m_resourceHeap->GetDescriptorSize());
 
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT+i) * m_impl->m_resourceHeap->GetDescriptorSize();
+        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT + i) * m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
         materialHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(MATERIAL_INFO_BUFFER)->GetHandle(true)) *
-                                m_impl->m_resourceHeap->GetDescriptorSize();
+                              m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE normalsHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
         normalsHandle.ptr += static_cast<uint64_t>(NORMALS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE modelMatHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        modelMatHandle.ptr +=
-            static_cast<uint64_t>(GetStorageBuffer(MODEL_MAT_BUFFER)->GetHandle(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
+        modelMatHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(MODEL_MAT_BUFFER)->GetHandle(true)) *
+                              m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE dirLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        dirLights.ptr +=
-            static_cast<uint64_t>(GetStorageBuffer(DIR_LIGHT_BUFFER)->GetHandle(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
+        dirLights.ptr += static_cast<uint64_t>(GetStorageBuffer(DIR_LIGHT_BUFFER)->GetHandle(true)) *
+                         m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE pointLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        pointLights.ptr +=
-            static_cast<uint64_t>(GetStorageBuffer(POINT_LIGHT_BUFFER)->GetHandle(true)) * m_impl->m_resourceHeap->GetDescriptorSize();
+        pointLights.ptr += static_cast<uint64_t>(GetStorageBuffer(POINT_LIGHT_BUFFER)->GetHandle(true)) *
+                           m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE textures = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
 
@@ -630,12 +616,15 @@ void KS::Scene::InitializeShaderTable()
         m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup"/*, heapPointers.data(),
                                               static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
 
-        m_impl->m_shaderTable[i]->AddMiss(L"MainMiss"/*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
-        m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss"/*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
+        m_impl->m_shaderTable[i]->AddMiss(
+            L"MainMiss" /*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
+        m_impl->m_shaderTable[i]->AddMiss(
+            L"ShadowMiss" /*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
     }
 }
 
-std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath, bool isSrgb)
+std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,
+                                                   bool isSrgb)
 {
     // Cached result
     if (auto it = tex_cache.find(imgPath); it != tex_cache.end())
@@ -659,9 +648,9 @@ std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList
 
         Formats format = isSrgb ? Formats::R8G8B8A8_UNORM_SRGB : Formats::R8G8B8A8_UNORM;
         format = isHdr ? Formats::R32G32B32A32_FLOAT : format;
-            
-            
-        if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size(), fileName, isHdr ? Formats::R32G32B32A32_FLOAT : Formats::R8G8B8A8_UNORM))
+
+        if (auto img = LoadImageFileFromMemory(imageContents.data(), imageContents.size(), fileName,
+                                               format))
         {
             auto new_tex = std::make_shared<Texture>(device, m_impl->m_resourceHeap.get(), *commandList, img.value());
             AddToMipmapQueue(new_tex);
@@ -707,4 +696,31 @@ KS::MaterialInfo KS::Scene::GetMaterialInfo(const Material& material) const
     info.normalScale = NEAFactor.x;
     info.roughnessFactor = ORMFactor.y;
     return info;
+}
+
+KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, int index)
+{
+    auto draw_entry = draw_queue[index];
+
+    MeshSet meshSet;
+    meshSet.mesh = draw_entry.mesh.get();
+    meshSet.baseTex =
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME), true);
+    meshSet.normalTex =
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
+    meshSet.emissiveTex =
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME), true);
+    meshSet.roughMetTex =
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
+    meshSet.occlusionTex =
+        GetTexture(device, commandList,
+                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
+    meshSet.modelIndex = draw_entry.modelIndex;
+    meshSet.transform = draw_entry.modelMat;
+
+    return meshSet;
 }
