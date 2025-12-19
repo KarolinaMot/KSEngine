@@ -23,6 +23,10 @@ cbuffer Camera : register(b0)
 {
     CameraMats cameraMats;
 };
+cbuffer LightInfoBuffer : register(b1)
+{
+    LightInfo lightInfo;
+};
 
 void CreateCoordinateSystem(const float3 N, out float3 Nt, out float3 Nb);
 float3 UniformSampleHemisphere(const float r1, const float r2);
@@ -46,17 +50,66 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float depth = Depth.SampleLevel(mainSampler, uv, 0).r;
     float3 vertexPos = ReconstructWorldPos(launchIndex, dims, cameraMats.minvCamera, depth);
 
-    
-    uint seed = InitSeed(launchIndex);
-    float3 indirectLighting = float3(0.f, 0.f, 0.f);
-
-    //Global illumination
-
-    float3 Nt, Nb;
+    //Shadows
     float3 t = length(cameraMats.mCameraPos.xyz - vertexPos);
+    float bias = max(1e-4f, t * 1e-4f);
+    uint seed = InitSeed(launchIndex);
+
+    for (uint i = 0; i < lightInfo.numDirLight; i++)
+    {
+        DirLight light = dirLights[i];
+        float3 lightDir = normalize(light.mDir.xyz) * float3(1, 1, -1);
+        float angularRadius = 0.0047f;
+        float coneScale = tan(angularRadius);
+        
+        float3 T, B;
+        CreateCoordinateSystem(lightDir, T, B);
+        
+        uint samples = 4;
+        float visible = 0.f;
+        for (uint i = 0; i < samples; i++)
+        {
+            float u1 = Rand(seed);
+            float u2 = Rand(seed);
+            float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
+            float3 dir = normalize(lightDir + T * d.x + B * d.y);
+            
+            RayDesc shadowRay;
+            shadowRay.Origin = vertexPos.xyz + normal * bias; // simpler & correct
+            shadowRay.Direction = dir;
+            shadowRay.TMin = 0;
+            shadowRay.TMax = 100000;
+        
+            ShadowPayload shadowPayload;
+            // Trace the ray
+                TraceRay(
+              // Acceleration structure
+              SceneBVH,
+              RAY_FLAG_NONE,
+              0xFF,
+              // Hit group
+              1,
+              0,
+              // Index of the miss shader
+              1,
+              // Ray information to trace
+              shadowRay,
+              // Payload associated to the ray, which will be used to communicate
+              // between the hit/miss shaders and the raygen
+              shadowPayload);
+            
+            visible += !shadowPayload.hit ? 1.0f : 0.0f;
+        }
+        
+        visible = visible / samples;
+        directLighting *= visible;
+    }
+    
+    //Global illumination
+    float3 indirectLighting = float3(0.f, 0.f, 0.f);
+    float3 Nt, Nb;
     CreateCoordinateSystem(normal, Nt, Nb);
     uint smaples = 4;
-    float bias = max(1e-4f, t * 1e-4f);
     for (uint n = 0; n < smaples; ++n)
     {
         //How high above the horizon of the hemisphere the line is
