@@ -36,7 +36,7 @@ Texture2D<float> Depth : register(t3);
 SamplerState mainSampler : register(s0);
 
 StructuredBuffer<DirLight> dirLights : register(t0);
-StructuredBuffer<PointLight> pointLights : register(t1);
+StructuredBuffer<PointLight> pointLights : register(t4);
 Texture2D<float4> LightShafts : register(t2);
 
 float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 invView);

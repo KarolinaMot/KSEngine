@@ -45,9 +45,10 @@ KS::Renderer::Renderer(Device& device)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer3"}, KS::ShaderInputMod::READ_WRITE)
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1,
                                          {"dir_lights", "cubemap_src", "light_render_res"})
-                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights", "cubemap_tex"})
+                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"cubemap_tex"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"model_matrix", "light_shaft_res"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"material_info", "Depth"})
+                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
                        .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
@@ -81,8 +82,8 @@ KS::Renderer::Renderer(Device& device)
 
     auto commandContext = device.GetCommandContext();
 
-    int fullInputFlags =
-        Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS | Shader::PBR_TEXTURES;
+    int fullInputFlags = Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS |
+                         Shader::PBR_TEXTURES | Shader::NO_CULLING;
     int positionsInputFlags = Shader::HAS_POSITIONS;
     int skyboxInputFlags = Shader::HAS_POSITIONS | Shader::DEPTH_DISABLED | Shader::NO_CULLING;
 
@@ -330,7 +331,7 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
 {
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
-    auto& rootSignature = m_mainInputs;
+    auto rootSignature = m_subrenderers[DEFERRED_RENDER]->GetShader()->GetShaderInput();
     auto frameIndex = device.GetCPUFrameIndex();
 
     // DEFERRED RENDERER
@@ -354,6 +355,7 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
 
     commandContext = device.GetCommandContext();
     commandList = commandContext.m_commandList;
+    rootSignature = m_subrenderers[PBR_RENDER]->GetShader()->GetShaderInput();
 
     // PBR RENDER
     for (int i = 0; i < 3; i++)
@@ -365,7 +367,8 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
 
     auto depthTex = scene.GetDepthStencil()->GetTexture();
     auto upscaledTex = scene.GetRenderTarget(UPSCALING_RENDER)->GetTexture(frameIndex, 0);
-    m_inputs[PBR_RENDER][3] = std::pair<ShaderInput*, ShaderInputDesc>(upscaledTex.get(), rootSignature->GetInput("light_shaft_res"));
+    m_inputs[PBR_RENDER][3] =
+        std::pair<ShaderInput*, ShaderInputBindDesc>(upscaledTex.get(), rootSignature->GetInput("light_shaft_res"));
     m_inputs[PBR_RENDER][4] = std::pair<ShaderInput*, ShaderInputBindDesc>(
         scene.GetStorageBuffer(POINT_LIGHT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("point_lights")));
     m_inputs[PBR_RENDER][5] = std::pair<ShaderInput*, ShaderInputBindDesc>(
