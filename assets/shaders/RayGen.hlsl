@@ -8,12 +8,10 @@ RWTexture2D<float4> gOutput : register(u0);
 RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
 RWTexture2D<float4> DirectLighting : register(u3);
-Texture2D<float> Depth : register(t6);
+Texture2D<float> Depth : register(t5);
 
-StructuredBuffer<MaterialInfo> matInfos : register(t1);
-StructuredBuffer<ModelMat> modelMats : register(t2);
-StructuredBuffer<DirLight> dirLights : register(t3);
-StructuredBuffer<PointLight> pointLights : register(t4);
+StructuredBuffer<DirLight> dirLights : register(t2);
+StructuredBuffer<PointLight> pointLights : register(t3);
 
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
@@ -85,7 +83,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             TraceRay(
               // Acceleration structure
               SceneBVH,
-              RAY_FLAG_NONE,
+              RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
               0xFF,
               // Hit group
               1,
@@ -109,7 +107,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 indirectLighting = float3(0.f, 0.f, 0.f);
     float3 Nt, Nb;
     CreateCoordinateSystem(normal, Nt, Nb);
-    uint smaples = 4;
+    uint smaples = 16;
     for (uint n = 0; n < smaples; ++n)
     {
         //How high above the horizon of the hemisphere the line is

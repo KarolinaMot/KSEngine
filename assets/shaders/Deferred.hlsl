@@ -36,8 +36,7 @@ cbuffer ModelIndex : register(b1)
 
 SamplerState mainSampler : register(s0);
 
-StructuredBuffer<ModelMat> modelMats : register(t2);
-StructuredBuffer<MaterialInfo> matInfos : register(t3);
+StructuredBuffer<InstanceData> instanceData : register(t2);
 Texture2D<float4> textures[65536] : register(t0, space1);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
@@ -46,9 +45,9 @@ PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
     
-    output.vertexPos = mul(modelMats[meshIndex].mModelMat, float4(input.pos, 1.f));
+    output.vertexPos = mul(instanceData[meshIndex].modelMatrix.mModelMat, float4(input.pos, 1.f));
     output.pos = mul(cameraMats.mCamera, output.vertexPos);
-    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3)modelMats[meshIndex].mInvTransposeMat)), 0.f);
+    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3) instanceData[meshIndex].modelMatrix.mInvTransposeMat)), 0.f);
     output.uv = input.uv;
 
     input.tangents = normalize(input.tangents);
@@ -78,7 +77,7 @@ PSOutput mainPS(PS_INPUT input)
 PBRMaterial GenerateMaterial(PS_INPUT input)
 {
     PBRMaterial mat;
-    const MaterialInfo matInfo = matInfos[meshIndex];
+    const MaterialInfo matInfo = instanceData[meshIndex].materialInfo;
     Texture2D baseColorTex = textures[matInfo.colorTexIndex];
     Texture2D emissiveTex = textures[matInfo.emissiveTexIndex];
     Texture2D metallicRoughnessTex = textures[matInfo.metallicRoughnessTexIndex];
@@ -89,11 +88,11 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     mat.baseColor *= matInfo.colorFactor.rgb;
 
     mat.emissiveColor = emissiveTex.Sample(mainSampler, input.uv).rgb;
-    mat.emissiveColor *= matInfos[meshIndex].emissiveFactor.rgb;
+    mat.emissiveColor *= instanceData[meshIndex].materialInfo.emissiveFactor.rgb;
 
     float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
-    mat.roughness = metallicRoughnessColor.g * matInfos[meshIndex].metallicFactor;
-    mat.metallic = metallicRoughnessColor.b * matInfos[meshIndex].roughnessFactor;
+    mat.roughness = metallicRoughnessColor.g * instanceData[meshIndex].materialInfo.metallicFactor;
+    mat.metallic = metallicRoughnessColor.b * instanceData[meshIndex].materialInfo.roughnessFactor;
 
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;

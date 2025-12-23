@@ -1,6 +1,6 @@
 #include "RTCommon.hlsl"
 
-TextureCube skyMap : register(t5);
+TextureCube skyMap : register(t4);
 SamplerState mainSampler : register(s0);
 
 [shader("miss")]

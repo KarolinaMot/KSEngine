@@ -57,12 +57,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     CameraMats cam{};
 
-    mStorageBuffers[MODEL_MAT_BUFFER] =
-        std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL MATRIX RESOURCE",
-                                        &m_modelMatrices[0], static_cast<uint32_t>(sizeof(ModelMat)), MAX_MESHES, false);
-    mStorageBuffers[MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
-        device, m_impl->m_resourceHeap.get(), *commandList, "MATERIAL INFO RESOURCE", &m_materialInstances[0],
-        static_cast<uint32_t>(sizeof(MaterialInfo)), MAX_MESHES, false);
+    mStorageBuffers[INSTANCE_DATA_BUFFER] =
+        std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL INSTANCE DATA",
+                                        &m_instanceData[0], static_cast<uint32_t>(sizeof(InstanceData)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
     mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
@@ -212,7 +209,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
                 modelMat.mTransposed = glm::transpose(modelMat.mModel);
-                m_modelMatrices[m_modelCount] = modelMat;
+                m_instanceData[m_modelCount].modelMatrix = modelMat;
 
                 auto baseTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME);
                 auto normalTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME);
@@ -239,7 +236,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
 
-                m_materialInstances[m_modelCount] = matInfo;
+                m_instanceData[m_modelCount].materialInfo = matInfo;
                 m_BVH->AddInstance(&draw_queue[m_modelCount], modelMat.mModel);
                 m_modelCount++;
             }
@@ -259,9 +256,8 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
         }
     }
 
-    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_modelMatrices[0],
-                                              m_modelCount);
-    mStorageBuffers[MATERIAL_INFO_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_materialInstances[0],
+    mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(),
+                                                  &m_instanceData[0],
                                                   m_modelCount);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
@@ -273,10 +269,11 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
 {
     auto& entry = draw_queue[meshId];
+    auto& modelMatrix = m_instanceData[entry.modelIndex].modelMatrix;
     ModelMat modelMat;
-    modelMat.mModel = m_modelMatrices[entry.modelIndex].mModel * transfrom;
+    modelMat.mModel = modelMatrix.mModel * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
-    m_modelMatrices[entry.modelIndex] = modelMat;
+    modelMatrix = modelMat;
     auto AABB = entry.mesh->GetLocalBounds();
     entry.bounds = AABB.ApplyTransform(modelMat.mModel);
 
@@ -332,9 +329,9 @@ void KS::Scene::Tick(Device& device)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
-    mStorageBuffers[MODEL_MAT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_modelMatrices[0],
-                                              m_modelCount);
+    mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_instanceData[0], m_modelCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
+
     if (m_updateDirLights)
         mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     if (m_updatePointLights)
@@ -551,16 +548,12 @@ void KS::Scene::InitializeShaderTable()
         D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
         tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT + i) * m_impl->m_resourceHeap->GetDescriptorSize();
 
-        D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        materialHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(MATERIAL_INFO_BUFFER)->GetHandle(true)) *
+        D3D12_GPU_DESCRIPTOR_HANDLE instanceDataHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
+        instanceDataHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(INSTANCE_DATA_BUFFER)->GetHandle(true)) *
                               m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE normalsHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
         normalsHandle.ptr += static_cast<uint64_t>(NORMALS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE modelMatHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        modelMatHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(MODEL_MAT_BUFFER)->GetHandle(true)) *
-                              m_impl->m_resourceHeap->GetDescriptorSize();
 
         D3D12_GPU_DESCRIPTOR_HANDLE dirLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
         dirLights.ptr += static_cast<uint64_t>(GetStorageBuffer(DIR_LIGHT_BUFFER)->GetHandle(true)) *
@@ -591,8 +584,7 @@ void KS::Scene::InitializeShaderTable()
         heapPointers.push_back(reinterpret_cast<void*>(outputHandle.ptr));
         heapPointers.push_back(reinterpret_cast<void*>(tlasHandle.ptr));
         heapPointers.push_back(reinterpret_cast<void*>(GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i)));
-        heapPointers.push_back(reinterpret_cast<void*>(materialHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(modelMatHandle.ptr));
+        heapPointers.push_back(reinterpret_cast<void*>(instanceDataHandle.ptr));
         heapPointers.push_back(reinterpret_cast<void*>(dirLights.ptr));
         heapPointers.push_back(reinterpret_cast<void*>(pointLights.ptr));
         heapPointers.push_back(reinterpret_cast<void*>(skyboxHandle.ptr));

@@ -60,8 +60,7 @@ enum Subrenderers
 
 enum StorageBuffers
 {
-    MODEL_MAT_BUFFER,
-    MATERIAL_INFO_BUFFER,
+    INSTANCE_DATA_BUFFER,
     DIR_LIGHT_BUFFER,
     POINT_LIGHT_BUFFER,
     NUM_SBUFFER
@@ -177,6 +176,12 @@ struct MaterialInfo
     uint32_t occlusionTexIndex = 0;
     uint32_t modelIndex = 0;
     uint32_t padding[3];
+};
+
+struct InstanceData
+{
+    ModelMat modelMatrix;
+    MaterialInfo materialInfo;
 };
 
 struct CameraMats

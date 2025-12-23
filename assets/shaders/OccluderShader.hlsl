@@ -22,14 +22,14 @@ cbuffer ModelIndex : register(b1)
     int meshIndex;
 };
 
-StructuredBuffer<ModelMat> modelMats : register(t2);
+StructuredBuffer<InstanceData> instanceData : register(t2);
 
 PBRMaterial GenerateMaterial(PS_INPUT input);
 
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
-    output.vertexPos = mul(modelMats[meshIndex].mModelMat, float4(input.pos, 1.f));
+    output.vertexPos = mul(instanceData[meshIndex].modelMatrix.mModelMat, float4(input.pos, 1.f));
     output.pos = mul(cameraMats.mCamera, output.vertexPos);
     return output;
 }

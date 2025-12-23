@@ -128,8 +128,7 @@ private:
     std::string m_name;
     ScenesToChoose m_identifyingIndex;
 
-    std::vector<ModelMat> m_modelMatrices = std::vector<ModelMat>(MAX_MESHES);
-    std::vector<MaterialInfo> m_materialInstances = std::vector<MaterialInfo>(MAX_MESHES);
+    std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
     uint32_t m_modelCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};

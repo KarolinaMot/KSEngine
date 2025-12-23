@@ -5,10 +5,9 @@
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 
-StructuredBuffer<MaterialInfo> matInfos : register(t1);
-StructuredBuffer<ModelMat> modelMats : register(t2);
-StructuredBuffer<DirLight> dirLights : register(t3);
-StructuredBuffer<PointLight> pointLights : register(t4);
+StructuredBuffer<InstanceData> instanceData : register(t1);
+StructuredBuffer<DirLight> dirLights : register(t2);
+StructuredBuffer<PointLight> pointLights : register(t3);
 
 StructuredBuffer<float3> normals[] : register(t0, space1);
 StructuredBuffer<uint> indices[] : register(t0, space2);
@@ -66,12 +65,12 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
     float4 vertexPos = float4(GetPosition(instance, vertId, barycentrics), 1.f);
-    vertexPos = mul(modelMats[instance].mModelMat, float4(vertexPos.rgb, 1.f));
+    vertexPos = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPos.rgb, 1.f));
     
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
     float3 tangent = GetTangent(instance, vertId, barycentrics);
-    float3 tangentWS = normalize(mul((float3x3) modelMats[instance].mModelMat, tangent));
+    float3 tangentWS = normalize(mul((float3x3) instanceData[instance].modelMatrix.mModelMat, tangent));
     tangentWS = normalize(tangentWS - dot(tangentWS, normal) * normal);
     float3 bitangentWS = normalize(cross(normal, tangentWS));
     float3x3 TBN = float3x3(tangentWS, bitangentWS, normal);
@@ -81,7 +80,7 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     float Lu, Lv;
     ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
     
-    PBRMaterial material = GenerateMaterial(matInfos[instance], uv, normal, TBN, Lu, Lv);
+    PBRMaterial material = GenerateMaterial(instanceData[instance].materialInfo, uv, normal, TBN, Lu, Lv);
     
     float3 result = 0.f;
     float3 diffuse = 0.f;
@@ -231,7 +230,7 @@ float3 GetTangent(int instance, int vertId, float3 barycentrics)
 float3 GetNormalInVector(int instance, int index)
 {
     float3 normal = normals[instance][index].xyz;
-    normal = normalize(mul(normal, (float3x3)modelMats[instance].mInvTransposeMat));
+    normal = normalize(mul(normal, (float3x3)instanceData[instance].modelMatrix.mInvTransposeMat));
     return normal;
 }
 
@@ -299,7 +298,7 @@ void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu
     float2 uv2 = GetUVInVector(instance, i2);
 
     // Transform positions to WORLD space to match coneR (world)
-    float4x4 M = modelMats[instance].mModelMat;
+    float4x4 M = instanceData[instance].modelMatrix.mModelMat;
     float3 P0 = mul(M, float4(P0o, 1)).xyz;
     float3 P1 = mul(M, float4(P1o, 1)).xyz;
     float3 P2 = mul(M, float4(P2o, 1)).xyz;

@@ -21,8 +21,6 @@ cbuffer ModelIndex : register(b1)
     int meshIndex;
 };
 
-StructuredBuffer<ModelMat> modelMats : register(t2);
-
 TextureCube skyMap : register(t1);
 SamplerState samplr : register(s0);
 

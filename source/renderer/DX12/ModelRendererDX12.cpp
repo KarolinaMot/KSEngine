@@ -115,6 +115,9 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
         for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
         {
+            auto& entry = par.scene->GetDrawEntry(meshIndex);
+            if (!entry.bounds.FrustumTest(par.cameraFrustum)) continue;
+
             DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex, modelIndexInp, resourceHeap, modelIndexUBO,
                      shaderFlags, texturesRoot);
         }
