@@ -199,12 +199,13 @@ void KS::Editor::SceneHierarchy(Scene& scene)
 
     if (ImGui::CollapsingHeader("Scene meshes"))
     {
-        auto queueSize = scene.GetModelCount();
+        auto queueSize = scene.GetUniqueMeshCount();
 
         for (uint32_t i = 0; i < queueSize; i++)
         {
             auto drawObject = scene.GetDrawEntry(i);
-            const auto& objectName = drawObject.mesh->GetName() + "##" + std::to_string(i);
+            auto mesh = scene.GetMesh(drawObject.meshHandle);
+            const auto& objectName = mesh->GetName() + "##" + std::to_string(i);
 
             const bool is_selected = (m_selectedObject == static_cast<int>(i));
             if (ImGui::Selectable(objectName.c_str(), is_selected))
@@ -328,7 +329,7 @@ void KS::Editor::CameraWindow(ComponentFirstPersonCamera& info, ComponentTransfo
 
 void KS::Editor::MeshInspector(Scene& scene)
 {
-    if (m_selectedObject >= static_cast<int>(scene.GetModelCount()))
+    if (m_selectedObject >= static_cast<int>(scene.GetUniqueMeshCount()))
     {
         m_selectedObject = -1;
     }

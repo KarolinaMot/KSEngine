@@ -48,7 +48,7 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
-    auto drawQueueSize = par.scene->GetModelCount();
+    auto drawQueueSize = par.scene->GetUniqueMeshCount();
     if (drawQueueSize == 0) return;
 
     auto* commandList = commandContext->m_commandList.get();
@@ -149,15 +149,16 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
     if (index >= scene.GetDrawQueueSize()) return;
 
     DrawEntry meshSet = scene.GetDrawEntry(index);
-    if (meshSet.mesh == nullptr) return;
+    auto mesh = scene.GetMesh(meshSet.meshHandle);
+    if (mesh == nullptr) return;
 
     using namespace MeshConstants;
 
-    auto positions = meshSet.mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
-    auto normals = meshSet.mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
-    auto uvs = meshSet.mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
-    auto tangents = meshSet.mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
-    auto indices = meshSet.mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
+    auto positions = mesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
+    auto normals = mesh->GetAttribute(ATTRIBUTE_NORMALS_NAME);
+    auto uvs = mesh->GetAttribute(ATTRIBUTE_TEXTURE_UVS_NAME);
+    auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
+    auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
     modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, meshSet.modelIndex);
 

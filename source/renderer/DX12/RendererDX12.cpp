@@ -358,8 +358,7 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
     for (int i = 0; i < 3; i++)
     {
         auto texture = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, i);
-        m_inputs[PBR_RENDER][i] =
-            std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
+        m_inputs[PBR_RENDER][i] = std::pair<ShaderInput*, ShaderInputDesc>(texture.get(), m_mainInputs->GetInput("GBuffer" + std::to_string(i + 1)));
     }
 
     auto depthTex = scene.GetDepthStencil()->GetTexture();

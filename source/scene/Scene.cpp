@@ -61,7 +61,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL INSTANCE DATA",
                                         &m_instanceData[0], static_cast<uint32_t>(sizeof(InstanceData)), MAX_MESHES, false);
     mUniformBuffers[MODEL_INDEX_BUFFER] =
-        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_modelCount, MAX_MESHES, false);
+        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_uniqueMeshCount, MAX_MESHES, false);
     mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
     GenerateMipsInfo mipInfo;
@@ -188,7 +188,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 
             for (auto [mesh, material] : node.mesh_material_indices)
             {
-                if (m_modelCount >= MAX_MESHES)
+                if (m_uniqueMeshCount >= MAX_MESHES)
                 {
                     LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
                     break;
@@ -198,18 +198,18 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 auto mat = ptr->materials[material];
 
                 std::shared_ptr<Mesh> meshPtr = GetMesh(meshHandle);
-                std::string key = name + std::to_string(m_modelCount);
+                std::string key = name + std::to_string(m_uniqueMeshCount);
 
                 auto AABB = meshPtr->GetLocalBounds();
                 AABB = AABB.ApplyTransform(scene_transform);
 
-                draw_queue[m_modelCount] =
-                    KS::DrawEntry(meshPtr, ptr->materials[material], m_modelCount, scene_transform, 0, AABB);
+                draw_queue[m_uniqueMeshCount] =
+                    KS::DrawEntry(meshHandle, scene_transform, AABB, 0, ptr->materials[material], m_meshAndInstanceCount);
 
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
                 modelMat.mTransposed = glm::transpose(modelMat.mModel);
-                m_instanceData[m_modelCount].modelMatrix = modelMat;
+                m_instanceData[m_meshAndInstanceCount].modelMatrix = modelMat;
 
                 auto baseTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME);
                 auto normalTexHandle = mat.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME);
@@ -232,13 +232,12 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 matInfo.occlusionTexIndex = occlusionTex->GetHandleIndex(true);
                 matInfo.metallicRoughnessTexIndex = roughMetTex->GetHandleIndex(true);
 
-                matInfo.modelIndex = draw_queue[m_modelCount].mesh->GetMeshIndex();
+                mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_uniqueMeshCount, m_uniqueMeshCount);
 
-                mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_modelCount, m_modelCount);
-
-                m_instanceData[m_modelCount].materialInfo = matInfo;
-                m_BVH->AddInstance(&draw_queue[m_modelCount], modelMat.mModel);
-                m_modelCount++;
+                m_instanceData[m_uniqueMeshCount].materialInfo = matInfo;
+                m_BVH->AddInstance(&draw_queue[m_uniqueMeshCount], modelMat.mModel);
+                m_uniqueMeshCount++;
+                m_meshAndInstanceCount++;
             }
         }
 
@@ -258,12 +257,12 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 
     mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(),
                                                   &m_instanceData[0],
-                                                  m_modelCount);
+                                                  m_uniqueMeshCount);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
     commandContext.Close();
-
-    return m_modelCount;
+    m_updateScene = true;
+    return m_uniqueMeshCount;
 }
 
 void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
@@ -274,7 +273,9 @@ void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
     modelMat.mModel = modelMatrix.mModel * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
     modelMatrix = modelMat;
-    auto AABB = entry.mesh->GetLocalBounds();
+
+    auto mesh = GetMesh(entry.meshHandle);
+    auto AABB = mesh->GetLocalBounds();
     entry.bounds = AABB.ApplyTransform(modelMat.mModel);
 
     m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
@@ -329,7 +330,13 @@ void KS::Scene::Tick(Device& device)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
-    mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_instanceData[0], m_modelCount);
+    if (m_updateScene)
+    {
+        CreateBatches();
+        m_updateScene = false;
+    }
+
+    mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_instanceData[0], m_uniqueMeshCount);
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
 
     if (m_updateDirLights)
@@ -416,13 +423,17 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
                 {
                     mesh_name = scene->mMeshes[i]->mName.C_Str();
                 }
-
-                auto meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh,
-                                                      mesh_name.c_str(), static_cast<uint32_t>(mesh_cache.size()));
-
                 auto output_path = (FileIO::Path(model.path).make_preferred().parent_path() / mesh_name);
 
-                auto [obj, success] = mesh_cache.emplace(output_path.string(), std::move(meshPtr));
+                auto handle = ResourceHandle<Mesh>(output_path.string());
+                std::shared_ptr<Mesh> meshPtr = GetMesh(handle);
+                if (!meshPtr)
+                {
+                    meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh, mesh_name.c_str(),
+                                                     static_cast<uint32_t>(mesh_cache.size()));
+                    auto [obj, success] = mesh_cache.emplace(output_path.string(), std::move(meshPtr));
+                }
+
                 mesh_paths.emplace_back(output_path.string());
 
                 LOG(Log::Severity::INFO, "Processed mesh {}/{}, object {}/{}", i + 1, scene->mNumMeshes, i + 1, totalObjects);
@@ -519,7 +530,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
     return nullptr;
 }
 
-const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHandle)
+const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHandle) const
 {
     // Cached result
     if (auto it = mesh_cache.find(meshHandle); it != mesh_cache.end())
@@ -528,7 +539,6 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHand
     }
     else
     {
-        LOG(Log::Severity::WARN, "Mesh ( {} ) was not found.", meshHandle.path);
         return nullptr;
     }
 }
@@ -615,6 +625,30 @@ void KS::Scene::InitializeShaderTable()
     }
 }
 
+void KS::Scene::CreateBatches()
+{
+    batch_queue.clear();
+    batch_queue.reserve(draw_queue.size());
+
+    auto sameBatch = [&](const DrawEntry& a, const DrawEntry& b)
+    { 
+        return a.meshHandle == b.meshHandle;
+    };
+
+    for (uint32_t i = 0; i < m_meshAndInstanceCount;)
+    {
+        uint32_t j = i + 1;
+        while (j < draw_queue.size() && sameBatch(draw_queue[i], draw_queue[j]))
+            ++j;
+
+        auto mesh = GetMesh(draw_queue[i].meshHandle);
+        batch_queue.push_back(BatchRange{.mesh = mesh, .material = &draw_queue[i].material, .first = i, .count = j - i});
+
+        i = j;
+    }
+
+}
+
 std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,
                                                    bool isSrgb)
 {
@@ -688,31 +722,4 @@ KS::MaterialInfo KS::Scene::GetMaterialInfo(const Material& material) const
     info.normalScale = NEAFactor.x;
     info.roughnessFactor = ORMFactor.y;
     return info;
-}
-
-KS::MeshSet KS::Scene::GetMeshSet(Device& device, DXCommandList* commandList, int index)
-{
-    auto draw_entry = draw_queue[index];
-
-    MeshSet meshSet;
-    meshSet.mesh = draw_entry.mesh.get();
-    meshSet.baseTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::BASE_TEXTURE_NAME), true);
-    meshSet.normalTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::NORMAL_TEXTURE_NAME));
-    meshSet.emissiveTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::EMISSIVE_TEXTURE_NAME), true);
-    meshSet.roughMetTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::METALLIC_TEXTURE_NAME));
-    meshSet.occlusionTex =
-        GetTexture(device, commandList,
-                   *draw_entry.material.GetParameter<ResourceHandle<Texture>>(MaterialConstants::OCCLUSION_TEXTURE_NAME));
-    meshSet.modelIndex = draw_entry.modelIndex;
-    meshSet.transform = draw_entry.modelMat;
-
-    return meshSet;
 }

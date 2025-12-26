@@ -58,7 +58,8 @@ private:
 
     void EnsureInstanceCapacity(const Device& device,
                                 uint32_t count);  // grow buffers (and set m_dirtyStructure)
-    void WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate);  // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
+    void WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate,
+                            const Scene& scene);  // map & fill D3D12_RAYTRACING_INSTANCE_DESC[]
     void EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate);
     void EnsureScratch(const Device& device, uint64_t neededBytes);
 

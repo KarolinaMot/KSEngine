@@ -98,12 +98,20 @@ enum Formats
 
 struct DrawEntry
 {
-    std::shared_ptr<Mesh> mesh{};
-    Material material{};
-    int modelIndex{};
+    ResourceHandle<Mesh> meshHandle;
     glm::mat4x4 modelMat{};
-    uint32_t tlasHandle{};
     BoundingBox bounds{};
+    uint32_t tlasHandle{};
+    Material material;
+    int modelIndex{};
+};
+
+struct BatchRange
+{
+    std::shared_ptr<Mesh> mesh;
+    Material* material;
+    uint32_t first;  // index into draw_queue (or into your instance buffer)
+    uint32_t count;
 };
 
 struct GenerateMipsInfo
@@ -174,8 +182,6 @@ struct MaterialInfo
     uint32_t metallicRoughnessTexIndex = 0;
     uint32_t normalTexIndex = 0;
     uint32_t occlusionTexIndex = 0;
-    uint32_t modelIndex = 0;
-    uint32_t padding[3];
 };
 
 struct InstanceData

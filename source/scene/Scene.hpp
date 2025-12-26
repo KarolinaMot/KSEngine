@@ -31,18 +31,6 @@ struct SBTInfo
     uint32_t HitGroupEntrySize = 0;
 };
 
-struct MeshSet
-{
-    const Mesh* mesh;
-    std::shared_ptr<Texture> baseTex;
-    std::shared_ptr<Texture> normalTex;
-    std::shared_ptr<Texture> emissiveTex;
-    std::shared_ptr<Texture> roughMetTex;
-    std::shared_ptr<Texture> occlusionTex;
-    int modelIndex;
-    glm::mat4x4 transform;
-};
-
 class Scene
 {
 public:
@@ -65,9 +53,9 @@ public:
                         uint32_t& height);
     RenderTarget* GetFinalRT() const { return m_finalRT.get(); };
 
-    uint32_t GetModelCount() const { return m_modelCount; }
+    uint32_t GetUniqueMeshCount() const { return m_uniqueMeshCount; }
+    uint32_t GetMeshAndInstanceCount() const { return m_meshAndInstanceCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
-    MeshSet GetMeshSet(Device& device, DXCommandList* commandList, int index);
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
@@ -99,6 +87,7 @@ public:
             return nullptr;
     }
 
+    const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle) const;
     void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     std::string GetName() const { return m_name; }
@@ -109,13 +98,15 @@ private:
     std::unique_ptr<Impl> m_impl;
 
     const Model* GetModel(Device& device, DXCommandList& commandList, ResourceHandle<Model> model);
-    const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle);
     void InitializeShaderTable();
+    void CreateBatches();
 
     std::vector<DrawEntry> draw_queue{};
+    std::vector<BatchRange> batch_queue{};
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
+
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> m_skyDomeMesh;
     std::shared_ptr<StorageBuffer> mStorageBuffers[NUM_SBUFFER];
     std::shared_ptr<UniformBuffer> mUniformBuffers[NUM_UBUFFER];
@@ -129,11 +120,14 @@ private:
     ScenesToChoose m_identifyingIndex;
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
-    uint32_t m_modelCount = 0;
+    uint32_t m_uniqueMeshCount = 0;
+    uint32_t m_meshAndInstanceCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
     bool m_updateDirLights = false, m_updatePointLights = false;
+    bool m_updateScene = false;
+
 };
 }  // namespace KS

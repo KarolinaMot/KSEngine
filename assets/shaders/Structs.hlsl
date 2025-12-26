@@ -64,8 +64,6 @@ struct MaterialInfo
     uint metallicRoughnessTexIndex;
     uint normalTexIndex;
     uint occlusionTexIndex;
-    uint modelIndex;
-    uint padding[3];
 };
 
 struct InstanceData

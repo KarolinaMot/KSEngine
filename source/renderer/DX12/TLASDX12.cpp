@@ -114,7 +114,7 @@ void KS::TLAS::EnsureInstanceCapacity(const Device& device, uint32_t count)
     m_Impl->m_desc[frameIndex]->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&m_Impl->m_instanceDescs[frameIndex]));
 }
 
-void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate)
+void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate, const Scene& scene)
 {
     const UINT count = static_cast<UINT>(m_instances.size());
     auto& instanceDescs = m_Impl->m_instanceDescs[frameIndex];
@@ -127,7 +127,9 @@ void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate)
     for (UINT i = 0; i < m_instances.size(); ++i)
     {
         const auto& s = m_instances[i];
-        if (s.m_entry->mesh)
+ 
+        auto mesh = scene.GetMesh(s.m_entry->meshHandle);
+        if (mesh)
         {
             D3D12_RAYTRACING_INSTANCE_DESC d{};
             std::memcpy(d.Transform, &s.modelMat[0], sizeof(float) * 12);
@@ -135,7 +137,7 @@ void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate)
             d.InstanceMask = 0xFF;
             d.InstanceContributionToHitGroupIndex = s.hitgroupIndex;
             d.Flags = D3D12_RAYTRACING_INSTANCE_FLAGS::D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE;
-            d.AccelerationStructure = s.m_entry->mesh->BLASAddress();
+            d.AccelerationStructure = mesh->BLASAddress();
             instanceDescs[i] = d;
         }
     }
@@ -190,7 +192,7 @@ void KS::TLAS::Build(const Device& device, const Scene& scene, DXCommandList& cm
                           (m_Impl->m_tlas[frameIndex] != nullptr);
 
     EnsureInstanceCapacity(device, count);
-    WriteInstanceDescs(frameIndex, doUpdate);
+    WriteInstanceDescs(frameIndex, doUpdate, scene);
 
     // Prebuild info
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};

@@ -6,6 +6,7 @@ struct VS_INPUT
     float3 normals : NORMALS;
     float2 uv : TEXCOORD;
     float3 tangents : TANGENT;
+    uint iid : SV_InstanceID;
 };
 
 struct PS_INPUT
@@ -15,6 +16,7 @@ struct PS_INPUT
     float4 normals : NORMALS;
     float2 uv : TEXCOORD;
     float3x3 tangentBasis : TANGENT_BASIS;
+    uint iid : SV_InstanceID;
 };
 
 struct PSOutput
@@ -39,20 +41,21 @@ SamplerState mainSampler : register(s0);
 StructuredBuffer<InstanceData> instanceData : register(t2);
 Texture2D<float4> textures[65536] : register(t0, space1);
 
-PBRMaterial GenerateMaterial(PS_INPUT input);
+PBRMaterial GenerateMaterial(PS_INPUT input, uint iid);
 
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
     
-    output.vertexPos = mul(instanceData[meshIndex].modelMatrix.mModelMat, float4(input.pos, 1.f));
+    output.vertexPos = mul(instanceData[meshIndex+ input.iid].modelMatrix.mModelMat, float4(input.pos, 1.f));
     output.pos = mul(cameraMats.mCamera, output.vertexPos);
-    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3) instanceData[meshIndex].modelMatrix.mInvTransposeMat)), 0.f);
+    output.normals = float4(normalize(mul(input.normals.xyz, (float3x3) instanceData[meshIndex + input.iid].modelMatrix.mInvTransposeMat)), 0.f);
     output.uv = input.uv;
 
     input.tangents = normalize(input.tangents);
     input.tangents = normalize(input.tangents - dot(input.tangents, input.normals) * input.normals);
     float3 bitangent = cross(output.normals.xyz, input.tangents);
+    output.iid = input.iid;
 
     float3x3 TBN = float3x3(input.tangents, bitangent, output.normals.xyz);
     output.tangentBasis = TBN;
@@ -63,7 +66,7 @@ PS_INPUT mainVS(VS_INPUT input)
 PSOutput mainPS(PS_INPUT input)
     : SV_TARGET
 {
-    PBRMaterial material = GenerateMaterial(input);
+    PBRMaterial material = GenerateMaterial(input, input.iid);
 
     float metallic, roughness;
     PSOutput output;
@@ -74,10 +77,10 @@ PSOutput mainPS(PS_INPUT input)
     return output;
 }
 
-PBRMaterial GenerateMaterial(PS_INPUT input)
+PBRMaterial GenerateMaterial(PS_INPUT input, uint iid)
 {
     PBRMaterial mat;
-    const MaterialInfo matInfo = instanceData[meshIndex].materialInfo;
+    const MaterialInfo matInfo = instanceData[meshIndex+ iid].materialInfo;
     Texture2D baseColorTex = textures[matInfo.colorTexIndex];
     Texture2D emissiveTex = textures[matInfo.emissiveTexIndex];
     Texture2D metallicRoughnessTex = textures[matInfo.metallicRoughnessTexIndex];
@@ -88,11 +91,11 @@ PBRMaterial GenerateMaterial(PS_INPUT input)
     mat.baseColor *= matInfo.colorFactor.rgb;
 
     mat.emissiveColor = emissiveTex.Sample(mainSampler, input.uv).rgb;
-    mat.emissiveColor *= instanceData[meshIndex].materialInfo.emissiveFactor.rgb;
+    mat.emissiveColor *= instanceData[meshIndex+ iid].materialInfo.emissiveFactor.rgb;
 
     float3 metallicRoughnessColor = metallicRoughnessTex.Sample(mainSampler, input.uv).rgb;
-    mat.roughness = metallicRoughnessColor.g * instanceData[meshIndex].materialInfo.metallicFactor;
-    mat.metallic = metallicRoughnessColor.b * instanceData[meshIndex].materialInfo.roughnessFactor;
+    mat.roughness = metallicRoughnessColor.g * instanceData[meshIndex+ iid].materialInfo.metallicFactor;
+    mat.metallic = metallicRoughnessColor.b * instanceData[meshIndex+ iid].materialInfo.roughnessFactor;
 
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
