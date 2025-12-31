@@ -88,6 +88,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         cmdList->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     };
 
+    BindDrawResources(commandList);
 
     if (m_onlyCubemap)
     {
@@ -148,7 +149,7 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
 {
     if (index >= scene.GetDrawQueueSize()) return;
 
-    DrawEntry meshSet = scene.GetDrawEntry(index);
+    DrawEntry& meshSet = scene.GetDrawEntry(index);
     auto mesh = scene.GetMesh(meshSet.meshHandle);
     if (mesh == nullptr) return;
 

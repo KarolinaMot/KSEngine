@@ -17,6 +17,9 @@ public:
     DXHeapHandle m_UAV_handle{};
     DXHeapHandle m_SRV_handle{};
     UploadSlice m_slice{};
+
+    D3D12_INDEX_BUFFER_VIEW indexBufferView{};
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 };
 
 KS::StorageBuffer::StorageBuffer() { m_impl = new Impl(); }
@@ -46,6 +49,41 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, D
     auto upl = device.GetUploadArena();
     m_impl->m_slice = upl->Allocate(device, commandList, m_total_buffer_size, 255);
     m_impl->m_slice.m_size = m_total_buffer_size;
+
+    if (m_flags & StorageBufferFlags::INDEX_DATA_BUFFER)
+    {
+        m_impl->indexBufferView.BufferLocation =
+            m_impl->m_resource->Get()->GetGPUVirtualAddress();
+        m_impl->indexBufferView.SizeInBytes =
+            m_num_elements ? m_num_elements * m_buffer_stride : m_impl->m_resource->GetResourceSize();
+
+        switch (m_buffer_stride)
+        {
+                case sizeof(unsigned char):
+                    m_impl->indexBufferView.Format = DXGI_FORMAT_R8_UINT;
+                    break;
+                case sizeof(unsigned short):
+                    m_impl->indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+                    break;
+                case sizeof(unsigned int):
+                    m_impl->indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+                    break;
+                default:
+                    m_impl->indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+                    break;
+        }
+
+        commandList.TransitionResource(*m_impl->m_resource.get(), D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    }
+    else if (m_flags & StorageBufferFlags::VERTEX_DATA_BUFFER)
+    {
+        m_impl->vertexBufferView.BufferLocation = m_impl->m_resource->Get()->GetGPUVirtualAddress();
+        m_impl->vertexBufferView.StrideInBytes = m_buffer_stride;
+        m_impl->vertexBufferView.SizeInBytes =
+            m_num_elements ? m_num_elements * m_buffer_stride : m_impl->m_resource->GetResourceSize();
+
+    }
+
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
@@ -121,15 +159,14 @@ void KS::StorageBuffer::Bind(const Device&, void*, DXCommandList& commandList, c
     }
 }
 
-void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset,
-                                         uint32_t count)
+void KS::StorageBuffer::BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot)
 {
-    commandList.BindVertexData(*m_impl->m_resource, m_buffer_stride, inputSlot, elementOffset, count);
+    commandList.BindVertexData(*m_impl->m_resource, inputSlot, m_impl->vertexBufferView);
 }
 
-void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset, uint32_t count)
+void KS::StorageBuffer::BindAsIndexData(DXCommandList& commandList)
 {
-    commandList.BindIndexData(*m_impl->m_resource, m_buffer_stride, elementOffset, count);
+    commandList.BindIndexData(*m_impl->m_resource, m_impl->indexBufferView);
 }
 
 void KS::StorageBuffer::AllocateAsReadOnly(void* resourceHeap, int slot)

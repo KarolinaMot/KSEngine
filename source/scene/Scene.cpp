@@ -426,7 +426,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
                 auto output_path = (FileIO::Path(model.path).make_preferred().parent_path() / mesh_name);
 
                 auto handle = ResourceHandle<Mesh>(output_path.string());
-                std::shared_ptr<Mesh> meshPtr = GetMesh(handle);
+                std::shared_ptr<Mesh> meshPtr =GetMesh(handle);
                 if (!meshPtr)
                 {
                     meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh, mesh_name.c_str(),

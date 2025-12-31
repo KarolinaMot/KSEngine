@@ -85,9 +85,8 @@ public:
     void Resize(const Device& device, DXCommandList& commandList, void* resourceHeap, uint32_t newNumOfElements);
     virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
                        uint32_t offsetIndex=0) override;
-    void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot, uint32_t elementOffset = 0,
-                          uint32_t count = 0);
-    void BindAsIndexData(DXCommandList& commandList, uint32_t elementOffset = 0, uint32_t count = 0);
+    void BindAsVertexData(DXCommandList& commandList, uint32_t inputSlot);
+    void BindAsIndexData(DXCommandList& commandList);
     void AllocateAsReadOnly(void* resourceHeap, int slot = -1);
     void AllocateAsReadWrite(void* resourceHeap, int slot = -1);
 

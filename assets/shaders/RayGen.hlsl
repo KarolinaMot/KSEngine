@@ -56,7 +56,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     for (uint i = 0; i < lightInfo.numDirLight; i++)
     {
         DirLight light = dirLights[i];
-        float3 lightDir = normalize(light.mDir.xyz) * float3(1, 1, -1);
+        float3 lightDir = normalize(light.mDir.xyz);
         float angularRadius = 0.0047f;
         float coneScale = tan(angularRadius);
         
@@ -107,7 +107,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 indirectLighting = float3(0.f, 0.f, 0.f);
     float3 Nt, Nb;
     CreateCoordinateSystem(normal, Nt, Nb);
-    uint smaples = 16;
+    uint smaples = 4;
     for (uint n = 0; n < smaples; ++n)
     {
         //How high above the horizon of the hemisphere the line is

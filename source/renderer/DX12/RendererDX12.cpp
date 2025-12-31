@@ -149,8 +149,6 @@ KS::Renderer::Renderer(Device& device)
                                            .AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit")
                                            .AddHitGroup(L"GIHitGroup", L"GIClosestHit")
                                            .SetGlobalSignature(m_rtInputs)
-                                           //.AddLocalShaderInputLink(m_rtInputs, std::initializer_list<LPCWSTR>{L"MainClosestHit", L"MainMiss", L"RayGen", L"ShadowMiss",
-                                           //                         L"ShadowClosestHit", L"GIClosestHit"})
                                            .Build(device);
 
 

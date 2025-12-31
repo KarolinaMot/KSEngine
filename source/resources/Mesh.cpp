@@ -2,6 +2,7 @@
 #include <device/Device.hpp>
 #include <renderer/DX12/Helpers/DXCommandList.hpp>
 #include <renderer/DX12/Helpers/DXResource.hpp>
+#include <renderer/StorageBuffer.hpp>
 #include <renderer/InfoStructs.hpp>
 
 void KS::MeshData::AddAttribute(const std::string& name, ByteBuffer&& data)
@@ -75,10 +76,11 @@ KS::Mesh::Mesh(Device& device, void* resourceHeap, DXCommandList& commandList, c
 
         ASSERT(size % stride == 0 && "Attribute stride is not divisible by provided data");
 
-        
-        auto buffer =
-            std::make_shared<KS::StorageBuffer>(device, resourceHeap, commandList, attrName, start, static_cast<uint32_t>(stride),
-                                                          static_cast<uint32_t>(size / stride), false);
+        int flags = attrName == MeshConstants::ATTRIBUTE_INDICES_NAME ? StorageBuffer::INDEX_DATA_BUFFER
+                                                                      : StorageBuffer::VERTEX_DATA_BUFFER;
+
+        auto buffer = std::make_shared<KS::StorageBuffer>(device, resourceHeap, commandList, attrName, start, static_cast<uint32_t>(stride),
+                                            static_cast<uint32_t>(size / stride), false, flags);
         
         if (attrName == MeshConstants::ATTRIBUTE_NORMALS_NAME)
         {

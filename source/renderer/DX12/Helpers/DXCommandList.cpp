@@ -254,55 +254,42 @@ void DXCommandList::ClearDepthStencils(const DXResource& depthResource, const DX
     m_allocator->TrackResource(depthResource.GetResource());
 }
 
-void DXCommandList::BindVertexData(DXResource& buffer, uint32_t bufferStride, uint32_t inputSlot, uint32_t elementOffset,
-                                   uint32_t elementCount)
+void DXCommandList::BindVertexData(DXResource& buffer, uint32_t inputSlot, D3D12_VERTEX_BUFFER_VIEW& view)
 {
-    if (!m_isOpen)
-    {
-        LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
-        return;
-    }
+    //D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
+    //vertexBufferView.BufferLocation = buffer.GetResource()->GetGPUVirtualAddress() + elementOffset * bufferStride;
+    //vertexBufferView.StrideInBytes = bufferStride;
+    //vertexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
 
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
-    vertexBufferView.BufferLocation = buffer.GetResource()->GetGPUVirtualAddress() + elementOffset * bufferStride;
-    vertexBufferView.StrideInBytes = bufferStride;
-    vertexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
-
-    m_command_list->IASetVertexBuffers(inputSlot, 1, &vertexBufferView);
+    m_command_list->IASetVertexBuffers(inputSlot, 1, &view);
     m_allocator->TrackResource(buffer.GetResource());
 }
 
-void DXCommandList::BindIndexData(DXResource& buffer, uint32_t bufferStride, uint32_t elementOffset, uint32_t elementCount)
+void DXCommandList::BindIndexData(DXResource& buffer, D3D12_INDEX_BUFFER_VIEW& view)
 {
-    if (!m_isOpen)
-    {
-        LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
-        return;
-    }
+    //D3D12_INDEX_BUFFER_VIEW indexBufferView {};
+    //indexBufferView.BufferLocation = buffer.Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
+    //indexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
 
-    D3D12_INDEX_BUFFER_VIEW indexBufferView {};
-    indexBufferView.BufferLocation = buffer.Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
-    indexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
+    //TransitionResource(buffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
-    TransitionResource(buffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    //switch (bufferStride)
+    //{
+    //case sizeof(unsigned char):
+    //    indexBufferView.Format = DXGI_FORMAT_R8_UINT;
+    //    break;
+    //case sizeof(unsigned short):
+    //    indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+    //    break;
+    //case sizeof(unsigned int):
+    //    indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+    //    break;
+    //default:
+    //    indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+    //    break;
+    //}
 
-    switch (bufferStride)
-    {
-    case sizeof(unsigned char):
-        indexBufferView.Format = DXGI_FORMAT_R8_UINT;
-        break;
-    case sizeof(unsigned short):
-        indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-        break;
-    case sizeof(unsigned int):
-        indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-        break;
-    default:
-        indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-        break;
-    }
-
-    m_command_list->IASetIndexBuffer(&indexBufferView);
+    m_command_list->IASetIndexBuffer(&view);
     m_allocator->TrackResource(buffer.GetResource());
 }
 
