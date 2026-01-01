@@ -90,4 +90,25 @@ struct LightShaftInfo
     float weight;
     float decay;
 };
+
+struct BoundingBox
+{
+    float3 m_center;
+    float3 m_extents; 
+    float2 padding;
+};
+
+struct Plane
+{
+    float3 m_normal; //(A, B, C)
+    float m_signedOriginDistance;
+};
+
+struct CullingInfo
+{
+    Plane cameraPlane[6];
+    uint boundingBoxCount;
+    uint3 padding;
+};
+
 #endif

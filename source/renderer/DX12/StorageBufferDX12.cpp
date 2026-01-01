@@ -13,6 +13,11 @@ class KS::StorageBuffer::Impl
 {
 public:
     std::unique_ptr<DXResource> m_resource;
+    std::unique_ptr<DXResource> m_counter;
+
+    std::unique_ptr<DXResource> m_resourceRB;
+    std::unique_ptr<DXResource> m_counterRB;
+
     D3D12_RESOURCE_FLAGS m_flags{};
     DXHeapHandle m_UAV_handle{};
     DXHeapHandle m_SRV_handle{};
@@ -84,6 +89,35 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, D
 
     }
 
+    if (m_flags & StorageBufferFlags::COUNTER_RESOURCE)
+    {
+        if (m_impl->m_flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+        {
+            LOG(Log::Severity::WARN,
+                "Cant create {} buffer with a counter resource, because it wasn't created as a read-write resource", m_name);
+            return;
+        }
+
+        heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(16, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        m_impl->m_counter = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (name + " counter").c_str());
+
+        if (m_flags & StorageBufferFlags::READBACK_RESOURCE)
+        {
+            heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+            resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(16);            
+            m_impl->m_counterRB =
+                std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (name + " counter").c_str());
+        }
+
+    }
+
+    if (m_flags & StorageBufferFlags::READBACK_RESOURCE)
+    {
+        heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(m_total_buffer_size);
+        m_impl->m_resourceRB = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
+    }
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
@@ -96,6 +130,7 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
             "Data could not be uploaded into buffer {} because the data passed was nullptr. Command ignored.", m_name);
         return;
     }
+
     D3D12_RESOURCE_STATES destState = D3D12_RESOURCE_STATE_GENERIC_READ;
     if (m_flags & StorageBufferFlags::INDEX_DATA_BUFFER)
         destState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
@@ -206,11 +241,13 @@ void KS::StorageBuffer::AllocateAsReadWrite(void* resourceHeap, int slot)
     uavDesc.Buffer.FirstElement = 0;
     uavDesc.Buffer.StructureByteStride = static_cast<UINT>(m_buffer_stride);
     uavDesc.Buffer.NumElements = static_cast<UINT>(m_num_elements);
+    
+    DXResource* counter = m_impl->m_counter.get();
 
     if (slot == -1)
-        m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc);
+        m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc, counter);
     else
-        m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc, slot);
+        m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc, slot, counter);
 }
 
 size_t KS::StorageBuffer::GetGPUAddress(int elementIndex, int) const
@@ -247,6 +284,30 @@ uint32_t KS::StorageBuffer::GetHandle(bool readOnly)
 void* KS::StorageBuffer::GetRawRealResource() const { return m_impl->m_resource->Get(); }
 
 void* KS::StorageBuffer::GetRawResource() const { return m_impl->m_resource.get(); }
+
+void* KS::StorageBuffer::GetRawCounterResource() const
+{
+    if (m_impl->m_counter)
+        return m_impl->m_counter.get();
+    else
+        return nullptr;
+}
+
+void* KS::StorageBuffer::GetRawRBCounterResource() const
+{ 
+    if (m_impl->m_counterRB)
+        return m_impl->m_counterRB.get();
+    else
+        return nullptr;
+}
+
+void* KS::StorageBuffer::GetRawRBResource() const
+{
+    if (m_impl->m_resourceRB)
+        return m_impl->m_resourceRB.get();
+    else
+        return nullptr;
+}
 
 int KS::StorageBuffer::GetAllocationIndex(bool readOnly)
 {

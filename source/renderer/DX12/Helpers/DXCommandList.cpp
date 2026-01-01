@@ -303,11 +303,11 @@ void DXCommandList::DrawIndexed(int indexCount, int instancesCount)
     m_command_list->DrawIndexedInstanced(indexCount, instancesCount, 0, 0, 0);
 }
 
-void DXCommandList::CopyResource(std::unique_ptr<DXResource>& source, std::unique_ptr<DXResource>& dest)
+void DXCommandList::CopyResource(DXResource& source, DXResource& dest)
 {
-    m_command_list->CopyResource(dest->Get(), source->Get());
-    m_allocator->TrackResource(dest->GetResource());
-    m_allocator->TrackResource(source->GetResource());
+    m_command_list->CopyResource(dest.Get(), source.Get());
+    m_allocator->TrackResource(dest.GetResource());
+    m_allocator->TrackResource(source.GetResource());
 }
 
 void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ)

@@ -62,6 +62,7 @@ public:
     size_t GetDrawQueueSize() { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
     DrawEntry& GetDrawEntry(uint32_t index) { return draw_queue[index]; }
+    CullingInfo GetCullingInfo() const { return m_cullInfo; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
@@ -120,10 +121,13 @@ private:
     ScenesToChoose m_identifyingIndex;
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
+    std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
+    std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
     uint32_t m_uniqueMeshCount = 0;
     uint32_t m_meshAndInstanceCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
+    CullingInfo m_cullInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
     bool m_updateDirLights = false, m_updatePointLights = false;

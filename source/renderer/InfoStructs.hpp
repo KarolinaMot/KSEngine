@@ -55,6 +55,7 @@ enum Subrenderers
     CUBEMAP_GEN,
     CUBEMAP_RENDER,
     MIP_GEN,
+    MESH_CULLING,
     NUM_SUBRENDER
 };
 
@@ -63,6 +64,8 @@ enum StorageBuffers
     INSTANCE_DATA_BUFFER,
     DIR_LIGHT_BUFFER,
     POINT_LIGHT_BUFFER,
+    BOUNDING_BOX_BUFFER,
+    DRAW_INDICES,
     NUM_SBUFFER
 };
 
@@ -73,6 +76,7 @@ enum UniformBuffers
     MODEL_INDEX_BUFFER,
     MIP_GEN_INFO,
     CAMERA_MAT_BUFFER,
+    CULLING_INFO,
     NUM_UBUFFER
 };
 
@@ -100,7 +104,6 @@ struct DrawEntry
 {
     ResourceHandle<Mesh> meshHandle;
     glm::mat4x4 modelMat{};
-    BoundingBox bounds{};
     uint32_t tlasHandle{};
     Material material;
     int modelIndex{};
@@ -218,5 +221,11 @@ struct HitInfo
     uint32_t variables[16];
 };
 
+struct CullingInfo
+{
+    Plane cameraPlane[6];
+    uint32_t boundingBoxCount;
+    uint32_t padding[3];
+};
 
 };

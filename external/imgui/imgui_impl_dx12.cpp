@@ -102,7 +102,7 @@ struct ImGui_ImplDX12_ViewportData
     ID3D12GraphicsCommandList*      CommandList;
     ID3D12DescriptorHeap*           RtvDescHeap;
     IDXGISwapChain3*                SwapChain;
-    ID3D12Fence*                    Fence;
+    ID3D12Fence*                    ExecuteAndFence;
     UINT64                          FenceSignaledValue;
     HANDLE                          FenceEvent;
     UINT                            NumFramesInFlight;
@@ -118,7 +118,7 @@ struct ImGui_ImplDX12_ViewportData
         CommandList = nullptr;
         RtvDescHeap = nullptr;
         SwapChain = nullptr;
-        Fence = nullptr;
+        ExecuteAndFence = nullptr;
         FenceSignaledValue = 0;
         FenceEvent = nullptr;
         NumFramesInFlight = num_frames_in_flight;
@@ -143,7 +143,7 @@ struct ImGui_ImplDX12_ViewportData
         IM_ASSERT(CommandQueue == nullptr && CommandList == nullptr);
         IM_ASSERT(RtvDescHeap == nullptr);
         IM_ASSERT(SwapChain == nullptr);
-        IM_ASSERT(Fence == nullptr);
+        IM_ASSERT(ExecuteAndFence == nullptr);
         IM_ASSERT(FenceEvent == nullptr);
 
         for (UINT i = 0; i < NumFramesInFlight; ++i)
@@ -876,7 +876,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     vd->CommandList->Close();
 
     // Create fence.
-    res = bd->pd3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&vd->Fence));
+    res = bd->pd3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&vd->ExecuteAndFence));
     IM_ASSERT(res == S_OK);
 
     vd->FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -950,12 +950,12 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
 static void ImGui_WaitForPendingOperations(ImGui_ImplDX12_ViewportData* vd)
 {
     HRESULT hr = S_FALSE;
-    if (vd && vd->CommandQueue && vd->Fence && vd->FenceEvent)
+    if (vd && vd->CommandQueue && vd->ExecuteAndFence && vd->FenceEvent)
     {
-        hr = vd->CommandQueue->Signal(vd->Fence, ++vd->FenceSignaledValue);
+        hr = vd->CommandQueue->Signal(vd->ExecuteAndFence, ++vd->FenceSignaledValue);
         IM_ASSERT(hr == S_OK);
         ::WaitForSingleObject(vd->FenceEvent, 0); // Reset any forgotten waits
-        hr = vd->Fence->SetEventOnCompletion(vd->FenceSignaledValue, vd->FenceEvent);
+        hr = vd->ExecuteAndFence->SetEventOnCompletion(vd->FenceSignaledValue, vd->FenceEvent);
         IM_ASSERT(hr == S_OK);
         ::WaitForSingleObject(vd->FenceEvent, INFINITE);
     }
@@ -973,7 +973,7 @@ static void ImGui_ImplDX12_DestroyWindow(ImGuiViewport* viewport)
         SafeRelease(vd->CommandList);
         SafeRelease(vd->SwapChain);
         SafeRelease(vd->RtvDescHeap);
-        SafeRelease(vd->Fence);
+        SafeRelease(vd->ExecuteAndFence);
         ::CloseHandle(vd->FenceEvent);
         vd->FenceEvent = nullptr;
 
@@ -1046,9 +1046,9 @@ static void ImGui_ImplDX12_RenderWindow(ImGuiViewport* viewport, void*)
     cmd_list->ResourceBarrier(1, &barrier);
     cmd_list->Close();
 
-    vd->CommandQueue->Wait(vd->Fence, vd->FenceSignaledValue);
+    vd->CommandQueue->Wait(vd->ExecuteAndFence, vd->FenceSignaledValue);
     vd->CommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&cmd_list);
-    vd->CommandQueue->Signal(vd->Fence, ++vd->FenceSignaledValue);
+    vd->CommandQueue->Signal(vd->ExecuteAndFence, ++vd->FenceSignaledValue);
 }
 
 static void ImGui_ImplDX12_SwapBuffers(ImGuiViewport* viewport, void*)
@@ -1056,7 +1056,7 @@ static void ImGui_ImplDX12_SwapBuffers(ImGuiViewport* viewport, void*)
     ImGui_ImplDX12_ViewportData* vd = (ImGui_ImplDX12_ViewportData*)viewport->RendererUserData;
 
     vd->SwapChain->Present(0, 0);
-    while (vd->Fence->GetCompletedValue() < vd->FenceSignaledValue)
+    while (vd->ExecuteAndFence->GetCompletedValue() < vd->FenceSignaledValue)
         ::SwitchToThread();
 }
 

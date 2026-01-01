@@ -35,11 +35,13 @@ KS::Renderer::Renderer(Device& device)
     clampSampler.addressMode = SamplerAddressMode::SAM_CLAMP;
 
     m_mainInputs = ShaderInputBlueprintBuilder()
-                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix"})
+                       .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix", "culling_info"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
-                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY,
-                              1)
-                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"compute_res"}, KS::ShaderInputMod::READ_WRITE)
+                       .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE,
+                                        {"textures", "bounding_boxes"},
+                                         ShaderInputMod::READ_ONLY,
+                                         1)
+                       .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"compute_res", "draw_indices"}, KS::ShaderInputMod::READ_WRITE)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer1"}, KS::ShaderInputMod::READ_WRITE)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer2"}, KS::ShaderInputMod::READ_WRITE)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer3"}, KS::ShaderInputMod::READ_WRITE)
@@ -158,6 +160,14 @@ KS::Renderer::Renderer(Device& device)
                                                .SetGlobalSignature(m_mainInputs)
                                                .Build(device);
 
+    std::shared_ptr<Shader> cullingShader =
+        ShaderBuilder()
+            .SetType(PipelineType::ST_COMPUTE)
+            .AddShaderPath(ShaderType::COMPUTE_SHADER, "assets/shaders/CullingShader.hlsl", L"main")
+            .SetGlobalSignature(m_mainInputs)
+            .Build(device);
+
+
     m_subrenderers[DEFERRED_RENDER] = std::make_unique<ModelRenderer>(device, mainShader);
     m_subrenderers[CUBEMAP_RENDER] = std::make_unique<ModelRenderer>(device, skyboxRenderShader, true);
     m_subrenderers[PBR_RENDER] = std::make_unique<ComputeRenderer>(device, computePBRShader);
@@ -167,6 +177,7 @@ KS::Renderer::Renderer(Device& device)
     m_subrenderers[UPSCALING_RENDER] = std::make_unique<ComputeRenderer>(device, upscalingShader);
     m_subrenderers[RT_RENDER] = std::make_unique<RTRenderer>(device, rtShader);
     m_subrenderers[CUBEMAP_GEN] = std::make_unique<ComputeRenderer>(device, skyboxShader);
+    m_subrenderers[MESH_CULLING] = std::make_unique<ComputeRenderer>(device, cullingShader);
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -178,6 +189,7 @@ KS::Renderer::Renderer(Device& device)
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
+    m_inputs[MESH_CULLING] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
 
     KS::SamplerDesc desc{};
     desc.addressMode = KS::SamplerAddressMode::SAM_CLAMP;
@@ -218,7 +230,11 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     cam.m_cameraNoTranslation = params.projectionMatrix * glm::mat4(glm::mat3(params.viewMatrix));
     cam.m_cameraPos = glm::vec4(params.cameraPos, 1.f);
 
+    auto cullingInfo = scene.GetCullingInfo();
+    std::copy(params.frustum.begin(), params.frustum.end(), &cullingInfo.cameraPlane[0]);
+
     scene.GetUniformBuffer(CAMERA_MAT_BUFFER)->Update(device, cam, 0);
+    scene.GetUniformBuffer(CULLING_INFO)->Update(device, cullingInfo, 0);
 
     if (recompileShaders)
     {
@@ -234,6 +250,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     GenerateMipmaps(device, scene);
 
     RenderCubemap(device, scene);
+    Culling(device, scene);
     Main(device, scene, params.frustum, raytraced);
 
     if (raytraced)
@@ -555,5 +572,44 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
 
     m_subrenderers[CUBEMAP_RENDER]->Render(device, &commandContext, par);
 
+    commandContext.Close();
+}
+
+void KS::Renderer::Culling(Device& device, Scene& scene)
+{
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+    auto rootSignature = m_subrenderers[MESH_CULLING]->GetShader()->GetShaderInput();
+
+    m_inputs[MESH_CULLING][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DRAW_INDICES),
+                                                                      rootSignature->GetInput("draw_indices"));
+    m_inputs[MESH_CULLING][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CULLING_INFO),
+                                                                      rootSignature->GetInput("culling_info"));
+    m_inputs[MESH_CULLING][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(BOUNDING_BOX_BUFFER),
+                                                                      rootSignature->GetInput("bounding_boxes"));
+
+    RenderParameters par{};
+    par.scene = &scene;
+    par.inputs = &m_inputs[MESH_CULLING];
+
+    reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
+        ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize() / 16.0f)), 1, 1);
+
+    m_subrenderers[MESH_CULLING]->Render(device, &commandContext, par);
+    
+    auto resource = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawResource());
+    auto resourceRB = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawRBResource());
+    commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
+
+    auto counterResource = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawCounterResource());
+    auto counterRBResource = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawRBCounterResource());
+
+    commandList->TransitionResource(*resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList->TransitionResource(*resourceRB, D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList->CopyResource(*resource, *resourceRB);
+
+    commandList->TransitionResource(*counterResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList->TransitionResource(*counterRBResource, D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList->CopyResource(*counterResource, *counterRBResource);
     commandContext.Close();
 }

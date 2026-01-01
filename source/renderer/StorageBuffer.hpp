@@ -16,7 +16,9 @@ public:
     {
         NONE = 1 << 0,
         INDEX_DATA_BUFFER = 1 << 1,
-        VERTEX_DATA_BUFFER = 1 << 2
+        VERTEX_DATA_BUFFER = 1 << 2,
+        COUNTER_RESOURCE = 1<<3,
+        READBACK_RESOURCE = 1<<4
     };
 
     StorageBuffer();
@@ -98,6 +100,9 @@ public:
     bool IsReadWrite() const { return m_read_write; }
     void* GetRawRealResource() const;
     void* GetRawResource() const;
+    void* GetRawCounterResource() const;
+    void* GetRawRBCounterResource() const;
+    void* GetRawRBResource() const;
     int GetAllocationIndex(bool readOnly);
 
 private:

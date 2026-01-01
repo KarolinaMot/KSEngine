@@ -31,10 +31,6 @@ public:
     void CreateSwapchain(uint32_t newWidth, uint32_t newHeight, DXFactory* factory, HWND HWNDwindow);
     UINT GetFramebufferIndex();
 
-    // void BindSwapchainRT();
-    void StartFrame(int cpuFrame);
-    void EndFrame(int cpuFrame);
-
     enum DXResources
     {
         RT,
@@ -139,7 +135,8 @@ void KS::Device::NewFrame()
     }
 
     m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
-    m_impl->StartFrame(m_cpu_frame);
+    m_impl->m_commandPool->RetireCompleted();
+    m_impl->m_uploadArena->Recycle(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
 
     m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
     m_swapchainRT->Clear(*commandList, m_cpu_frame);
@@ -178,7 +175,14 @@ void KS::Device::EndFrame()
     m_swapchainRT->PrepareToPresent(*commandList, m_cpu_frame);
     commandContext.Close();
 
-    m_impl->EndFrame(m_cpu_frame);
+    if (FAILED(m_impl->m_swapchain->Present(1, 0)))
+    {
+        LOG(Log::Severity::FATAL, "Failed to present");
+    }
+
+    m_impl->m_fence_values[m_cpu_frame] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
+    m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
+    m_impl->m_fence_values[m_cpu_frame].Wait();
 
     ImGui::EndFrame();
     ImGui::UpdatePlatformWindows();
@@ -350,25 +354,6 @@ UINT KS::Device::Impl::GetFramebufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-void KS::Device::Impl::StartFrame(int cpuFrame)
-{
-    // Wait until the current swapchain is available;
-    m_commandPool->RetireCompleted();
-    m_uploadArena->Recycle(m_fence_values[cpuFrame].GetFutureValue());
-}
-
-void KS::Device::Impl::EndFrame(int cpuFrame)
-{
-    // PRESENT
-    if (FAILED(m_swapchain->Present(1, 0)))
-    {
-        LOG(Log::Severity::FATAL, "Failed to present");
-    }
-
-    m_fence_values[cpuFrame] = m_commandPool->Execute(*m_command_queue.get());
-    m_uploadArena->OnSubmit(m_fence_values[cpuFrame].GetFutureValue());
-    m_fence_values[cpuFrame].Wait();
-}
 
 void CALLBACK DebugOutputCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID, LPCSTR pDescription, void*)
 {

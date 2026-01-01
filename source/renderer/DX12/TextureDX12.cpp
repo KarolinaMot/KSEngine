@@ -593,7 +593,7 @@ void KS::RenderTarget::CopyTo(DXCommandList& commandList, uint32_t frameIndex, s
 
     commandList.TransitionResource(*dstTexBuffer,  D3D12_RESOURCE_STATE_COPY_DEST);
     sourceRT->SetCopyFrom(commandList, frameIndex, sourceRtIndex);
-    commandList.CopyResource(srcTexBuffer, dstTexBuffer);
+    commandList.CopyResource(*srcTexBuffer.get(), *dstTexBuffer.get());
 }
 
 void KS::RenderTarget::SetCopyFrom(DXCommandList& commandList, uint32_t frameIndex, int rtIndex)

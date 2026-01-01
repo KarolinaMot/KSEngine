@@ -60,12 +60,17 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     mStorageBuffers[INSTANCE_DATA_BUFFER] =
         std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL INSTANCE DATA",
                                         &m_instanceData[0], static_cast<uint32_t>(sizeof(InstanceData)), MAX_MESHES, false);
+
     mUniformBuffers[MODEL_INDEX_BUFFER] =
         std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_uniqueMeshCount, MAX_MESHES, false);
+
     mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
     GenerateMipsInfo mipInfo;
     mUniformBuffers[MIP_GEN_INFO] = std::make_unique<UniformBuffer>(device, "MIP GEN INFO", mipInfo, NUM_OF_TEXTURES);
+
+    CullingInfo cullingInfo;
+    mUniformBuffers[CULLING_INFO] = std::make_unique<UniformBuffer>(device, "CULLING INFO", cullingInfo, 1);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
     m_fogInfo.fogDensity = 0.6f;
@@ -81,6 +86,10 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         device, m_impl->m_resourceHeap.get(), *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
     mStorageBuffers[KS::POINT_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(
         device, m_impl->m_resourceHeap.get(), *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
+    mStorageBuffers[KS::BOUNDING_BOX_BUFFER] = std::make_unique<StorageBuffer>(
+        device, m_impl->m_resourceHeap.get(), *commandList, "BOUNDING BOX INFO", m_boundingBoxes, false);
+    mStorageBuffers[KS::DRAW_INDICES] = std::make_unique<StorageBuffer>(
+        device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices, true, StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
 
     std::shared_ptr<Texture> deferredRendererTex[2][3];
     std::shared_ptr<Texture> deferredRendererDepthTex;
@@ -204,7 +213,8 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 AABB = AABB.ApplyTransform(scene_transform);
 
                 draw_queue[m_uniqueMeshCount] =
-                    KS::DrawEntry(meshHandle, scene_transform, AABB, 0, ptr->materials[material], m_meshAndInstanceCount);
+                    KS::DrawEntry(meshHandle, scene_transform, 0, ptr->materials[material], m_meshAndInstanceCount);
+                m_boundingBoxes[m_uniqueMeshCount] = AABB;
 
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
@@ -260,6 +270,8 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                                                   m_uniqueMeshCount);
     mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
+    mStorageBuffers[BOUNDING_BOX_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_boundingBoxes);
+
     commandContext.Close();
     m_updateScene = true;
     return m_uniqueMeshCount;
@@ -276,7 +288,7 @@ void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
 
     auto mesh = GetMesh(entry.meshHandle);
     auto AABB = mesh->GetLocalBounds();
-    entry.bounds = AABB.ApplyTransform(modelMat.mModel);
+    m_boundingBoxes[m_uniqueMeshCount] = AABB;
 
     m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
 }
@@ -346,6 +358,9 @@ void KS::Scene::Tick(Device& device)
 
     m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);
+
+    m_cullInfo.boundingBoxCount = m_uniqueMeshCount;
+    //m_cullInfo.drawIndixesCount = 0;
 
     commandContext.Close();
 }
