@@ -612,4 +612,6 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
     commandList->TransitionResource(*counterRBResource, D3D12_RESOURCE_STATE_COPY_DEST);
     commandList->CopyResource(*counterResource, *counterRBResource);
     commandContext.Close();
+
+    device.FlushAndWait();
 }

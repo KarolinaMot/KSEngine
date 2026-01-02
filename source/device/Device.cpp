@@ -81,7 +81,7 @@ KS::Device::Device(const DeviceInitParams& params)
     m_window_open = true;
     m_clear_color = params.clear_color;
     m_impl->InitializeDevice(params);
-    m_frame_index = 0;
+    m_gpu_frame = 0;
 }
 
 KS::Device::~Device()
@@ -122,24 +122,23 @@ void KS::Device::NewFrame()
 
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     glfwGetWindowSize(m_impl->m_window, &m_windowWidth, &m_windowHeight);
-    m_frame_index = m_impl->GetFramebufferIndex();
+    m_gpu_frame = m_impl->GetFramebufferIndex();
     if (m_windowWidth != m_swapchainWidth || m_windowHeight != m_swapchainHeight)
     {
-        //EndFrame();
-        int waitFrame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
-        m_impl->m_fence_values[m_frame_index].Wait();
+        int waitFrame = (m_gpu_frame + 1) % FRAME_BUFFER_COUNT;
+        m_impl->m_fence_values[m_gpu_frame].Wait();
         m_impl->m_fence_values[waitFrame].Wait();
         m_impl->m_commandPool->RetireCompleted();
 
         ResizeSwapchain(m_windowWidth, m_windowHeight);
     }
 
-    m_cpu_frame = (m_frame_index + 1) % FRAME_BUFFER_COUNT;
+    m_cpu_frame = (m_gpu_frame + 1) % FRAME_BUFFER_COUNT;
     m_impl->m_commandPool->RetireCompleted();
     m_impl->m_uploadArena->Recycle(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
 
-    m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
-    m_swapchainRT->Clear(*commandList, m_cpu_frame);
+    m_swapchainRT->Bind(*commandList, m_gpu_frame, m_swapchainDS.get());
+    m_swapchainRT->Clear(*commandList, m_gpu_frame);
     m_swapchainDS->Clear(*commandList);
 
     ImGui::GetIO().DisplaySize.x = static_cast<float>(m_windowWidth);
@@ -149,13 +148,18 @@ void KS::Device::NewFrame()
     double mx, my;
     glfwGetCursorPos(m_impl->m_window, &mx, &my);
     ImGui::GetIO().MousePos = ImVec2((float)(mx), (float)(my));
-    //ImGui::GetIO().MousePos = ImVec2(mouse_x * io.DisplayFramebufferScale.x, mouse_y * io.DisplayFramebufferScale.y);
 
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     commandContext.Close();
+}
 
+void KS::Device::FlushAndWait()
+{
+    auto fence = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
+    m_impl->m_uploadArena->OnSubmit(fence.GetFutureValue());
+    fence.Wait();
 }
 
 void KS::Device::EndFrame()
@@ -168,20 +172,20 @@ void KS::Device::EndFrame()
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::IMGUI_HEAP].get();
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    m_swapchainRT->Bind(*commandList, m_cpu_frame, m_swapchainDS.get());
+    m_swapchainRT->Bind(*commandList, m_gpu_frame, m_swapchainDS.get());
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
-    glfwSwapBuffers(m_impl->m_window);
-    m_swapchainRT->PrepareToPresent(*commandList, m_cpu_frame);
+    m_swapchainRT->PrepareToPresent(*commandList, m_gpu_frame);
     commandContext.Close();
+
+    m_impl->m_fence_values[m_cpu_frame] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
+    m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
 
     if (FAILED(m_impl->m_swapchain->Present(1, 0)))
     {
         LOG(Log::Severity::FATAL, "Failed to present");
     }
 
-    m_impl->m_fence_values[m_cpu_frame] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
-    m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
     m_impl->m_fence_values[m_cpu_frame].Wait();
 
     ImGui::EndFrame();
@@ -268,7 +272,7 @@ void KS::Device::ResizeSwapchain(uint32_t newWidth, uint32_t newHeight)
     InitializeSwapchain();
     // Note: buffer count, format, and flags should match original creation.
 
-    m_frame_index = m_impl->m_swapchain->GetCurrentBackBufferIndex();
+    m_gpu_frame = m_impl->m_swapchain->GetCurrentBackBufferIndex();
 }
 
 void KS::Device::Impl::CreateSwapchain(uint32_t newWidth, uint32_t newHeight, DXFactory* factory, HWND HWNDwindow)

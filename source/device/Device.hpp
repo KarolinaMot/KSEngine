@@ -48,13 +48,14 @@ public:
     
     inline bool IsWindowOpen() const { return m_window_open; }
     void NewFrame();
+    void FlushAndWait();
     void EndFrame();
     void InitializeSwapchain();
     void FinishInitialization();
     void InitializeImGUI();
     void ResizeSwapchain(uint32_t newWidth, uint32_t newHeight);
 
-    unsigned int GetFrameIndex() const { return m_frame_index; }
+    unsigned int GetFrameIndex() const { return m_gpu_frame; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
 
     int GetSwapchainWidth() const { return m_swapchainWidth; }
@@ -77,7 +78,7 @@ private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
     bool m_window_open {};
-    unsigned int m_frame_index = 0;
+    unsigned int m_gpu_frame = 0;
     unsigned int m_cpu_frame = 0;
     bool m_fullscreen = false;
     int m_swapchainWidth, m_swapchainHeight;
