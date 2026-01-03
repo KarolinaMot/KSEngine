@@ -20,8 +20,11 @@ public:
 
     D3D12_RESOURCE_FLAGS m_flags{};
     DXHeapHandle m_UAV_handle{};
+    DXHeapHandle m_UAV_counter_handle{};
     DXHeapHandle m_SRV_handle{};
+    DXHeapHandle m_SRV_counter_handle{};
     UploadSlice m_slice{};
+    UploadSlice m_counterSlice{};
 
     D3D12_INDEX_BUFFER_VIEW indexBufferView{};
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
@@ -47,11 +50,68 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, D
     auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(m_total_buffer_size, m_impl->m_flags);
     m_impl->m_resource = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
+    auto upl = device.GetUploadArena();
+
+    if (m_flags & StorageBufferFlags::COUNTER_RESOURCE)
+    {
+        if (m_impl->m_flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+        {
+            LOG(Log::Severity::WARN,
+                "Cant create {} buffer with a counter resource, because it wasn't created as a read-write resource", m_name);
+            return;
+        }
+
+        uint32_t counterResourceSize = 16;
+        heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(counterResourceSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        m_impl->m_counter =
+            std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (name + " counter").c_str());
+
+        if (m_flags & StorageBufferFlags::READBACK_RESOURCE)
+        {
+            heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+            resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(counterResourceSize);
+            m_impl->m_counterRB =
+                std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (name + " counter").c_str());
+        }
+
+        auto heap = reinterpret_cast<DXDescHeap*>(resourceHeap);
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+        srvDesc.Buffer.FirstElement = 0;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Buffer.StructureByteStride = counterResourceSize;
+        srvDesc.Buffer.NumElements = 1;
+
+        m_impl->m_SRV_counter_handle = heap->AllocateResource(m_impl->m_counter.get(), &srvDesc);
+
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+        uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+        uavDesc.Buffer.FirstElement = 0;
+        uavDesc.Buffer.StructureByteStride = counterResourceSize;
+        uavDesc.Buffer.NumElements = 1;
+
+        m_impl->m_UAV_counter_handle = heap->AllocateUAV(m_impl->m_counter.get(), &uavDesc);
+
+        m_impl->m_counterSlice = upl->Allocate(device, commandList, counterResourceSize, 255);
+        m_impl->m_counterSlice.m_size = counterResourceSize;
+    }
+
+    if (m_flags & StorageBufferFlags::READBACK_RESOURCE)
+    {
+        heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(m_total_buffer_size);
+        m_impl->m_resourceRB = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
+    }
 
     AllocateAsReadOnly(resourceHeap);
     if (m_impl->m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) AllocateAsReadWrite(resourceHeap);
 
-    auto upl = device.GetUploadArena();
     m_impl->m_slice = upl->Allocate(device, commandList, m_total_buffer_size, 255);
     m_impl->m_slice.m_size = m_total_buffer_size;
 
@@ -89,35 +149,6 @@ void KS::StorageBuffer::CreateBuffer(const Device& device, void* resourceHeap, D
 
     }
 
-    if (m_flags & StorageBufferFlags::COUNTER_RESOURCE)
-    {
-        if (m_impl->m_flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
-        {
-            LOG(Log::Severity::WARN,
-                "Cant create {} buffer with a counter resource, because it wasn't created as a read-write resource", m_name);
-            return;
-        }
-
-        heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(16, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        m_impl->m_counter = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (name + " counter").c_str());
-
-        if (m_flags & StorageBufferFlags::READBACK_RESOURCE)
-        {
-            heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-            resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(16);            
-            m_impl->m_counterRB =
-                std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, (name + " counter").c_str());
-        }
-
-    }
-
-    if (m_flags & StorageBufferFlags::READBACK_RESOURCE)
-    {
-        heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(m_total_buffer_size);
-        m_impl->m_resourceRB = std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, nullptr, name.c_str());
-    }
 }
 
 void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& commandList, const void* data,
@@ -151,7 +182,6 @@ void KS::StorageBuffer::UploadDataBuffer(const Device& device, DXCommandList& co
                                                    bytes);
 
     commandList.TransitionResource(*m_impl->m_resource, destState);
-    
 }
 
 void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList, void* resourceHeap, uint32_t newNumOfElements)
@@ -250,12 +280,37 @@ void KS::StorageBuffer::AllocateAsReadWrite(void* resourceHeap, int slot)
         m_impl->m_UAV_handle = heap->AllocateUAV(m_impl->m_resource.get(), &uavDesc, slot, counter);
 }
 
+void KS::StorageBuffer::ClearCounterBuffer(const Device& device, DXCommandList& commandList)
+{ 
+    if (!(m_flags & StorageBufferFlags::COUNTER_RESOURCE))
+    {
+        LOG(Log::Severity::WARN, "Tried to clear an unexisting counter resource.");
+        return;
+    }
+
+    D3D12_RESOURCE_STATES destState = D3D12_RESOURCE_STATE_GENERIC_READ;
+    const UINT64 bytes = m_impl->m_counter->GetDesc().Width;
+    auto upl = device.GetUploadArena();
+
+    memset(m_impl->m_counterSlice.m_cpu + m_impl->m_counterSlice.m_head, 0, size_t(bytes));
+
+    auto uploadSource = reinterpret_cast<DXResource*>(upl->GetPageResource(m_impl->m_slice.m_pageID));
+    commandList.TransitionResource(*m_impl->m_counter, D3D12_RESOURCE_STATE_COPY_DEST);
+
+    // Copy from arena into DEFAULT heap buffer
+    commandList.GetCommandList()->CopyBufferRegion(m_impl->m_counter->GetResource().Get(), 0,
+                                                   uploadSource->GetResource().Get(), m_impl->m_slice.m_head,
+                                                   bytes);
+
+    commandList.TransitionResource(*m_impl->m_counter, destState);
+}
+
 size_t KS::StorageBuffer::GetGPUAddress(int elementIndex, int) const
 {
     return m_impl->m_resource->GetResource()->GetGPUVirtualAddress() + (m_buffer_stride * elementIndex);
 }
 
-uint32_t KS::StorageBuffer::GetHandle(bool readOnly)
+uint32_t KS::StorageBuffer::GetHandle(bool readOnly) const
 { 
     if (readOnly)
     {
@@ -279,6 +334,11 @@ uint32_t KS::StorageBuffer::GetHandle(bool readOnly)
 
         return static_cast<uint64_t>(m_impl->m_UAV_handle.GetIndex());
     }
+}
+
+uint32_t KS::StorageBuffer::GetCounterHandle(bool readOnly) const
+{
+    return readOnly ? m_impl->m_SRV_counter_handle.GetIndex() : m_impl->m_UAV_counter_handle.GetIndex();
 }
 
 void* KS::StorageBuffer::GetRawRealResource() const { return m_impl->m_resource->Get(); }

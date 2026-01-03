@@ -38,7 +38,7 @@ KS::Renderer::Renderer(Device& device)
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix", "culling_info"})
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"model_index", "fog_info"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE,
-                                        {"textures", "bounding_boxes"},
+                                        {"textures"},
                                          ShaderInputMod::READ_ONLY,
                                          1)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"compute_res", "draw_indices"}, KS::ShaderInputMod::READ_WRITE)
@@ -46,7 +46,7 @@ KS::Renderer::Renderer(Device& device)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer2"}, KS::ShaderInputMod::READ_WRITE)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer3"}, KS::ShaderInputMod::READ_WRITE)
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1,
-                                         {"dir_lights", "cubemap_src", "light_render_res"})
+                              {"dir_lights", "cubemap_src", "light_render_res", "bounding_boxes"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"cubemap_tex"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"instance_data", "light_shaft_res"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"Depth"})
@@ -580,29 +580,41 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[MESH_CULLING]->GetShader()->GetShaderInput();
+    auto heap = scene.GetResourceHeap();
 
-    m_inputs[MESH_CULLING][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(DRAW_INDICES),
+    auto indicesStorageBuffer = scene.GetStorageBuffer(DRAW_INDICES);
+    auto counterResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawCounterResource());
+    auto counterRBResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBCounterResource());
+    auto resource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawResource());
+    auto resourceRB = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBResource());
+
+    m_inputs[MESH_CULLING][0] = std::pair<ShaderInput*, ShaderInputDesc>(indicesStorageBuffer,
                                                                       rootSignature->GetInput("draw_indices"));
     m_inputs[MESH_CULLING][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CULLING_INFO),
                                                                       rootSignature->GetInput("culling_info"));
     m_inputs[MESH_CULLING][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(BOUNDING_BOX_BUFFER),
                                                                       rootSignature->GetInput("bounding_boxes"));
-
     RenderParameters par{};
     par.scene = &scene;
     par.inputs = &m_inputs[MESH_CULLING];
 
+    UINT clear[4] = {0, 0, 0, 0};
+    auto counterHandle = indicesStorageBuffer->GetCounterHandle(false);
+
+    auto counterUavGpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+    counterUavGpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
+
+    auto counterUavCpuHandle = heap->Get()->GetCPUDescriptorHandleForHeapStart();
+    counterUavCpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
+
+    indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
+
     reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
-        ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize() / 16.0f)), 1, 1);
+        ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize())), 1, 1);
 
     m_subrenderers[MESH_CULLING]->Render(device, &commandContext, par);
     
-    auto resource = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawResource());
-    auto resourceRB = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawRBResource());
     commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
-
-    auto counterResource = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawCounterResource());
-    auto counterRBResource = reinterpret_cast<DXResource*>(scene.GetStorageBuffer(DRAW_INDICES)->GetRawRBCounterResource());
 
     commandList->TransitionResource(*resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
     commandList->TransitionResource(*resourceRB, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -614,4 +626,22 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
     commandContext.Close();
 
     device.FlushAndWait();
+
+    uint32_t* countPtr = nullptr;
+    counterRBResource->Get()->Map(0, nullptr, (void**)&countPtr);
+    uint32_t count = *countPtr;
+    counterRBResource->Get()->Unmap(0, nullptr);
+
+    // Read data
+    auto& drawIndices = scene.GetDrawIndices();
+
+    void* mapped = nullptr;
+    resourceRB->Get()->Map(0, nullptr, &mapped);
+    uint32_t* src = static_cast<uint32_t*>(mapped);
+
+    memcpy(drawIndices.data(), src, size_t(count) * sizeof(uint32_t));
+
+    resourceRB->Get()->Unmap(0, nullptr);
+
+    scene.SetDrawIndicesCount(count);
 }

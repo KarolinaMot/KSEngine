@@ -48,7 +48,7 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
-    auto drawQueueSize = par.scene->GetUniqueMeshCount();
+    auto drawQueueSize = par.scene->GetDrawIndicesCount();
     if (drawQueueSize == 0) return;
 
     auto* commandList = commandContext->m_commandList.get();
@@ -108,7 +108,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
     commandContext->Close();
 
-    auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device)
+    auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device, std::vector<uint32_t>& indices)
     {
         // Reuse the existing lambda
         auto context = device.GetCommandContext();
@@ -116,17 +116,15 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
         for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
         {
-           // auto& entry = par.scene->GetDrawEntry(meshIndex);
-           // if (!entry.bounds.FrustumTest(par.cameraFrustum)) continue;
-
-            DrawMesh(device, *par.scene, *context.m_commandList.get(), meshIndex, modelIndexInp, resourceHeap, modelIndexUBO,
+            DrawMesh(device, *par.scene, *context.m_commandList.get(), indices[meshIndex], modelIndexInp, resourceHeap,
+                     modelIndexUBO,
                      shaderFlags, texturesRoot);
         }
         context.Close();
     };
 
     std::vector<std::thread> workerThreads;
-
+    auto& culledMeshIndices = par.scene->GetDrawIndices();
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
 
@@ -134,7 +132,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
         if (!enoughMeshes) break;
 
-        workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device));
+        workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device), std::ref(culledMeshIndices));
     }
 
     for (auto& t : workerThreads)

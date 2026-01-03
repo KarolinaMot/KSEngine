@@ -1,7 +1,7 @@
 #include "Structs.hlsl"
 
 StructuredBuffer<BoundingBox> boundingBoxes : register(t0);
-AppendStructuredBuffer<int> drawIndices : register(u0);
+RWStructuredBuffer<int> drawIndices : register(u0);
     
 cbuffer CullingBuffer : register(b0)
 {
@@ -10,13 +10,11 @@ cbuffer CullingBuffer : register(b0)
 
 bool FrustumTest(const Plane frustum[6], BoundingBox box);
 
-[numthreads(16, 1, 1)]
+[numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-    if (FrustumTest(cullingInfo.cameraPlane, boundingBoxes[DTid.x]))
-    {
-        drawIndices.Append(DTid.x);
-    }
+        uint index = drawIndices.IncrementCounter();
+        drawIndices[index] = DTid.x;
 }
 
 bool FrustumTest(const Plane frustum[6], BoundingBox box)

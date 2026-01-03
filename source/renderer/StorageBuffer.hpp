@@ -91,12 +91,15 @@ public:
     void BindAsIndexData(DXCommandList& commandList);
     void AllocateAsReadOnly(void* resourceHeap, int slot = -1);
     void AllocateAsReadWrite(void* resourceHeap, int slot = -1);
+    void ClearCounterBuffer(const Device& device, DXCommandList& commandList);
 
     uint32_t GetBufferStride() const { return m_buffer_stride; }
     size_t GetBufferSize() const { return m_total_buffer_size; }
     uint32_t GetElementCount() const { return m_num_elements; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
-    uint32_t GetHandle(bool readOnly);
+    uint32_t GetHandle(bool readOnly) const;
+    uint32_t GetCounterHandle(bool readOnly) const;
+
     bool IsReadWrite() const { return m_read_write; }
     void* GetRawRealResource() const;
     void* GetRawResource() const;

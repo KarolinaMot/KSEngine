@@ -46,6 +46,7 @@ public:
     void QueueDirectionalLight(DirLightInfo info);
     void SetAmbientLight(glm::vec3 color, float intensity);
     void SetFogValues(Device& device, const FogInfo& newFogInfo);
+    void SetDrawIndicesCount(uint32_t count) { m_drawIndicesCount = count;}
 
     void Tick(Device& device);
 
@@ -79,6 +80,7 @@ public:
     DirLightInfo GetDirLight(int index) const { return m_directionalLights[index]; }
     PointLightInfo GetPointLight(int index) const { return m_pointLights[index]; }
     glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
+    uint32_t GetDrawIndicesCount() const { return m_drawIndicesCount; }
 
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
@@ -93,6 +95,7 @@ public:
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
+    std::vector<uint32_t>& GetDrawIndices() { return m_drawIndices; }
 
 private:
     class Impl;
@@ -123,6 +126,7 @@ private:
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
     std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
+    uint32_t m_drawIndicesCount = 0;
     uint32_t m_uniqueMeshCount = 0;
     uint32_t m_meshAndInstanceCount = 0;
     LightInfo m_lightInfo{};
@@ -132,6 +136,5 @@ private:
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
     bool m_updateDirLights = false, m_updatePointLights = false;
     bool m_updateScene = false;
-
 };
 }  // namespace KS
