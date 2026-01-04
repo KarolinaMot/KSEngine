@@ -124,7 +124,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     };
 
     std::vector<std::thread> workerThreads;
-    auto& culledMeshIndices = par.scene->GetDrawIndices();
+    auto& culledMeshIndices = par.scene->GetDrawIndices(frameIndex);
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
 
@@ -147,8 +147,8 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
 {
     if (index >= scene.GetDrawQueueSize()) return;
 
-    DrawEntry& meshSet = scene.GetDrawEntry(index);
-    auto mesh = scene.GetMesh(meshSet.meshHandle);
+    DrawEntry& drawEntry = scene.GetDrawEntry(index);
+    auto mesh = scene.GetMesh(drawEntry.meshHandle);
     if (mesh == nullptr) return;
 
     using namespace MeshConstants;
@@ -159,7 +159,7 @@ void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& co
     auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
     auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, meshSet.modelIndex);
+    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, drawEntry.modelIndex);
 
     if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
     if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);

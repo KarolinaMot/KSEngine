@@ -88,8 +88,8 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         device, m_impl->m_resourceHeap.get(), *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
     mStorageBuffers[KS::BOUNDING_BOX_BUFFER] = std::make_unique<StorageBuffer>(
         device, m_impl->m_resourceHeap.get(), *commandList, "BOUNDING BOX INFO", m_boundingBoxes, false);
-    mStorageBuffers[KS::DRAW_INDICES] = std::make_unique<StorageBuffer>(
-        device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices, true, StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
+    mStorageBuffers[KS::DRAW_INDICES] = std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices[0],
+                                        true, StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
 
     std::shared_ptr<Texture> deferredRendererTex[2][3];
     std::shared_ptr<Texture> deferredRendererDepthTex;

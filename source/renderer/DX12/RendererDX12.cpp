@@ -577,71 +577,74 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
 
 void KS::Renderer::Culling(Device& device, Scene& scene)
 {
-    auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
-    auto rootSignature = m_subrenderers[MESH_CULLING]->GetShader()->GetShaderInput();
-    auto heap = scene.GetResourceHeap();
+     auto commandContext = device.GetCommandContext();
+     auto& commandList = commandContext.m_commandList;
+     auto rootSignature = m_subrenderers[MESH_CULLING]->GetShader()->GetShaderInput();
+     auto heap = scene.GetResourceHeap();
 
-    auto indicesStorageBuffer = scene.GetStorageBuffer(DRAW_INDICES);
-    auto counterResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawCounterResource());
-    auto counterRBResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBCounterResource());
-    auto resource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawResource());
-    auto resourceRB = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBResource());
+     auto indicesStorageBuffer = scene.GetStorageBuffer(DRAW_INDICES);
+     auto counterResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawCounterResource());
+     auto counterRBResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBCounterResource());
+     auto resource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawResource());
+     auto resourceRB = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBResource());
 
-    m_inputs[MESH_CULLING][0] = std::pair<ShaderInput*, ShaderInputDesc>(indicesStorageBuffer,
-                                                                      rootSignature->GetInput("draw_indices"));
-    m_inputs[MESH_CULLING][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CULLING_INFO),
-                                                                      rootSignature->GetInput("culling_info"));
-    m_inputs[MESH_CULLING][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(BOUNDING_BOX_BUFFER),
-                                                                      rootSignature->GetInput("bounding_boxes"));
-    RenderParameters par{};
-    par.scene = &scene;
-    par.inputs = &m_inputs[MESH_CULLING];
+     m_inputs[MESH_CULLING][0] = std::pair<ShaderInput*, ShaderInputDesc>(indicesStorageBuffer,
+                                                                       rootSignature->GetInput("draw_indices"));
+     m_inputs[MESH_CULLING][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CULLING_INFO),
+                                                                       rootSignature->GetInput("culling_info"));
+     m_inputs[MESH_CULLING][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(BOUNDING_BOX_BUFFER),
+                                                                       rootSignature->GetInput("bounding_boxes"));
+     RenderParameters par{};
+     par.scene = &scene;
+     par.inputs = &m_inputs[MESH_CULLING];
 
-    UINT clear[4] = {0, 0, 0, 0};
-    auto counterHandle = indicesStorageBuffer->GetCounterHandle(false);
+     UINT clear[4] = {0, 0, 0, 0};
+     auto counterHandle = indicesStorageBuffer->GetCounterHandle(false);
 
-    auto counterUavGpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
-    counterUavGpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
+     auto counterUavGpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+     counterUavGpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
 
-    auto counterUavCpuHandle = heap->Get()->GetCPUDescriptorHandleForHeapStart();
-    counterUavCpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
+     auto counterUavCpuHandle = heap->Get()->GetCPUDescriptorHandleForHeapStart();
+     counterUavCpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
 
-    indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
+     indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
 
-    reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
-        ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize())), 1, 1);
+     auto& drawIndices = scene.GetDrawIndices(device.GetCPUFrameIndex());
+     memset(drawIndices.data(), 0, MAX_MESHES * sizeof(uint32_t));
+     indicesStorageBuffer->Update(device, *commandList, heap, drawIndices);
 
-    m_subrenderers[MESH_CULLING]->Render(device, &commandContext, par);
+     reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
+         ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize())), 1, 1);
+
+     m_subrenderers[MESH_CULLING]->Render(device, &commandContext, par);
     
-    commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
+     commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
+     commandList->ResourceBarrier(*counterResource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
 
-    commandList->TransitionResource(*resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    commandList->TransitionResource(*resourceRB, D3D12_RESOURCE_STATE_COPY_DEST);
-    commandList->CopyResource(*resource, *resourceRB);
+     commandList->TransitionResource(*resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+     commandList->TransitionResource(*resourceRB, D3D12_RESOURCE_STATE_COPY_DEST);
+     commandList->CopyResource(*resource, *resourceRB);
 
-    commandList->TransitionResource(*counterResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    commandList->TransitionResource(*counterRBResource, D3D12_RESOURCE_STATE_COPY_DEST);
-    commandList->CopyResource(*counterResource, *counterRBResource);
-    commandContext.Close();
+     commandList->TransitionResource(*counterResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+     commandList->TransitionResource(*counterRBResource, D3D12_RESOURCE_STATE_COPY_DEST);
+     commandList->CopyResource(*counterResource, *counterRBResource);
+     commandContext.Close();
 
-    device.FlushAndWait();
+     device.FlushAndWait();
 
-    uint32_t* countPtr = nullptr;
-    counterRBResource->Get()->Map(0, nullptr, (void**)&countPtr);
-    uint32_t count = *countPtr;
-    counterRBResource->Get()->Unmap(0, nullptr);
+     uint32_t* countPtr = nullptr;
+     counterRBResource->Get()->Map(0, nullptr, (void**)&countPtr);
+     uint32_t count = *countPtr;
+     counterRBResource->Get()->Unmap(0, nullptr);
 
     // Read data
-    auto& drawIndices = scene.GetDrawIndices();
+     void* mapped = nullptr;
+     resourceRB->Get()->Map(0, nullptr, &mapped);
+     uint32_t* src = static_cast<uint32_t*>(mapped);
 
-    void* mapped = nullptr;
-    resourceRB->Get()->Map(0, nullptr, &mapped);
-    uint32_t* src = static_cast<uint32_t*>(mapped);
+     memcpy(drawIndices.data(), src, size_t(count) * sizeof(uint32_t));
 
-    memcpy(drawIndices.data(), src, size_t(count) * sizeof(uint32_t));
+     resourceRB->Get()->Unmap(0, nullptr);
 
-    resourceRB->Get()->Unmap(0, nullptr);
-
-    scene.SetDrawIndicesCount(count);
+     scene.SetDrawIndicesCount(count);
 }

@@ -95,7 +95,7 @@ public:
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
-    std::vector<uint32_t>& GetDrawIndices() { return m_drawIndices; }
+    std::vector<uint32_t>& GetDrawIndices(uint32_t frameIndex) {return m_drawIndices[frameIndex]; }
 
 private:
     class Impl;
@@ -125,7 +125,8 @@ private:
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
-    std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
+    std::vector<uint32_t> m_drawIndices[2] = {std::vector<uint32_t>(MAX_MESHES),
+                                                               std::vector<uint32_t>(MAX_MESHES)};
     uint32_t m_drawIndicesCount = 0;
     uint32_t m_uniqueMeshCount = 0;
     uint32_t m_meshAndInstanceCount = 0;

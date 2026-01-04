@@ -216,10 +216,13 @@ void KS::StorageBuffer::Bind(const Device&, void*, DXCommandList& commandList, c
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
+        commandList.TransitionResource(
+            *m_impl->m_resource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_SRV_handle, desc.rootIndex);
     }
     else
     {
+        commandList.TransitionResource(*m_impl->m_resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         commandList.BindHeapResource(*m_impl->m_resource, m_impl->m_UAV_handle, desc.rootIndex);
     }
 }

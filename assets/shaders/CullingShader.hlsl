@@ -10,11 +10,15 @@ cbuffer CullingBuffer : register(b0)
 
 bool FrustumTest(const Plane frustum[6], BoundingBox box);
 
-[numthreads(1, 1, 1)]
+[numthreads(8, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
+    
+    if (FrustumTest(cullingInfo.cameraPlane, boundingBoxes[DTid.x]))
+    {
         uint index = drawIndices.IncrementCounter();
         drawIndices[index] = DTid.x;
+    }
 }
 
 bool FrustumTest(const Plane frustum[6], BoundingBox box)
