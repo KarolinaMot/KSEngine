@@ -9,6 +9,10 @@
 #define MAX_MESHES 2048
 #endif  // !MAX_MESHES
 
+#ifndef MAX_MATERIALS
+#define MAX_MATERIALS 1024
+#endif  // !MAX_MESHES
+
 #ifndef NUM_DRAW_THREAD
 #define NUM_DRAW_THREAD 4
 #endif  // !NUM_DRAW_THREAD
@@ -66,6 +70,7 @@ enum StorageBuffers
     POINT_LIGHT_BUFFER,
     BOUNDING_BOX_BUFFER,
     DRAW_INDICES,
+    MATERIAL_BUFFER,
     NUM_SBUFFER
 };
 
@@ -105,14 +110,14 @@ struct DrawEntry
     ResourceHandle<Mesh> meshHandle;
     glm::mat4x4 modelMat{};
     uint32_t tlasHandle{};
-    Material material;
+    uint32_t materialIndex;
     int modelIndex{};
 };
 
 struct BatchRange
 {
     std::shared_ptr<Mesh> mesh;
-    Material* material;
+    uint32_t materialIndex;
     uint32_t first;  // index into draw_queue (or into your instance buffer)
     uint32_t count;
 };
@@ -189,8 +194,9 @@ struct MaterialInfo
 
 struct InstanceData
 {
-    ModelMat modelMatrix;
-    MaterialInfo materialInfo;
+    ModelMat modelMatrix{};
+    uint32_t materialIndex{};
+    uint32_t padding[3]{};
 };
 
 struct CameraMats

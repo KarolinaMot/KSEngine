@@ -48,7 +48,7 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
-    auto drawQueueSize = par.scene->GetDrawIndicesCount();
+    auto drawQueueSize = par.scene->GetCulledIndicesCount();
     if (drawQueueSize == 0) return;
 
     auto* commandList = commandContext->m_commandList.get();
@@ -162,10 +162,10 @@ void KS::ModelRenderer::DrawMesh(Device& device, const Scene& scene, DXCommandLi
 
     modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, drawEntry.modelIndex);
 
-    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS && positions) positions->BindAsVertexData(commandList, 0);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS && normals) normals->BindAsVertexData(commandList, 1);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS && uvs) uvs->BindAsVertexData(commandList, 2);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS && tangents) tangents->BindAsVertexData(commandList, 3);
 
     indices->BindAsIndexData(commandList);
     commandList.BindHeapSlot(*resourceHeap, 0, texturesRootIndex);

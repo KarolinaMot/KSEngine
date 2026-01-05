@@ -8,6 +8,7 @@ RaytracingAccelerationStructure SceneBVH : register(t0);
 StructuredBuffer<InstanceData> instanceData : register(t1);
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
+StructuredBuffer<MaterialInfo> materialInfo : register(t6);
 
 StructuredBuffer<float3> normals[] : register(t0, space1);
 StructuredBuffer<uint> indices[] : register(t0, space2);
@@ -79,7 +80,8 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     float Lu, Lv;
     ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
     
-    PBRMaterial material = GenerateMaterial(instanceData[instance].materialInfo, uv, normal, TBN, Lu, Lv);
+    MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
+    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
     
     float3 result = 0.f;
     float3 viewDirection = normalize(WorldRayDirection());

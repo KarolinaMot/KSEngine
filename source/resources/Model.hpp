@@ -32,13 +32,13 @@ public:
 
     std::vector<Node> nodes;
     std::vector<ResourceHandle<Mesh>> meshes;
-    std::vector<Material> materials;
+    std::vector<uint32_t> materialIndices;
     std::vector<PointLightInfo> pointLights;
     std::vector<DirLightInfo> dirLights;
     static Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material);
     static void ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
-                                      std::vector<PointLightInfo>& pointLights, const aiScene* scene, const aiNode* target_node,
-                                      const glm::mat4& parent_transform);
+                                      std::vector<PointLightInfo>& pointLights, std::vector<uint32_t>& meshInstances,
+                                      const aiScene* scene, const aiNode* target_node, const glm::mat4& parent_transform);
     static void ProcessLight(std::vector<DirLightInfo>& dirLights, std::vector<PointLightInfo>& pointLights,
                              const aiLight* light, glm::mat4x4 transform);
     static Image ProcessImage(const aiTexture* texture);
@@ -70,7 +70,7 @@ inline void Model::save(A& ar, const uint32_t v) const
         case 0:
             ar(cereal::make_nvp("Nodes", nodes));
             ar(cereal::make_nvp("Meshes", meshes));
-            ar(cereal::make_nvp("Materials", materials));
+            ar(cereal::make_nvp("Materials", materialIndices));
             ar(cereal::make_nvp("PointLights", pointLights));
             ar(cereal::make_nvp("DirLights", dirLights));
             break;
@@ -88,7 +88,7 @@ inline void Model::load(A& ar, const uint32_t v)
         case 0:
             ar(cereal::make_nvp("Nodes", nodes));
             ar(cereal::make_nvp("Meshes", meshes));
-            ar(cereal::make_nvp("Materials", materials));
+            ar(cereal::make_nvp("Materials", materialIndices));
             ar(cereal::make_nvp("PointLights", pointLights));
             ar(cereal::make_nvp("DirLights", dirLights));
             break;
