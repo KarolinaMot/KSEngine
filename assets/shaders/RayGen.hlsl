@@ -107,7 +107,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 indirectLighting = float3(0.f, 0.f, 0.f);
     float3 Nt, Nb;
     CreateCoordinateSystem(normal, Nt, Nb);
-    uint smaples = 4;
+    uint smaples = 16;
     for (uint n = 0; n < smaples; ++n)
     {
         //How high above the horizon of the hemisphere the line is

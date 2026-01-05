@@ -27,6 +27,7 @@ struct RenderTickParams
     glm::mat4x4 viewMatrix;
     glm::vec3 cameraPos;
     glm::vec3 cameraRight;
+    bool cameraUpdated = false;
     std::array<Plane, 6> frustum;
     int cpuFrame;
 };

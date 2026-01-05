@@ -222,6 +222,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 
                 draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform, 0, mat, m_drawCallCount);
                 m_boundingBoxes[m_drawCallCount] = AABB;
+                mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_drawCallCount, m_drawCallCount);
 
                 m_BVH->AddInstance(&draw_queue[m_drawCallCount], scene_transform);
                 m_drawCallCount++;
@@ -659,19 +660,48 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
     auto begin = m_drawIndices.begin();
     auto end = begin + m_culledIndicesCount;
 
-    std::sort(begin, end,
-        [&](uint32_t ia, uint32_t ib)
-        {
-            DrawEntry& a = draw_queue[ia];
-            DrawEntry& b = draw_queue[ib];
-            auto meshAIndex = GetMesh(a.meshHandle)->GetMeshIndex();
-            auto meshBIndex = GetMesh(b.meshHandle)->GetMeshIndex();
+    struct Key
+    {
+        uint32_t meshIndex;
+        uint32_t materialIndex;
+        uint32_t drawIndex;  // the original ia (index into draw_queue)
+    };
 
-            if (meshAIndex != meshBIndex) return meshAIndex < meshBIndex;
-            if (a.materialIndex != b.materialIndex) return a.materialIndex < b.materialIndex;
+    std::vector<Key> keys;
+    keys.resize(m_culledIndicesCount);
 
-            return ia < ib;
-        });
+    for (uint32_t i = 0; i < m_culledIndicesCount; ++i)
+    {
+        uint32_t ia = m_drawIndices[i];
+        const DrawEntry& a = draw_queue[ia];
+        keys[i] = {.meshIndex = GetMesh(a.meshHandle)->GetMeshIndex(), .materialIndex = a.materialIndex, .drawIndex = ia};
+    }
+
+    std::sort(keys.begin(), keys.end(),
+              [](const Key& a, const Key& b)
+              {
+                  if (a.meshIndex != b.meshIndex) return a.meshIndex < b.meshIndex;
+                  if (a.materialIndex != b.materialIndex) return a.materialIndex < b.materialIndex;
+                  return a.drawIndex < b.drawIndex;
+              });
+
+    // write back sorted indices
+    for (uint32_t i = 0; i < m_culledIndicesCount; ++i)
+        m_drawIndices[i] = keys[i].drawIndex;
+
+    //std::sort(begin, end,
+    //    [&](uint32_t ia, uint32_t ib)
+    //    {
+    //        DrawEntry& a = draw_queue[ia];
+    //        DrawEntry& b = draw_queue[ib];
+    //        auto meshAIndex = GetMesh(a.meshHandle)->GetMeshIndex();
+    //        auto meshBIndex = GetMesh(b.meshHandle)->GetMeshIndex();
+
+    //        if (meshAIndex != meshBIndex) return meshAIndex < meshBIndex;
+    //        if (a.materialIndex != b.materialIndex) return a.materialIndex < b.materialIndex;
+
+    //        return ia < ib;
+    //    });
 
     //Batching
     batch_queue.clear();
@@ -685,7 +715,6 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
         m_instanceData[i].modelMatrix.mTransposed = glm::transpose(drawCall.modelMat);
         m_instanceData[i].materialIndex = drawCall.materialIndex;
         drawCall.modelIndex = i;
-        mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, i, i);
     }
 
     mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, list, GetResourceHeap()->Get(), m_instanceData.data(),

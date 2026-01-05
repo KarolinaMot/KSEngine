@@ -247,7 +247,8 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
     GenerateMipmaps(device, scene);
 
     RenderCubemap(device, scene);
-    Culling(device, scene);
+    if (params.cameraUpdated) 
+        Culling(device, scene);
     Main(device, scene, params.frustum, raytraced);
 
     if (raytraced)
@@ -611,8 +612,6 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
      indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
 
      auto& drawIndices = scene.GetDrawIndices();
-     memset(drawIndices.data(), 0, MAX_MESHES * sizeof(uint32_t));
-     indicesStorageBuffer->Update(device, *commandList, heap, drawIndices);
 
      reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
          ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize())), 1, 1);

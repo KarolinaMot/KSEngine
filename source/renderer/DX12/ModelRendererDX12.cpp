@@ -164,7 +164,7 @@ void KS::ModelRenderer::DrawMesh(const Device& device, DXCommandList& commandLis
     if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
     if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
     if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS && tangents) tangents->BindAsVertexData(commandList, 3);
 
     indices->BindAsIndexData(commandList);
     commandList.BindHeapSlot(*resourceHeap, 0, texturesRootIndex);

@@ -128,6 +128,9 @@ int main()
     device->EndFrame();
     bool recomp = false;
     int chosenScene = 0;
+    glm::vec3 lastCameraTranslation = glm::vec3(0.f, 0.f, 0.f);
+    glm::vec3 lastCameraRight = glm::vec3(0.f, 0.f, 0.f);
+    bool cameraChange = true;
 
     while (device->IsWindowOpen())
     {
@@ -137,9 +140,15 @@ int main()
         device->NewFrame();
 
         glm::vec2 viewportSize = editor->GetViewportSize();
-
         auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count(), viewportSize.x / viewportSize.y);
-        
+       
+        if (lastCameraTranslation != camera.GetPosition() || lastCameraRight != camera.GetRight())
+        {
+            cameraChange = true;
+            lastCameraTranslation = camera.GetPosition();
+            lastCameraRight = camera.GetRight();
+        }
+
         auto renderParams = KS::RenderTickParams();
         renderParams.cpuFrame = device->GetFrameIndex();
         renderParams.projectionMatrix = camera.GetProjection();
@@ -147,7 +156,9 @@ int main()
         renderParams.cameraPos = camera.GetPosition();
         renderParams.cameraRight = camera.GetRight();
         renderParams.frustum = camera.GetFrustum();
- 
+        renderParams.cameraUpdated = cameraChange;
+        cameraChange = false;
+
         Scene* activeScene = scenes[TEST_SCENE].get();
         switch(chosenScene){
             case TEST_SCENE:
