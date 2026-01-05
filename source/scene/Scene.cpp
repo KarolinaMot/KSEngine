@@ -53,7 +53,8 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
     GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube/Cube.assbin"));
     m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\mesh0");
-    m_skyDomeMesh.first = GetMesh(m_skyDomeMesh.second);
+    //ProcessMesh(device, *commandList,  )
+    //m_skyDomeMesh.first = GetMesh(m_skyDomeMesh.second);
 
     CameraMats cam{};
 
@@ -88,7 +89,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         device, m_impl->m_resourceHeap.get(), *commandList, "POINT LIGHT BUFFER", m_pointLights, false);
     mStorageBuffers[KS::BOUNDING_BOX_BUFFER] = std::make_unique<StorageBuffer>(
         device, m_impl->m_resourceHeap.get(), *commandList, "BOUNDING BOX INFO", m_boundingBoxes, false);
-    mStorageBuffers[KS::DRAW_INDICES] = std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices[0],
+    mStorageBuffers[KS::DRAW_INDICES] = std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices,
                                         true, StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
 
     std::shared_ptr<Texture> deferredRendererTex[2][3];
@@ -344,7 +345,7 @@ void KS::Scene::Tick(Device& device)
 
     if (m_updateScene)
     {
-        CreateBatches();
+        //CreateBatches();
         m_updateScene = false;
     }
 
@@ -441,7 +442,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
                 auto output_path = (FileIO::Path(model.path).make_preferred().parent_path() / mesh_name);
 
                 auto handle = ResourceHandle<Mesh>(output_path.string());
-                std::shared_ptr<Mesh> meshPtr =GetMesh(handle);
+                std::shared_ptr<Mesh> meshPtr = GetMesh(handle);
                 if (!meshPtr)
                 {
                     meshPtr = std::make_shared<Mesh>(device, m_impl->m_resourceHeap.get(), commandList, mesh, mesh_name.c_str(),
@@ -546,8 +547,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
 }
 
 const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHandle) const
-{
-    // Cached result
+{ 
     if (auto it = mesh_cache.find(meshHandle); it != mesh_cache.end())
     {
         return it->second;
@@ -643,20 +643,23 @@ void KS::Scene::InitializeShaderTable()
 void KS::Scene::CreateBatches()
 {
     batch_queue.clear();
-    batch_queue.reserve(draw_queue.size());
+    batch_queue.reserve(m_drawIndicesCount);
 
     auto sameBatch = [&](const DrawEntry& a, const DrawEntry& b)
     { 
         return a.meshHandle == b.meshHandle;
     };
 
-    for (uint32_t i = 0; i < m_meshAndInstanceCount;)
+    for (uint32_t i = 0; i < m_drawIndicesCount;)
     {
         uint32_t j = i + 1;
-        while (j < draw_queue.size() && sameBatch(draw_queue[i], draw_queue[j]))
+        while (j < m_drawIndicesCount && sameBatch(draw_queue[m_drawIndices[i]], draw_queue[m_drawIndices[j]]))
+        {
             ++j;
+        }
 
-        auto mesh = GetMesh(draw_queue[i].meshHandle);
+        auto meshIndex = m_drawIndices[i];
+        auto mesh = GetMesh(draw_queue[meshIndex].meshHandle);
         batch_queue.push_back(BatchRange{.mesh = mesh, .material = &draw_queue[i].material, .first = i, .count = j - i});
 
         i = j;

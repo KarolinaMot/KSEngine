@@ -114,8 +114,9 @@ public:
     uint32_t GetMeshIndex() const { return m_meshIndex; }
     MappedMeshAttributes GetAttributes() { return m_attributes; }
     BoundingBox GetLocalBounds() { return m_localBounds; }
+    void SetName(const char* name) { m_name = name; }
 
-private:
+private :
     void BuildBLAS(const Device& device, DXCommandList& cmd);
     MappedMeshAttributes m_attributes;
     BoundingBox m_localBounds;

@@ -39,13 +39,13 @@ public:
     std::array<glm::vec3, 8> GetEdgePoints() const;
     BoundingBox ApplyTransform(const glm::mat4& transform) const;
     bool FrustumTest(const std::array<Plane, 6>& frustum) const;
-    glm::vec3 GetCenter() const { return m_center; }
-    void SetExtents(glm::vec3 extents) { m_extents = extents; }
-    glm::vec3 GetExtents() const { return m_extents; }
+    glm::vec4 GetCenter() const { return m_center; }
+    void SetExtents(glm::vec4 extents) { m_extents = extents; }
+    glm::vec4 GetExtents() const { return m_extents; }
 
 private:
-    glm::vec3 m_center;
-    glm::vec3 m_extents; // size / 2
+    glm::vec4 m_center;
+    glm::vec4 m_extents; // size / 2
 };
 
 // 3D plane

@@ -152,7 +152,8 @@ namespace KS
     }
 
     void Model::ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
-                               std::vector<PointLightInfo> & pointLights, const aiScene* scene, const aiNode* target_node,
+                                      std::vector<PointLightInfo>& pointLights,
+                                      const aiScene* scene, const aiNode* target_node,
                                const glm::mat4& parent_transform)
     {
         glm::mat4 transform = parent_transform * AiToGlm(target_node->mTransformation);

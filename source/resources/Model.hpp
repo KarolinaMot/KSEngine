@@ -26,7 +26,6 @@ public:
     {
         glm::mat4 transform{};
         std::vector<std::pair<size_t, size_t>> mesh_material_indices{};
-
         template <typename A>
         void serialize(A& a);
     };

@@ -2,8 +2,9 @@
 #include <fileio/ResourceHandle.hpp>
 #include <renderer/InfoStructs.hpp>
 
-    class DXDescHeap;
+class DXDescHeap;
 class DXShaderTable;
+struct aiMesh;
 namespace KS
 {
 struct DrawEntry;
@@ -60,9 +61,9 @@ public:
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
-    size_t GetDrawQueueSize() { return draw_queue.size(); }
+    size_t GetDrawQueueSize() const { return draw_queue.size(); }
     LightInfo GetLightInfo() { return m_lightInfo; }
-    DrawEntry& GetDrawEntry(uint32_t index) { return draw_queue[index]; }
+    const DrawEntry& GetDrawEntry(uint32_t index) const { return draw_queue[index]; }
     CullingInfo GetCullingInfo() const { return m_cullInfo; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
@@ -81,6 +82,7 @@ public:
     PointLightInfo GetPointLight(int index) const { return m_pointLights[index]; }
     glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
     uint32_t GetDrawIndicesCount() const { return m_drawIndicesCount; }
+    void CreateBatches();
 
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
@@ -90,12 +92,14 @@ public:
             return nullptr;
     }
 
+    const std::shared_ptr<Mesh> ProcessMesh(Device& device, DXCommandList& commandList, const aiMesh* mesh,
+                                            ResourceHandle<Mesh> meshHandle);
     const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle) const;
     void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
-    std::vector<uint32_t>& GetDrawIndices(uint32_t frameIndex) {return m_drawIndices[frameIndex]; }
+    std::vector<uint32_t>& GetDrawIndices() { return m_drawIndices; }
 
 private:
     class Impl;
@@ -103,7 +107,6 @@ private:
 
     const Model* GetModel(Device& device, DXCommandList& commandList, ResourceHandle<Model> model);
     void InitializeShaderTable();
-    void CreateBatches();
 
     std::vector<DrawEntry> draw_queue{};
     std::vector<BatchRange> batch_queue{};
@@ -125,8 +128,7 @@ private:
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
-    std::vector<uint32_t> m_drawIndices[2] = {std::vector<uint32_t>(MAX_MESHES),
-                                                               std::vector<uint32_t>(MAX_MESHES)};
+    std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
     uint32_t m_drawIndicesCount = 0;
     uint32_t m_uniqueMeshCount = 0;
     uint32_t m_meshAndInstanceCount = 0;

@@ -93,9 +93,8 @@ struct LightShaftInfo
 
 struct BoundingBox
 {
-    float3 m_center;
-    float3 m_extents; 
-    float2 padding;
+    float4 m_center;
+    float4 m_extents; 
 };
 
 struct Plane

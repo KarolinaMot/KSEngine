@@ -92,7 +92,8 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
     if (m_onlyCubemap)
     {
-        auto skydomeMesh = par.scene->GetSkydomeMesh().first;
+        auto skydomeMeshHandle = par.scene->GetSkydomeMesh().second;
+        auto skydomeMesh = par.scene->GetMesh(skydomeMeshHandle);
         using namespace MeshConstants;
         auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
         auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
@@ -124,7 +125,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     };
 
     std::vector<std::thread> workerThreads;
-    auto& culledMeshIndices = par.scene->GetDrawIndices(frameIndex);
+    auto& culledMeshIndices = par.scene->GetDrawIndices();
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
 
@@ -141,13 +142,13 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     }
 }
 
-void KS::ModelRenderer::DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, uint32_t index,
+void KS::ModelRenderer::DrawMesh(Device& device, const Scene& scene, DXCommandList& commandList, uint32_t index,
                                  const ShaderInputDesc& modelIndexInputDesc, DXDescHeap* resourceHeap,
                                  UniformBuffer* modelIndexUBO, int shaderFlags, uint32_t texturesRootIndex)
 {
     if (index >= scene.GetDrawQueueSize()) return;
 
-    DrawEntry& drawEntry = scene.GetDrawEntry(index);
+    const DrawEntry& drawEntry = scene.GetDrawEntry(index);
     auto mesh = scene.GetMesh(drawEntry.meshHandle);
     if (mesh == nullptr) return;
 

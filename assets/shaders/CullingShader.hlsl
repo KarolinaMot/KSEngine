@@ -13,6 +13,8 @@ bool FrustumTest(const Plane frustum[6], BoundingBox box);
 [numthreads(8, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
+    if (DTid.x >= cullingInfo.boundingBoxCount)
+        return;
     
     if (FrustumTest(cullingInfo.cameraPlane, boundingBoxes[DTid.x]))
     {
@@ -20,6 +22,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         drawIndices[index] = DTid.x;
     }
 }
+
 
 bool FrustumTest(const Plane frustum[6], BoundingBox box)
 {

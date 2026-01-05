@@ -609,7 +609,7 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
 
      indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
 
-     auto& drawIndices = scene.GetDrawIndices(device.GetCPUFrameIndex());
+     auto& drawIndices = scene.GetDrawIndices();
      memset(drawIndices.data(), 0, MAX_MESHES * sizeof(uint32_t));
      indicesStorageBuffer->Update(device, *commandList, heap, drawIndices);
 
@@ -647,4 +647,5 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
      resourceRB->Get()->Unmap(0, nullptr);
 
      scene.SetDrawIndicesCount(count);
+     scene.CreateBatches();
 }

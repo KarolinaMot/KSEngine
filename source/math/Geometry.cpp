@@ -1,22 +1,24 @@
 #include "Geometry.hpp"
 
 KS::BoundingBox::BoundingBox(const glm::vec3& m_center, const glm::vec3& m_extents)
-    : m_center(m_center)
-    , m_extents(glm::vec3(std::fabsf(m_extents.x), std::fabsf(m_extents.y), std::fabsf(m_extents.z)))
+    : m_center(m_center, 1.f)
+    , m_extents(glm::vec4(std::fabsf(m_extents.x), std::fabsf(m_extents.y), std::fabsf(m_extents.z), 1.f))
 {
 }
 
 std::array<glm::vec3, 8> KS::BoundingBox::GetEdgePoints() const
 {
+    glm::vec3 center = m_center;
+
     return {
-        m_center + glm::vec3(-m_extents.x, -m_extents.y, -m_extents.z),
-        m_center + glm::vec3(m_extents.x, -m_extents.y, -m_extents.z),
-        m_center + glm::vec3(-m_extents.x, m_extents.y, -m_extents.z),
-        m_center + glm::vec3(-m_extents.x, -m_extents.y, m_extents.z),
-        m_center + glm::vec3(m_extents.x, m_extents.y, -m_extents.z),
-        m_center + glm::vec3(-m_extents.x, m_extents.y, m_extents.z),
-        m_center + glm::vec3(m_extents.x, -m_extents.y, m_extents.z),
-        m_center + glm::vec3(m_extents.x, m_extents.y, m_extents.z),
+        center + glm::vec3(-m_extents.x, -m_extents.y, -m_extents.z),
+        center + glm::vec3(m_extents.x, -m_extents.y, -m_extents.z),
+        center + glm::vec3(-m_extents.x, m_extents.y, -m_extents.z),
+        center + glm::vec3(-m_extents.x, -m_extents.y, m_extents.z),
+        center + glm::vec3(m_extents.x, m_extents.y, -m_extents.z),
+        center + glm::vec3(-m_extents.x, m_extents.y, m_extents.z),
+        center + glm::vec3(m_extents.x, -m_extents.y, m_extents.z),
+        center + glm::vec3(m_extents.x, m_extents.y, m_extents.z),
     };
 }
 
@@ -25,7 +27,7 @@ KS::BoundingBox KS::BoundingBox::ApplyTransform(const glm::mat4& transform) cons
     // There might be a better way of calculating these transformed values
     // https://learnopengl.com/Guest-Articles/2021/Scene/Frustum-Culling
 
-    glm::vec3 center = transform * glm::vec4(m_center, 1.0f);
+    glm::vec3 center = transform * m_center;
     glm::vec3 min = center, max = center;
 
     auto edges = GetEdgePoints();

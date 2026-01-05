@@ -37,7 +37,7 @@ public:
 
 private:
 
-    void DrawMesh(Device& device, Scene& scene, DXCommandList& commandList, uint32_t index,
+    void DrawMesh(Device& device, const Scene& scene, DXCommandList& commandList, uint32_t index,
                   const ShaderInputDesc& modelIndexInputDesc, DXDescHeap* resourceHeap, UniformBuffer* modelIndexUBO,
                   int shaderFlags, uint32_t texturesRootIndex);
 
