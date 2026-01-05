@@ -48,8 +48,9 @@ bool SplitEven(int total, int parts, int i, int& start, int& end)
 
 void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
-    auto drawQueueSize = par.scene->GetCulledIndicesCount();
-    if (drawQueueSize == 0) return;
+    const auto& batches = par.scene->GetBatches();
+    auto batchQueueSize = static_cast<uint32_t>(batches.size());
+    if (batchQueueSize == 0) return;
 
     auto* commandList = commandContext->m_commandList.get();
     auto* pipeline = reinterpret_cast<ID3D12PipelineState*>(m_shader->GetPipeline());
@@ -107,16 +108,17 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         return;
     }
 
+    commandContext->Close();
 
-    auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device, std::vector<uint32_t>& indices)
+    auto RecordDrawCommandList = [&](int startBatchIndex, int endBatchIndex, Device& device)
     {
         // Reuse the existing lambda
         auto context = device.GetCommandContext();
         BindDrawResources(context.m_commandList.get());
 
-        for (int meshIndex = startMeshIndex; meshIndex < endMeshIndex; meshIndex++)
+        for (int batchIndex = startBatchIndex; batchIndex < endBatchIndex; batchIndex++)
         {
-            DrawMesh(device, *par.scene, *context.m_commandList.get(), indices[meshIndex], modelIndexInp, resourceHeap,
+            DrawMesh(device, *context.m_commandList.get(), batches[batchIndex], modelIndexInp, resourceHeap,
                      modelIndexUBO,
                      shaderFlags, texturesRoot);
         }
@@ -124,39 +126,29 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     };
 
     std::vector<std::thread> workerThreads;
-    auto& culledMeshIndices = par.scene->GetCulledDrawIndices();
-    //for (int i = 0; i < NUM_DRAW_THREAD; ++i)
-    //{
-
-    //    int start, end = 0;
-    //    bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
-    //    if (!enoughMeshes) break;
-
-    //    workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device), std::ref(culledMeshIndices));
-    //}
-
-    for (uint32_t i = 0; i < par.scene->GetCulledIndicesCount(); i++)
+    for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
-        DrawMesh(device, *par.scene, *commandList, culledMeshIndices[i], modelIndexInp, resourceHeap,
-                 modelIndexUBO, shaderFlags, texturesRoot);
 
+        int start, end = 0;
+        bool enoughMeshes = SplitEven(batchQueueSize, NUM_DRAW_THREAD, i, start, end);
+        if (!enoughMeshes) break;
+
+        workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device));
     }
 
-    //for (auto& t : workerThreads)
-    //{
-    //    t.join();
-    //}
-    commandContext->Close();
+    for (auto& t : workerThreads)
+    {
+        t.join();
+    }
 }
 
-void KS::ModelRenderer::DrawMesh(Device& device, const Scene& scene, DXCommandList& commandList, uint32_t index,
+void KS::ModelRenderer::DrawMesh(const Device& device, DXCommandList& commandList, const BatchRange& batch,
                                  const ShaderInputDesc& modelIndexInputDesc, DXDescHeap* resourceHeap,
                                  UniformBuffer* modelIndexUBO, int shaderFlags, uint32_t texturesRootIndex)
 {
-    if (index >= scene.GetDrawQueueSize()) return;
+    if (batch.count == 0) return;
 
-    const DrawEntry& drawEntry = scene.GetDrawEntry(index);
-    auto mesh = scene.GetMesh(drawEntry.meshHandle);
+    auto mesh = batch.mesh;
     if (mesh == nullptr) return;
 
     using namespace MeshConstants;
@@ -167,15 +159,15 @@ void KS::ModelRenderer::DrawMesh(Device& device, const Scene& scene, DXCommandLi
     auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
     auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, drawEntry.modelIndex);
+    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, batch.first);
 
-    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS && positions) positions->BindAsVertexData(commandList, 0);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS && normals) normals->BindAsVertexData(commandList, 1);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS && uvs) uvs->BindAsVertexData(commandList, 2);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS && tangents) tangents->BindAsVertexData(commandList, 3);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS) tangents->BindAsVertexData(commandList, 3);
 
     indices->BindAsIndexData(commandList);
     commandList.BindHeapSlot(*resourceHeap, 0, texturesRootIndex);
 
-    commandList.DrawIndexed(indices->GetElementCount());
+    commandList.DrawIndexed(indices->GetElementCount(), batch.count);
 }

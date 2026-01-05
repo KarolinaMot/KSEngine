@@ -83,7 +83,7 @@ public:
     glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
     uint32_t GetCulledIndicesCount() const { return m_culledIndicesCount; }
     void CreateBatches(Device& device, DXCommandList& list);
-
+    const std::vector<BatchRange>& GetBatches() const { return batch_queue; }
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
         if (auto lock = m_texWithoutMipmaps[index].lock())
@@ -97,7 +97,7 @@ public:
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
-    std::vector<uint32_t>& GetCulledDrawIndices() { return m_drawIndices; }
+    std::vector<uint32_t>& GetDrawIndices() { return m_drawIndices; }
 
 private:
     class Impl;
