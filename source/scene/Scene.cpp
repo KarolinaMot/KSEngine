@@ -223,15 +223,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform, 0, mat, m_drawCallCount);
                 m_boundingBoxes[m_drawCallCount] = AABB;
 
-                ModelMat modelMat;
-                modelMat.mModel = scene_transform;
-                modelMat.mTransposed = glm::transpose(modelMat.mModel);
-                m_instanceData[m_drawCallCount].modelMatrix = modelMat;
-
-                mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_drawCallCount, m_drawCallCount);
-
-                m_instanceData[m_drawCallCount].materialIndex = mat;
-                m_BVH->AddInstance(&draw_queue[m_drawCallCount], modelMat.mModel);
+                m_BVH->AddInstance(&draw_queue[m_drawCallCount], scene_transform);
                 m_drawCallCount++;
             }
         }
@@ -660,7 +652,7 @@ void KS::Scene::InitializeShaderTable()
     }
 }
 
-void KS::Scene::CreateBatches()
+void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
 {
     //Sorting
     //  Sort only the valid prefix if m_drawIndices is larger than m_drawIndicesCount
@@ -670,8 +662,8 @@ void KS::Scene::CreateBatches()
     std::sort(begin, end,
         [&](uint32_t ia, uint32_t ib)
         {
-            const DrawEntry& a = draw_queue[ia];
-            const DrawEntry& b = draw_queue[ib];
+            DrawEntry& a = draw_queue[ia];
+            DrawEntry& b = draw_queue[ib];
             auto meshAIndex = GetMesh(a.meshHandle)->GetMeshIndex();
             auto meshBIndex = GetMesh(b.meshHandle)->GetMeshIndex();
 
@@ -685,31 +677,47 @@ void KS::Scene::CreateBatches()
     batch_queue.clear();
     batch_queue.reserve(m_culledIndicesCount);
 
-    auto sameBatch = [&](const DrawEntry& a, const DrawEntry& b)
-    { 
-        auto meshAIndex = GetMesh(a.meshHandle)->GetMeshIndex();
-        auto materialAIndex = a.materialIndex;
-        auto meshBIndex = GetMesh(b.meshHandle)->GetMeshIndex();
-        auto materialBIndex = b.materialIndex;
-
-        return meshAIndex == meshBIndex && materialAIndex == materialBIndex;
-    };
-
-    for (uint32_t i = 0; i < m_culledIndicesCount;)
+    for (uint32_t i = 0; i < m_culledIndicesCount; i++)
     {
-        uint32_t j = i + 1;
-        while (j < m_culledIndicesCount && sameBatch(draw_queue[m_drawIndices[i]], draw_queue[m_drawIndices[j]]))
-        {
-            ++j;
-        }
-
         auto drawCallIndex = m_drawIndices[i];
-        auto mesh = GetMesh(draw_queue[drawCallIndex].meshHandle);
-        batch_queue.push_back(
-            BatchRange{.mesh = mesh, .materialIndex = draw_queue[drawCallIndex].materialIndex, .first = i, .count = j - i});
-
-        i = j;
+        auto& drawCall = draw_queue[drawCallIndex];
+        m_instanceData[i].modelMatrix.mModel = drawCall.modelMat;
+        m_instanceData[i].modelMatrix.mTransposed = glm::transpose(drawCall.modelMat);
+        m_instanceData[i].materialIndex = drawCall.materialIndex;
+        drawCall.modelIndex = i;
+        mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, i, i);
     }
+
+    mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, list, GetResourceHeap()->Get(), m_instanceData.data(),
+                                                  m_culledIndicesCount);
+
+    //auto sameBatch = [&](DrawEntry& a, DrawEntry& b)
+    //{ 
+    //    auto meshA = GetMesh(a.meshHandle);
+    //    auto meshB = GetMesh(b.meshHandle);
+    //    auto meshAIndex = meshA->GetMeshIndex();
+    //    auto materialAIndex = a.materialIndex;
+    //    auto meshBIndex = meshB->GetMeshIndex();
+    //    auto materialBIndex = b.materialIndex;
+
+    //    return meshAIndex == meshBIndex && materialAIndex == materialBIndex;
+    //};
+
+    //for (uint32_t i = 0; i < m_culledIndicesCount;)
+    //{
+    //    uint32_t j = i + 1;
+    //    while (j < m_culledIndicesCount && sameBatch(draw_queue[m_drawIndices[i]], draw_queue[m_drawIndices[j]]))
+    //    {
+    //        ++j;
+    //    }
+
+    //    auto drawCallIndex = m_drawIndices[i];
+    //    auto mesh = GetMesh(draw_queue[drawCallIndex].meshHandle);
+    //    batch_queue.push_back(
+    //        BatchRange{.mesh = mesh, .materialIndex = draw_queue[drawCallIndex].materialIndex, .first = i, .count = j - i});
+    //    
+    //    i = j;
+    //}
 
 }
 

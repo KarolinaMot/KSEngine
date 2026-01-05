@@ -293,14 +293,14 @@ void DXCommandList::BindIndexData(DXResource& buffer, D3D12_INDEX_BUFFER_VIEW& v
     m_allocator->TrackResource(buffer.GetResource());
 }
 
-void DXCommandList::DrawIndexed(int indexCount, int instancesCount)
+void DXCommandList::DrawIndexed(int indexCount, int instancesCount, int instanceBegin)
 {
     if (!m_isOpen)
     {
         LOG(Log::Severity::WARN, "Cannot use command list which is closed. Command will be ignored.");
         return;
     }
-    m_command_list->DrawIndexedInstanced(indexCount, instancesCount, 0, 0, 0);
+    m_command_list->DrawIndexedInstanced(indexCount, instancesCount, 0, 0, instanceBegin);
 }
 
 void DXCommandList::CopyResource(DXResource& source, DXResource& dest)

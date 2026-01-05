@@ -42,7 +42,7 @@ public:
     void ClearDepthStencils(const DXResource& depthResource, const DXHeapHandle& handle);
     void BindVertexData(DXResource& buffer, uint32_t inputSlot, D3D12_VERTEX_BUFFER_VIEW& view);
     void BindIndexData(DXResource& buffer, D3D12_INDEX_BUFFER_VIEW& view);
-    void DrawIndexed(int indexCount, int instancesCount = 1);
+    void DrawIndexed(int indexCount, int instancesCount = 1, int instanceBegin = 0);
     void CopyResource(DXResource& source, DXResource& dest);
     void DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ);
     void TransitionResource(DXResource& buffer, D3D12_RESOURCE_STATES dstState);

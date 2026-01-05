@@ -610,7 +610,7 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
 
      indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
 
-     auto& drawIndices = scene.GetDrawIndices();
+     auto& drawIndices = scene.GetCulledDrawIndices();
      memset(drawIndices.data(), 0, MAX_MESHES * sizeof(uint32_t));
      indicesStorageBuffer->Update(device, *commandList, heap, drawIndices);
 
@@ -632,6 +632,8 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
      commandContext.Close();
 
      device.FlushAndWait();
+     commandContext = device.GetCommandContext();
+     commandList = commandContext.m_commandList;
 
      uint32_t* countPtr = nullptr;
      counterRBResource->Get()->Map(0, nullptr, (void**)&countPtr);
@@ -648,5 +650,6 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
      resourceRB->Get()->Unmap(0, nullptr);
 
      scene.SetDrawIndicesCount(count);
-     scene.CreateBatches();
+     scene.CreateBatches(device, *commandList);
+     commandContext.Close();
 }

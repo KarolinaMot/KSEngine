@@ -82,7 +82,7 @@ public:
     PointLightInfo GetPointLight(int index) const { return m_pointLights[index]; }
     glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
     uint32_t GetCulledIndicesCount() const { return m_culledIndicesCount; }
-    void CreateBatches();
+    void CreateBatches(Device& device, DXCommandList& list);
 
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
@@ -92,14 +92,12 @@ public:
             return nullptr;
     }
 
-    const std::shared_ptr<Mesh> ProcessMesh(Device& device, DXCommandList& commandList, const aiMesh* mesh,
-                                            ResourceHandle<Mesh> meshHandle);
     const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle) const;
     void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
-    std::vector<uint32_t>& GetDrawIndices() { return m_drawIndices; }
+    std::vector<uint32_t>& GetCulledDrawIndices() { return m_drawIndices; }
 
 private:
     class Impl;

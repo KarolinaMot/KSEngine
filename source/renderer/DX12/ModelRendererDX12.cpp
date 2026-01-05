@@ -107,7 +107,6 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         return;
     }
 
-    commandContext->Close();
 
     auto RecordDrawCommandList = [&](int startMeshIndex, int endMeshIndex, Device& device, std::vector<uint32_t>& indices)
     {
@@ -125,21 +124,29 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     };
 
     std::vector<std::thread> workerThreads;
-    auto& culledMeshIndices = par.scene->GetDrawIndices();
-    for (int i = 0; i < NUM_DRAW_THREAD; ++i)
+    auto& culledMeshIndices = par.scene->GetCulledDrawIndices();
+    //for (int i = 0; i < NUM_DRAW_THREAD; ++i)
+    //{
+
+    //    int start, end = 0;
+    //    bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
+    //    if (!enoughMeshes) break;
+
+    //    workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device), std::ref(culledMeshIndices));
+    //}
+
+    for (uint32_t i = 0; i < par.scene->GetCulledIndicesCount(); i++)
     {
+        DrawMesh(device, *par.scene, *commandList, culledMeshIndices[i], modelIndexInp, resourceHeap,
+                 modelIndexUBO, shaderFlags, texturesRoot);
 
-        int start, end = 0;
-        bool enoughMeshes = SplitEven(drawQueueSize, NUM_DRAW_THREAD, i, start, end);
-        if (!enoughMeshes) break;
-
-        workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device), std::ref(culledMeshIndices));
     }
 
-    for (auto& t : workerThreads)
-    {
-        t.join();
-    }
+    //for (auto& t : workerThreads)
+    //{
+    //    t.join();
+    //}
+    commandContext->Close();
 }
 
 void KS::ModelRenderer::DrawMesh(Device& device, const Scene& scene, DXCommandList& commandList, uint32_t index,
