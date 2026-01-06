@@ -118,8 +118,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
 
         for (int batchIndex = startBatchIndex; batchIndex < endBatchIndex; batchIndex++)
         {
-            DrawMesh(device, *context.m_commandList.get(), batches[batchIndex], modelIndexInp, resourceHeap,
-                     modelIndexUBO,
+            DrawMesh(device, *context.m_commandList.get(), batches[batchIndex], modelIndexInp, resourceHeap, modelIndexUBO,
                      shaderFlags, texturesRoot);
         }
         context.Close();
@@ -128,7 +127,6 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     std::vector<std::thread> workerThreads;
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
-
         int start, end = 0;
         bool enoughMeshes = SplitEven(batchQueueSize, NUM_DRAW_THREAD, i, start, end);
         if (!enoughMeshes) break;

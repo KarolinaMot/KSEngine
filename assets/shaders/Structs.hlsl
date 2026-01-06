@@ -69,8 +69,7 @@ struct MaterialInfo
 struct InstanceData
 {
     ModelMat modelMatrix;
-    uint materialIndex;
-    uint padding[3];
+    MaterialInfo materialInfo;
 };
 
 struct LightInfo

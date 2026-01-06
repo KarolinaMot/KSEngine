@@ -47,7 +47,7 @@ public:
     void QueueDirectionalLight(DirLightInfo info);
     void SetAmbientLight(glm::vec3 color, float intensity);
     void SetFogValues(Device& device, const FogInfo& newFogInfo);
-    void SetDrawIndicesCount(uint32_t count) { m_culledIndicesCount = count;}
+    void SetCulledDrawCallIndicesCount(uint32_t count) { m_culledIndicesCount = count; }
 
     void Tick(Device& device);
 
@@ -55,8 +55,6 @@ public:
                         uint32_t& height);
     RenderTarget* GetFinalRT() const { return m_finalRT.get(); };
 
-    uint32_t GetUniqueMeshCount() const { return m_uniqueMeshCount; }
-    uint32_t GetMeshAndInstanceCount() const { return m_drawCallCount; }
     MaterialInfo GetMaterialInfo(const Material& material) const;
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
@@ -68,7 +66,7 @@ public:
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
-    std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList& commandList, ResourceHandle<Texture> imgPath,
+    std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,
                                         bool isSrgb = false);
     TLAS* GetBVH() const { return m_BVH.get(); }
     DXDescHeap* GetResourceHeap() const;
@@ -111,7 +109,6 @@ private:
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
-    std::vector<MaterialInfo> material_cache;
 
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> m_skyDomeMesh;
     std::shared_ptr<StorageBuffer> mStorageBuffers[NUM_SBUFFER];
@@ -129,9 +126,7 @@ private:
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
     std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
     uint32_t m_culledIndicesCount = 0;
-    uint32_t m_uniqueMeshCount = 0;
-    uint32_t m_drawCallCount = 0;
-
+    uint32_t m_meshAndInstanceCount = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     CullingInfo m_cullInfo{};

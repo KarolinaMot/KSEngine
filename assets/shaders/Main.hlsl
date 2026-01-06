@@ -60,7 +60,7 @@ float3 GetDirFromScreen(uint2 pixel, float2 size, float4x4 invProj, float4x4 inv
     mat.occlusionColor = GBufferC.Load(DispatchThreadID.xy).a;
 
     float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
-    //mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
     
     float4 result = float4(0.25f, 0.25f, 0.25f, 0.f);
     float3 diffuse = 0.f;

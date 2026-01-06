@@ -199,7 +199,7 @@ void KS::Editor::SceneHierarchy(Scene& scene)
 
     if (ImGui::CollapsingHeader("Scene meshes"))
     {
-        auto queueSize = scene.GetUniqueMeshCount();
+        auto queueSize = scene.GetDrawQueueSize();
 
         for (uint32_t i = 0; i < queueSize; i++)
         {
@@ -329,7 +329,7 @@ void KS::Editor::CameraWindow(ComponentFirstPersonCamera& info, ComponentTransfo
 
 void KS::Editor::MeshInspector(Scene& scene)
 {
-    if (m_selectedObject >= static_cast<int>(scene.GetUniqueMeshCount()))
+    if (m_selectedObject >= static_cast<int>(scene.GetDrawQueueSize()))
     {
         m_selectedObject = -1;
     }
