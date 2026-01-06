@@ -8,6 +8,7 @@ RaytracingAccelerationStructure SceneBVH : register(t0);
 StructuredBuffer<InstanceData> instanceData : register(t1);
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
+StructuredBuffer<MaterialInfo> materialInfo : register(t5);
 
 StructuredBuffer<float3> normals[] : register(t0, space1);
 StructuredBuffer<uint> indices[] : register(t0, space2);
@@ -80,7 +81,8 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     float Lu, Lv;
     ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
     
-    PBRMaterial material = GenerateMaterial(instanceData[instance].materialInfo, uv, normal, TBN, Lu, Lv);
+    MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
+    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
     
     float3 result = 0.f;
     float3 diffuse = 0.f;
@@ -97,31 +99,6 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         float3  lightSpec = 0.f;
         GetBRDF(material, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, lightDiff, lightSpec);
         
-        //RayDesc shadowRay;
-        //shadowRay.Origin = vertexPos.xyz + normal * shadowBias; // simpler & correct
-        //shadowRay.Direction = lightDir;
-        //shadowRay.TMin = 0;
-        //shadowRay.TMax = 100000;
-        
-        //ShadowPayload shadowPayload;
-        ////// Trace the ray
-        ////TraceRay(
-        ////  // Acceleration structure
-        ////  SceneBVH,
-        ////  RAY_FLAG_NONE,
-        ////  0xFF,
-        ////  // Hit group
-        ////  1,
-        ////  0,
-        ////  // Index of the miss shader
-        ////  1,
-        ////  // Ray information to trace
-        ////  shadowRay,
-        ////  // Payload associated to the ray, which will be used to communicate
-        ////  // between the hit/miss shaders and the raygen
-        ////  shadowPayload);
-        
-        //bool shadow = !shadowPayload.hit;
         diffuse += lightDiff;
         specular += lightSpec;
     }
@@ -147,26 +124,6 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         shadowRay.Direction = lightDirection;
         shadowRay.TMin = 0;
         shadowRay.TMax = dist - 1e-3f;
-        
-        //ShadowPayload shadowPayload;
-        ////// Trace the ray
-        ////TraceRay(
-        ////  // Acceleration structure
-        ////  SceneBVH,
-        ////  RAY_FLAG_NONE,
-        ////  0xFF,
-        ////  // Hit group
-        ////  1,
-        ////  0,
-        ////  // Index of the miss shader
-        ////  1,
-        ////  // Ray information to trace
-        ////  shadowRay,
-        ////  // Payload associated to the ray, which will be used to communicate
-        ////  // between the hit/miss shaders and the raygen
-        ////  shadowPayload);
-        
-        //bool shadow = !shadowPayload.hit;
         diffuse += lightDiff;
         specular += lightSpec;
     }

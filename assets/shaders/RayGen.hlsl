@@ -41,6 +41,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float2 uv = (launchIndex + 0.5) / dims;
     
     float3 normal = GBufferB.Load(launchIndex).rgb;
+    float scalar = normal.x + normal.y + normal.z;
     normal = normalize(normal * 2.0 - 1.0);
 
     
@@ -49,40 +50,43 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float depth = GBufferD.Load(launchIndex).r;
     float3 viewPos = ReconstructViewPosFromViewZ(uv, depth, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
+    float3 indirectLighting = float3(0.f, 0.f, 0.f);
 
-    //Shadows
-    float3 t = length(cameraMats.mCameraPos.xyz - worldPos);
-    float bias = max(1e-4f, t * 1e-4f);
-    uint seed = InitSeed(launchIndex);
-
-    for (uint i = 0; i < lightInfo.numDirLight; i++)
+    if (scalar > 0)
     {
-        DirLight light = dirLights[i];
-        float3 lightDir = normalize(light.mDir.xyz);
-        float angularRadius = 0.0047f;
-        float coneScale = tan(angularRadius);
-        
-        float3 T, B;
-        CreateCoordinateSystem(lightDir, T, B);
-    
-        uint samples = 4;
-        float visible = 0.f;
-        for (uint i = 0; i < samples; i++)
+        //Shadows
+        float3 t = length(cameraMats.mCameraPos.xyz - worldPos);
+        float bias = max(1e-4f, t * 1e-4f);
+        uint seed = InitSeed(launchIndex);
+
+        for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
-            float u1 = Rand(seed);
-            float u2 = Rand(seed);
-            float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
-            float3 dir = normalize(lightDir + T * d.x + B * d.y);
-            
-            RayDesc shadowRay;
-            shadowRay.Origin = worldPos.xyz + normal * bias; // simpler & correct
-            shadowRay.Direction = dir;
-            shadowRay.TMin = 0;
-            shadowRay.TMax = 100000;
+            DirLight light = dirLights[i];
+            float3 lightDir = normalize(light.mDir.xyz);
+            float angularRadius = 0.0047f;
+            float coneScale = tan(angularRadius);
         
-            ShadowPayload shadowPayload;
+            float3 T, B;
+            CreateCoordinateSystem(lightDir, T, B);
+    
+            uint samples = 4;
+            float visible = 0.f;
+            for (uint i = 0; i < samples; i++)
+            {
+                float u1 = Rand(seed);
+                float u2 = Rand(seed);
+                float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
+                float3 dir = normalize(lightDir + T * d.x + B * d.y);
+            
+                RayDesc shadowRay;
+                shadowRay.Origin = worldPos.xyz + normal * bias; // simpler & correct
+                shadowRay.Direction = dir;
+                shadowRay.TMin = 0;
+                shadowRay.TMax = 100000;
+        
+                ShadowPayload shadowPayload;
             // Trace the ray
-            TraceRay(
+                TraceRay(
               // Acceleration structure
               SceneBVH,
               RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
@@ -98,54 +102,54 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
               // between the hit/miss shaders and the raygen
               shadowPayload);
             
-            visible += !shadowPayload.hit ? 1.0f : 0.0f;
-        }
+                visible += !shadowPayload.hit ? 1.0f : 0.0f;
+            }
         
-        visible = visible / samples;
-        directLighting *= visible;
-    }
+            visible = visible / samples;
+            directLighting *= visible;
+        }
     
     //Global illumination
-    float3 indirectLighting = float3(0.f, 0.f, 0.f);
-    float3 Nt, Nb;
-    CreateCoordinateSystem(normal, Nt, Nb);
-    uint smaples = 16;
+        float3 Nt, Nb;
+        CreateCoordinateSystem(normal, Nt, Nb);
+        uint smaples = 16;
 
-
-    for (uint n = 0; n < smaples; ++n)
-    {
+        for (uint n = 0; n < smaples; ++n)
+        {
         //How high above the horizon of the hemisphere the line is
-        float r1 = Rand(seed);
+            float r1 = Rand(seed);
         //The spin around the axis
-        float r2 = Rand(seed);
-        float3 sample = UniformSampleHemisphere(r1, r2);
-        float3 sampleWorld =
+            float r2 = Rand(seed);
+            float3 sample = UniformSampleHemisphere(r1, r2);
+            float3 sampleWorld =
             sample.x * Nt
         + sample.y * Nb
         + sample.z * normal;
         
-        RayDesc indirectRay;
-        indirectRay.Direction = normalize(sampleWorld);
-        indirectRay.Origin = worldPos + indirectRay.Direction * bias;
-        indirectRay.TMin = 0;
-        indirectRay.TMax = 100000;
+            RayDesc indirectRay;
+            indirectRay.Direction = normalize(sampleWorld);
+            indirectRay.Origin = worldPos + indirectRay.Direction * bias;
+            indirectRay.TMin = 0;
+            indirectRay.TMax = 100000;
         
-        HitInfo indirectPayload;
-        indirectPayload.albedoAndRayType.a = 1;
-        TraceRay(
-        SceneBVH,
-        RAY_FLAG_NONE,
-        0xFF,
-        2,
-        0,
-        0,
-        indirectRay,
-        indirectPayload);
+            HitInfo indirectPayload;
+            indirectPayload.albedoAndRayType.a = 1;
+            TraceRay(
+            SceneBVH,
+            RAY_FLAG_NONE,
+            0xFF,
+            2,
+            0,
+            0,
+            indirectRay,
+            indirectPayload);
         
-        float pdf = 1.f / (2.f * M_PI);
-        indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (albedo.rgb / M_PI) / pdf;
+            float pdf = 1.f / (2.f * M_PI);
+            indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (albedo.rgb / M_PI) / pdf;
+        }
+        indirectLighting /= (float) smaples;
+
     }
-    indirectLighting /= (float) smaples;
     
     float3 res = directLighting.rgb + indirectLighting;
     gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);

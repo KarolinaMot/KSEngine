@@ -332,6 +332,6 @@ std::optional<KS::ResourceHandle<KS::Model>> KS::ModelImporter::ImportFromFile(c
 
     }
 
-    return ResourceHandle<Model>{out_model_file.string()};
+    return ResourceHandle<Model>{source_model.string()};
 
 }

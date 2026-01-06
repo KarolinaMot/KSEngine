@@ -46,7 +46,7 @@ KS::Renderer::Renderer(Device& device)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer2"}, KS::ShaderInputMod::READ_WRITE)
                        .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBuffer3"}, KS::ShaderInputMod::READ_WRITE)
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1,
-                              {"dir_lights", "cubemap_src", "light_render_res", "bounding_boxes"})
+                              {"dir_lights", "cubemap_src", "light_render_res", "bounding_boxes", "material_info"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"cubemap_tex"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"instance_data", "light_shaft_res"})
                        .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"Depth"})
@@ -69,6 +69,7 @@ KS::Renderer::Renderer(Device& device)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"dir_lights"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights"})
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"cubemap_tex"})
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE,1, {"material_info"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"normals"}, ShaderInputMod::READ_ONLY, 1)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"indices"}, ShaderInputMod::READ_ONLY, 2)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"vertexPos"}, ShaderInputMod::READ_ONLY, 3)
@@ -180,13 +181,13 @@ KS::Renderer::Renderer(Device& device)
     m_subrenderers[CUBEMAP_GEN] = std::make_unique<ComputeRenderer>(device, skyboxShader);
     m_subrenderers[MESH_CULLING] = std::make_unique<ComputeRenderer>(device, cullingShader);
 
-    m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
+    m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
     m_inputs[OCCLUDER_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(9);
     m_inputs[LIGHT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(4);
     m_inputs[LIGHT_SHAFT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[UPSCALING_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(1);
-    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(12);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(13);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -355,6 +356,8 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
         scene.GetUniformBuffer(CAMERA_MAT_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("camera_matrix")));
     m_inputs[DEFERRED_RENDER][1] = std::pair<ShaderInput*, ShaderInputBindDesc>(
         scene.GetStorageBuffer(CULLED_INSTANCE_DATA_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("instance_data")));
+    m_inputs[DEFERRED_RENDER][2] = std::pair<ShaderInput*, ShaderInputBindDesc>(
+        scene.GetStorageBuffer(MATERIAL_INFO_BUFFER), ShaderInputBindDesc(rootSignature->GetInput("material_info")));
 
     commandList->BindRootSignature(reinterpret_cast<ID3D12RootSignature*>(rootSignature->GetSignature()), false);
 
@@ -509,6 +512,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     m_inputs[RT_RENDER][9] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferB.get(), rootSignature->GetInput("GBufferB"));
     m_inputs[RT_RENDER][10] = std::pair<ShaderInput*, ShaderInputDesc>(pbrTex.get(), rootSignature->GetInput("directLighting"));
     m_inputs[RT_RENDER][11] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferD.get(), rootSignature->GetInput("GBufferD"));
+    m_inputs[RT_RENDER][12] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER),
+                                                                       rootSignature->GetInput("material_info"));
 
     RenderParameters defPar{};
     defPar.clearRt = true;

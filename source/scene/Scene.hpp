@@ -106,6 +106,7 @@ private:
 
     std::vector<DrawEntry> draw_queue{};
     std::vector<BatchRange> batch_queue{};
+    std::vector<MaterialInfo> material_cache{};
     std::unordered_map<ResourceHandle<Model>, Model> model_cache{};
     std::unordered_map<ResourceHandle<Mesh>, std::shared_ptr<Mesh>> mesh_cache{};
     std::unordered_map<ResourceHandle<Texture>, std::shared_ptr<Texture>> tex_cache{};
@@ -127,6 +128,7 @@ private:
     std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
     uint32_t m_culledIndicesCount = 0;
     uint32_t m_meshAndInstanceCount = 0;
+    uint32_t m_materialCounter = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     CullingInfo m_cullInfo{};

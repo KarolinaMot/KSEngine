@@ -8,6 +8,7 @@ RaytracingAccelerationStructure SceneBVH : register(t0);
 StructuredBuffer<InstanceData> instanceData : register(t1);
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
+StructuredBuffer<MaterialInfo> materialInfo : register(t5);
 
 StructuredBuffer<float3> normals[] : register(t0, space1);
 StructuredBuffer<uint> indices[] : register(t0, space2);
@@ -68,6 +69,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     vertexPos = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPos.rgb, 1.f));
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
+    uv.y *= -1;
     float3 tangent = GetTangent(instance, vertId, barycentrics);
     float3 tangentWS = normalize(mul((float3x3) instanceData[instance].modelMatrix.mModelMat, tangent));
     tangentWS = normalize(tangentWS - dot(tangentWS, normal) * normal);
@@ -79,7 +81,8 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     float Lu, Lv;
     ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
     
-    PBRMaterial material = GenerateMaterial(instanceData[instance].materialInfo, uv, normal, TBN, Lu, Lv);
+    MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
+    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
     
     float3 result = 0.f;
     float3 viewDirection = normalize(WorldRayDirection());
