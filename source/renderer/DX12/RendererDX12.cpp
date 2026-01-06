@@ -61,6 +61,7 @@ KS::Renderer::Renderer(Device& device)
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE)
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"}, ShaderInputMod::READ_WRITE)
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"}, ShaderInputMod::READ_WRITE)
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferD"}, ShaderInputMod::READ_WRITE)
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"directLighting"}, ShaderInputMod::READ_WRITE)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
@@ -75,7 +76,6 @@ KS::Renderer::Renderer(Device& device)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"tangents"}, ShaderInputMod::READ_ONLY, 5)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY,
                               6)
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"Depth"}, ShaderInputMod::READ_ONLY)
             .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
             .Build(device, "RT SIGNATURE");
@@ -94,6 +94,7 @@ KS::Renderer::Renderer(Device& device)
                                              .AddRenderTarget(Formats::R8G8B8A8_UNORM)
                                              .AddRenderTarget(Formats::R8G8B8A8_UNORM)
                                              .AddRenderTarget(Formats::R8G8B8A8_UNORM)
+                                             .AddRenderTarget(Formats::R32_FLOAT)
                                              .SetFlags(fullInputFlags)
                                              .SetGlobalSignature(m_mainInputs)
                                              .Build(device);
@@ -485,8 +486,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto cubemapTexture = scene.GetSkydome().first.get();
     auto gbudfferA = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 0);
     auto gbudfferB = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 1);
+    auto gbudfferD = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 3);
     auto pbrTex = scene.GetRenderTarget(PBR_RENDER)->GetTexture(frameIndex, 0);
-    auto depthTex = scene.GetDepthStencil()->GetTexture();
 
     m_inputs[RT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(rtTexture),
                                                                       rootSignature->GetInput("output_tex"));
@@ -507,7 +508,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     m_inputs[RT_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferA.get(), rootSignature->GetInput("GBufferA"));
     m_inputs[RT_RENDER][9] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferB.get(), rootSignature->GetInput("GBufferB"));
     m_inputs[RT_RENDER][10] = std::pair<ShaderInput*, ShaderInputDesc>(pbrTex.get(), rootSignature->GetInput("directLighting"));
-    m_inputs[RT_RENDER][11] = std::pair<ShaderInput*, ShaderInputDesc>(depthTex, rootSignature->GetInput("Depth"));
+    m_inputs[RT_RENDER][11] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferD.get(), rootSignature->GetInput("GBufferD"));
 
     RenderParameters defPar{};
     defPar.clearRt = true;

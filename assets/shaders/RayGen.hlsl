@@ -7,8 +7,8 @@
 RWTexture2D<float4> gOutput : register(u0);
 RWTexture2D<float4> GBufferA : register(u1);
 RWTexture2D<float4> GBufferB : register(u2);
-RWTexture2D<float4> DirectLighting : register(u3);
-Texture2D<float> Depth : register(t5);
+RWTexture2D<float> GBufferD : register(u3);
+RWTexture2D<float4> DirectLighting : register(u4);
 
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
@@ -34,8 +34,8 @@ float Rand(inout uint seed);
 uint InitSeed(uint2 pixel);
 
 [shader("raygeneration")]
-void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
-{
+void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
+{  
     uint2 launchIndex = DispatchRaysIndex().xy;
     uint2 dims = DispatchRaysDimensions().xy;
     float2 uv = (launchIndex + 0.5) / dims;
@@ -43,13 +43,15 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 normal = GBufferB.Load(launchIndex).rgb;
     normal = normalize(normal * 2.0 - 1.0);
 
+    
     float3 directLighting = DirectLighting.Load(launchIndex).rgb;
     float4 albedo = GBufferA.Load(launchIndex).rgba;
-    float depth = Depth.SampleLevel(mainSampler, uv, 0).r;
-    float3 vertexPos = ReconstructWorldPos(launchIndex, dims, cameraMats.minvCamera, depth);
+    float depth = GBufferD.Load(launchIndex).r;
+    float3 viewPos = ReconstructViewPosFromViewZ(uv, depth, cameraMats.mInvProjection);
+    float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
 
     //Shadows
-    float3 t = length(cameraMats.mCameraPos.xyz - vertexPos);
+    float3 t = length(cameraMats.mCameraPos.xyz - worldPos);
     float bias = max(1e-4f, t * 1e-4f);
     uint seed = InitSeed(launchIndex);
 
@@ -62,7 +64,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         
         float3 T, B;
         CreateCoordinateSystem(lightDir, T, B);
-        
+    
         uint samples = 4;
         float visible = 0.f;
         for (uint i = 0; i < samples; i++)
@@ -73,7 +75,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float3 dir = normalize(lightDir + T * d.x + B * d.y);
             
             RayDesc shadowRay;
-            shadowRay.Origin = vertexPos.xyz + normal * bias; // simpler & correct
+            shadowRay.Origin = worldPos.xyz + normal * bias; // simpler & correct
             shadowRay.Direction = dir;
             shadowRay.TMin = 0;
             shadowRay.TMax = 100000;
@@ -108,6 +110,8 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 Nt, Nb;
     CreateCoordinateSystem(normal, Nt, Nb);
     uint smaples = 16;
+
+
     for (uint n = 0; n < smaples; ++n)
     {
         //How high above the horizon of the hemisphere the line is
@@ -122,7 +126,7 @@ void RayGen(/*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         
         RayDesc indirectRay;
         indirectRay.Direction = normalize(sampleWorld);
-        indirectRay.Origin = vertexPos + indirectRay.Direction * bias;
+        indirectRay.Origin = worldPos + indirectRay.Direction * bias;
         indirectRay.TMin = 0;
         indirectRay.TMax = 100000;
         

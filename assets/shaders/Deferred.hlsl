@@ -16,6 +16,7 @@ struct PS_INPUT
     float4 normals : NORMALS;
     float2 uv : TEXCOORD;
     float3x3 tangentBasis : TANGENT_BASIS;
+    float linearDepth : LINEAR_DEPTH;
     uint iid : SV_InstanceID;
 };
 
@@ -24,6 +25,7 @@ struct PSOutput
     float4 albedo : SV_Target0;
     float4 normals : SV_Target1;
     float4 emissive : SV_Target2;
+    float linearDepth : SV_Target3;
 };
 
 cbuffer Camera : register(b0)
@@ -59,6 +61,8 @@ PS_INPUT mainVS(VS_INPUT input)
 
     float3x3 TBN = float3x3(input.tangents, bitangent, output.normals.xyz);
     output.tangentBasis = TBN;
+   
+    output.linearDepth = -output.pos.z; // D3D convention: camera looks down -Z
 
     return output;
 }
@@ -70,10 +74,11 @@ PSOutput mainPS(PS_INPUT input)
 
     float metallic, roughness;
     PSOutput output;
+       
     output.albedo = float4(material.baseColor.rgb, material.metallic);
     output.normals = float4(material.normalColor, material.roughness);
     output.emissive = float4(material.emissiveColor, material.occlusionColor);
-
+    output.linearDepth = input.linearDepth;
     return output;
 }
 

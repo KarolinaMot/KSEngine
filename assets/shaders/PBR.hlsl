@@ -84,8 +84,28 @@ float3 ReconstructWorldPos(uint2 pixelCoord,
     // NDC -> world
     float4 worldPos = mul(invViewProj, ndc); // vector * matrix (see CPU side below)
     worldPos /= worldPos.w;
+    return worldPos;
 
-    return worldPos.xyz;
+}
+
+float3 ReconstructViewPosFromViewZ(float2 uv, float viewZ, float4x4 invProj)
+{
+    // uv in [0..1]
+    float2 ndc;
+    ndc.x = uv.x * 2.0f - 1.0f;
+    ndc.y = (1.0f - uv.y) * 2.0f - 1.0f; // flip Y if your UV origin is top-left
+
+    // Unproject a point on the far plane (z=1 in D3D clip space)
+    float4 clip = float4(ndc, 1.0f, 1.0f);
+    float4 viewH = mul(invProj, clip);
+    float3 viewFar = viewH.xyz / viewH.w; // view-space point on far plane
+
+    float3 dirVS = normalize(viewFar); // ray dir from camera in view space
+
+    // We stored viewZ = -posVS.z  => posVS.z = -viewZ
+    // Scale so that the resulting position has z = -viewZ
+    float t = (-viewZ) / dirVS.z;
+    return dirVS * t;
 }
 
 float Attenuation(float distance, float range)
