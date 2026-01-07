@@ -37,8 +37,8 @@ public:
     std::vector<DirLightInfo> dirLights;
     static Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material);
     static void ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
-                                      std::vector<PointLightInfo>& pointLights, const aiScene* scene, const aiNode* target_node,
-                                      const glm::mat4& parent_transform);
+                                      std::vector<uint32_t>& meshInstances, std::vector<PointLightInfo>& pointLights,
+                                      const aiScene* scene, const aiNode* target_node, const glm::mat4& parent_transform);
     static void ProcessLight(std::vector<DirLightInfo>& dirLights, std::vector<PointLightInfo>& pointLights,
                              const aiLight* light, glm::mat4x4 transform);
     static Image ProcessImage(const aiTexture* texture);

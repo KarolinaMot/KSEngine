@@ -33,6 +33,9 @@ KS::Renderer::Renderer(Device& device)
 {
     SamplerDesc clampSampler;
     clampSampler.addressMode = SamplerAddressMode::SAM_CLAMP;
+    SamplerDesc pointSampler;
+    clampSampler.addressMode = SamplerAddressMode::SAM_CLAMP;
+    clampSampler.filter = SamplerFilter::SF_NEAREST;
 
     m_mainInputs = ShaderInputBlueprintBuilder()
                        .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_matrix", "culling_info"})
@@ -59,16 +62,16 @@ KS::Renderer::Renderer(Device& device)
     m_rtInputs =
         KS::ShaderInputBlueprintBuilder()
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE)
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"}, ShaderInputMod::READ_WRITE)
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"}, ShaderInputMod::READ_WRITE)
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferD"}, ShaderInputMod::READ_WRITE)
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"directLighting"}, ShaderInputMod::READ_WRITE)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"instance_data"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"dir_lights"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights"})
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"cubemap_tex"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferC"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferD"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE,1, {"material_info"})
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"normals"}, ShaderInputMod::READ_ONLY, 1)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"indices"}, ShaderInputMod::READ_ONLY, 2)
@@ -78,6 +81,7 @@ KS::Renderer::Renderer(Device& device)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY,
                               6)
             .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
+            .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, pointSampler)
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
             .Build(device, "RT SIGNATURE");
 
@@ -370,9 +374,12 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
     defPar.cameraFrustum = plane;
     m_subrenderers[DEFERRED_RENDER]->Render(device, &commandContext, defPar);
 
+    if (raytraced) return;
+
     commandContext = device.GetCommandContext();
     commandList = commandContext.m_commandList;
     rootSignature = m_subrenderers[PBR_RENDER]->GetShader()->GetShaderInput();
+
 
     // PBR RENDER
     for (int i = 0; i < 3; i++)
@@ -489,8 +496,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto cubemapTexture = scene.GetSkydome().first.get();
     auto gbudfferA = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 0);
     auto gbudfferB = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 1);
+    auto gbudfferC = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 2);
     auto gbudfferD = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 3);
-    auto pbrTex = scene.GetRenderTarget(PBR_RENDER)->GetTexture(frameIndex, 0);
 
     m_inputs[RT_RENDER][0] = std::pair<ShaderInput*, ShaderInputDesc>(reinterpret_cast<ShaderInput*>(rtTexture),
                                                                       rootSignature->GetInput("output_tex"));
@@ -510,7 +517,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
                                                                       rootSignature->GetInput("light_info"));
     m_inputs[RT_RENDER][8] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferA.get(), rootSignature->GetInput("GBufferA"));
     m_inputs[RT_RENDER][9] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferB.get(), rootSignature->GetInput("GBufferB"));
-    m_inputs[RT_RENDER][10] = std::pair<ShaderInput*, ShaderInputDesc>(pbrTex.get(), rootSignature->GetInput("directLighting"));
+    m_inputs[RT_RENDER][10] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferC.get(), rootSignature->GetInput("GBufferC"));
     m_inputs[RT_RENDER][11] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferD.get(), rootSignature->GetInput("GBufferD"));
     m_inputs[RT_RENDER][12] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER),
                                                                        rootSignature->GetInput("material_info"));
@@ -584,76 +591,76 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
 
 void KS::Renderer::Culling(Device& device, Scene& scene)
 {
-     auto commandContext = device.GetCommandContext();
-     auto& commandList = commandContext.m_commandList;
-     auto rootSignature = m_subrenderers[MESH_CULLING]->GetShader()->GetShaderInput();
-     auto heap = scene.GetResourceHeap();
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+    auto rootSignature = m_subrenderers[MESH_CULLING]->GetShader()->GetShaderInput();
+    auto heap = scene.GetResourceHeap();
 
-     auto indicesStorageBuffer = scene.GetStorageBuffer(DRAW_INDICES);
-     auto counterResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawCounterResource());
-     auto counterRBResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBCounterResource());
-     auto resource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawResource());
-     auto resourceRB = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBResource());
+    auto indicesStorageBuffer = scene.GetStorageBuffer(DRAW_INDICES);
+    auto counterResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawCounterResource());
+    auto counterRBResource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBCounterResource());
+    auto resource = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawResource());
+    auto resourceRB = reinterpret_cast<DXResource*>(indicesStorageBuffer->GetRawRBResource());
 
-     m_inputs[MESH_CULLING][0] = std::pair<ShaderInput*, ShaderInputDesc>(indicesStorageBuffer,
-                                                                       rootSignature->GetInput("draw_indices"));
-     m_inputs[MESH_CULLING][1] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CULLING_INFO),
-                                                                       rootSignature->GetInput("culling_info"));
-     m_inputs[MESH_CULLING][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(BOUNDING_BOX_BUFFER),
-                                                                       rootSignature->GetInput("bounding_boxes"));
-     RenderParameters par{};
-     par.scene = &scene;
-     par.inputs = &m_inputs[MESH_CULLING];
+    m_inputs[MESH_CULLING][0] =
+        std::pair<ShaderInput*, ShaderInputDesc>(indicesStorageBuffer, rootSignature->GetInput("draw_indices"));
+    m_inputs[MESH_CULLING][1] =
+        std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(CULLING_INFO), rootSignature->GetInput("culling_info"));
+    m_inputs[MESH_CULLING][2] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(BOUNDING_BOX_BUFFER),
+                                                                         rootSignature->GetInput("bounding_boxes"));
+    RenderParameters par{};
+    par.scene = &scene;
+    par.inputs = &m_inputs[MESH_CULLING];
 
-     UINT clear[4] = {0, 0, 0, 0};
-     auto counterHandle = indicesStorageBuffer->GetCounterHandle(false);
+    UINT clear[4] = {0, 0, 0, 0};
+    auto counterHandle = indicesStorageBuffer->GetCounterHandle(false);
 
-     auto counterUavGpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
-     counterUavGpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
+    auto counterUavGpuHandle = heap->Get()->GetGPUDescriptorHandleForHeapStart();
+    counterUavGpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
 
-     auto counterUavCpuHandle = heap->Get()->GetCPUDescriptorHandleForHeapStart();
-     counterUavCpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
+    auto counterUavCpuHandle = heap->Get()->GetCPUDescriptorHandleForHeapStart();
+    counterUavCpuHandle.ptr += counterHandle * heap->GetDescriptorSize();
 
-     indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
+    indicesStorageBuffer->ClearCounterBuffer(device, *commandList);
 
-     auto& drawIndices = scene.GetDrawIndices();
+    auto& drawIndices = scene.GetDrawIndices();
 
-     reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
-         ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize())), 1, 1);
+    reinterpret_cast<ComputeRenderer*>(m_subrenderers[MESH_CULLING].get())
+        ->SetDispatchSize(static_cast<uint32_t>(std::ceil(scene.GetDrawQueueSize())), 1, 1);
 
-     m_subrenderers[MESH_CULLING]->Render(device, &commandContext, par);
-    
-     commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
-     commandList->ResourceBarrier(*counterResource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
+    m_subrenderers[MESH_CULLING]->Render(device, &commandContext, par);
 
-     commandList->TransitionResource(*resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
-     commandList->TransitionResource(*resourceRB, D3D12_RESOURCE_STATE_COPY_DEST);
-     commandList->CopyResource(*resource, *resourceRB);
+    commandList->ResourceBarrier(*resource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
+    commandList->ResourceBarrier(*counterResource, D3D12_RESOURCE_BARRIER_TYPE_UAV);
 
-     commandList->TransitionResource(*counterResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
-     commandList->TransitionResource(*counterRBResource, D3D12_RESOURCE_STATE_COPY_DEST);
-     commandList->CopyResource(*counterResource, *counterRBResource);
-     commandContext.Close();
+    commandList->TransitionResource(*resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList->TransitionResource(*resourceRB, D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList->CopyResource(*resource, *resourceRB);
 
-     device.FlushAndWait();
-     commandContext = device.GetCommandContext();
-     commandList = commandContext.m_commandList;
+    commandList->TransitionResource(*counterResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList->TransitionResource(*counterRBResource, D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList->CopyResource(*counterResource, *counterRBResource);
+    commandContext.Close();
 
-     uint32_t* countPtr = nullptr;
-     counterRBResource->Get()->Map(0, nullptr, (void**)&countPtr);
-     uint32_t count = *countPtr;
-     counterRBResource->Get()->Unmap(0, nullptr);
+    device.FlushAndWait();
+    commandContext = device.GetCommandContext();
+    commandList = commandContext.m_commandList;
+
+    uint32_t* countPtr = nullptr;
+    counterRBResource->Get()->Map(0, nullptr, (void**)&countPtr);
+    uint32_t count = *countPtr;
+    counterRBResource->Get()->Unmap(0, nullptr);
 
     // Read data
-     void* mapped = nullptr;
-     resourceRB->Get()->Map(0, nullptr, &mapped);
-     uint32_t* src = static_cast<uint32_t*>(mapped);
+    void* mapped = nullptr;
+    resourceRB->Get()->Map(0, nullptr, &mapped);
+    uint32_t* src = static_cast<uint32_t*>(mapped);
 
-     memcpy(drawIndices.data(), src, size_t(count) * sizeof(uint32_t));
+    memcpy(drawIndices.data(), src, size_t(count) * sizeof(uint32_t));
 
-     resourceRB->Get()->Unmap(0, nullptr);
+    resourceRB->Get()->Unmap(0, nullptr);
 
-     scene.SetCulledDrawCallIndicesCount(count);
-     scene.CreateBatches(device, *commandList);
-     commandContext.Close();
+    scene.SetCulledDrawCallIndicesCount(count);
+    scene.CreateBatches(device, *commandList);
+    commandContext.Close();
 }

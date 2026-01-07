@@ -153,8 +153,9 @@ namespace KS
     }
 
     void Model::ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
+                                      std::vector<uint32_t>& meshInstances,
                                       std::vector<PointLightInfo>& pointLights,
-                                      const aiScene* scene, const aiNode* target_node,
+                                      const aiScene* scene,  const aiNode* target_node,
                                const glm::mat4& parent_transform)
     {
         glm::mat4 transform = parent_transform * AiToGlm(target_node->mTransformation);
@@ -163,6 +164,7 @@ namespace KS
         for (size_t i = 0; i < target_node->mNumMeshes; i++)
         {
             auto mesh_index = target_node->mMeshes[i];
+            meshInstances[mesh_index]++;
             auto material_index = scene->mMeshes[mesh_index]->mMaterialIndex;
             mm.emplace_back(mesh_index, material_index);
         }
@@ -178,7 +180,7 @@ namespace KS
 
         for (size_t i = 0; i < target_node->mNumChildren; i++)
         {
-            ProcessNodesRecursive(out, dirLights, pointLights, scene, target_node->mChildren[i], transform);
+            ProcessNodesRecursive(out, dirLights, meshInstances, pointLights, scene, target_node->mChildren[i], transform);
         }
     }
 

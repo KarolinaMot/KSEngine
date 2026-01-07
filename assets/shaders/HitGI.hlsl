@@ -67,6 +67,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
 
     float4 vertexPos = float4(GetPosition(instance, vertId, barycentrics), 1.f);
     vertexPos = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPos.rgb, 1.f));
+    
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
     uv.y *= -1;

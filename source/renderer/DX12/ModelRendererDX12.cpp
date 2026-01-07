@@ -159,9 +159,9 @@ void KS::ModelRenderer::DrawMesh(const Device& device, DXCommandList& commandLis
 
     modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, batch.first);
 
-    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS) positions->BindAsVertexData(commandList, 0);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS) normals->BindAsVertexData(commandList, 1);
-    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS) uvs->BindAsVertexData(commandList, 2);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS && positions) positions->BindAsVertexData(commandList, 0);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS && normals) normals->BindAsVertexData(commandList, 1);
+    if (shaderFlags & Shader::MeshInputFlags::HAS_UVS && uvs) uvs->BindAsVertexData(commandList, 2);
     if (shaderFlags & Shader::MeshInputFlags::HAS_TANGENTS && tangents) tangents->BindAsVertexData(commandList, 3);
 
     indices->BindAsIndexData(commandList);

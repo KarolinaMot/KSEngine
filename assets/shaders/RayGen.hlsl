@@ -5,10 +5,10 @@
 
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
-RWTexture2D<float4> GBufferA : register(u1);
-RWTexture2D<float4> GBufferB : register(u2);
-RWTexture2D<float> GBufferD : register(u3);
-RWTexture2D<float4> DirectLighting : register(u4);
+Texture2D<float4> GBufferA : register(t5);
+Texture2D<float4> GBufferB : register(t6);
+Texture2D<float4> GBufferC : register(t7);
+Texture2D<float> GBufferD : register(t8);
 
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
@@ -16,6 +16,7 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 SamplerState mainSampler : register(s0);
+SamplerState pointSampler : register(s1);
 
 cbuffer Camera : register(b0)
 {
@@ -39,79 +40,116 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     uint2 launchIndex = DispatchRaysIndex().xy;
     uint2 dims = DispatchRaysDimensions().xy;
     float2 uv = (launchIndex + 0.5) / dims;
-    
-    float3 normal = GBufferB.Load(launchIndex).rgb;
-    float scalar = normal.x + normal.y + normal.z;
-    normal = normalize(normal * 2.0 - 1.0);
 
-    
-    float3 directLighting = DirectLighting.Load(launchIndex).rgb;
-    float4 albedo = GBufferA.Load(launchIndex).rgba;
-    float depth = GBufferD.Load(launchIndex).r;
+    float3 directLighting = 0.f;
+    float3 indirectLighting = 0.f;
+
+    float4 ABuffer = GBufferA.SampleLevel(pointSampler, uv, 0).rgba;
+    float4 BBuffer = GBufferB.SampleLevel(pointSampler, uv, 0).rgba;
+    float4 CBuffer = GBufferC.SampleLevel(pointSampler, uv, 0).rgba;
+    float depth = GBufferB.SampleLevel(pointSampler, uv, 0).r;
     float3 viewPos = ReconstructViewPosFromViewZ(uv, depth, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
-    float3 indirectLighting = float3(0.f, 0.f, 0.f);
+    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    float3 diffuse = 0.f;
+    float3 specular = 0.f;
 
+    PBRMaterial mat;
+    mat.baseColor = ABuffer.rgba;
+    mat.normalColor = BBuffer.rgb;
+    mat.emissiveColor = CBuffer.rgb;
+    mat.metallic = ABuffer.a;
+    mat.roughness = BBuffer.a;
+    mat.occlusionColor = CBuffer.a;
+
+    float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
+    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+
+    
     if (scalar > 0)
     {
         //Shadows
-        float3 t = length(cameraMats.mCameraPos.xyz - worldPos);
+        float3 t = length(viewDirection);
         float bias = max(1e-4f, t * 1e-4f);
         uint seed = InitSeed(launchIndex);
 
+        mat.F0 = float3(0.04, 0.04, 0.04);
+        mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
+        mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
+        
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
             float3 lightDir = normalize(light.mDir.xyz);
-            float angularRadius = 0.0047f;
-            float coneScale = tan(angularRadius);
+            //float angularRadius = 0.0047f;
+            //float coneScale = tan(angularRadius);
         
-            float3 T, B;
-            CreateCoordinateSystem(lightDir, T, B);
+            //float3 T, B;
+            //CreateCoordinateSystem(lightDir, T, B);
     
-            uint samples = 4;
-            float visible = 0.f;
-            for (uint i = 0; i < samples; i++)
-            {
-                float u1 = Rand(seed);
-                float u2 = Rand(seed);
-                float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
-                float3 dir = normalize(lightDir + T * d.x + B * d.y);
+            //uint samples = 4;
+            //float visible = 0.f;
+            //for (uint i = 0; i < samples; i++)
+            //{
+            //    float u1 = Rand(seed);
+            //    float u2 = Rand(seed);
+            //    float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
+            //    float3 dir = normalize(lightDir + T * d.x + B * d.y);
             
-                RayDesc shadowRay;
-                shadowRay.Origin = worldPos.xyz + normal * bias; // simpler & correct
-                shadowRay.Direction = dir;
-                shadowRay.TMin = 0;
-                shadowRay.TMax = 100000;
+            //    RayDesc shadowRay;
+            //    shadowRay.Origin = worldPos.xyz + mat.normalColor * bias; // simpler & correct
+            //    shadowRay.Direction = dir;
+            //    shadowRay.TMin = 0;
+            //    shadowRay.TMax = 100000;
+
         
-                ShadowPayload shadowPayload;
-            // Trace the ray
-                TraceRay(
-              // Acceleration structure
-              SceneBVH,
-              RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-              0xFF,
-              // Hit group
-              1,
-              0,
-              // Index of the miss shader
-              1,
-              // Ray information to trace
-              shadowRay,
-              // Payload associated to the ray, which will be used to communicate
-              // between the hit/miss shaders and the raygen
-              shadowPayload);
+            //    ShadowPayload shadowPayload;
+            //    shadowPayload.hit = 0;
+            //    // Trace the ray
+            //    TraceRay(
+            //      // Acceleration structure
+            //      SceneBVH,
+            //      RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+            //      0xFF,
+            //      // Hit group
+            //      1,
+            //      0,
+            //      // Index of the miss shader
+            //      1,
+            //      // Ray information to trace
+            //      shadowRay,
+            //      // Payload associated to the ray, which will be used to communicate
+            //      // between the hit/miss shaders and the raygen
+            //      shadowPayload);
             
-                visible += !shadowPayload.hit ? 1.0f : 0.0f;
-            }
+            //    visible += !shadowPayload.hit ? 1.0f : 0.0f;
+            //}
         
-            visible = visible / samples;
-            directLighting *= visible;
+            //visible = visible / samples;
+            
+            float3 dirDiffuse = 0.f;
+            float3 dirSpecular = 0.f;
+            GetBRDF(mat, viewDirection, normalize(light.mDir.xyz), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, dirDiffuse, dirSpecular);
+            
+            diffuse += dirDiffuse;
+            specular += dirSpecular;
+        }
+        
+        for (uint j = 0; j < lightInfo.numPointLight; j++)
+        {
+            PointLight light = pointLights[j];
+
+            float3 lightDirection = light.mPosition.xyz - worldPos.xyz;
+            float dist = length(lightDirection);
+            float att = Attenuation(dist, 5.f);
+
+            GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.003f, att, diffuse, specular);
+
         }
     
     //Global illumination
         float3 Nt, Nb;
-        CreateCoordinateSystem(normal, Nt, Nb);
+        CreateCoordinateSystem(mat.normalColor, Nt, Nb);
         uint smaples = 16;
 
         for (uint n = 0; n < smaples; ++n)
@@ -124,7 +162,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float3 sampleWorld =
             sample.x * Nt
         + sample.y * Nb
-        + sample.z * normal;
+        + sample.z * mat.normalColor;
         
             RayDesc indirectRay;
             indirectRay.Direction = normalize(sampleWorld);
@@ -145,14 +183,14 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             indirectPayload);
         
             float pdf = 1.f / (2.f * M_PI);
-            indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (albedo.rgb / M_PI) / pdf;
+            indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (mat.baseColor.rgb / M_PI) / pdf;
         }
         indirectLighting /= (float) smaples;
 
     }
-    
+    directLighting = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
     float3 res = directLighting.rgb + indirectLighting;
-    gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
+    gOutput[launchIndex] = float4(directLighting, 1.f);
 }
 
 float3 offset_ray(const float3 p, const float3 n)

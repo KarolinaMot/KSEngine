@@ -136,7 +136,7 @@ void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate, const Sc
             d.InstanceID = s.id;
             d.InstanceMask = 0xFF;
             d.InstanceContributionToHitGroupIndex = s.hitgroupIndex;
-            d.Flags = D3D12_RAYTRACING_INSTANCE_FLAGS::D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE;
+            d.Flags = D3D12_RAYTRACING_INSTANCE_FLAGS::D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
             d.AccelerationStructure = mesh->BLASAddress();
             instanceDescs[i] = d;
         }

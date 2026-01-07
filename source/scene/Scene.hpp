@@ -127,7 +127,7 @@ private:
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
     std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
     uint32_t m_culledIndicesCount = 0;
-    uint32_t m_meshAndInstanceCount = 0;
+    uint32_t m_drawCallCount = 0;
     uint32_t m_materialCounter = 0;
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};

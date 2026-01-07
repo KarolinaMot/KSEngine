@@ -6,7 +6,7 @@ enum class SamplerFilter
 {
     SF_NEAREST,
     SF_LINEAR,
-    SF_ANISOTROPIC
+    SF_ANISOTROPIC,
 };
 
 enum class SamplerAddressMode

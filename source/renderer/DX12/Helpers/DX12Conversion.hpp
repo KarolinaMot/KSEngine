@@ -32,6 +32,9 @@ static DXGI_FORMAT KSFormatsToDXGI(KS::Formats format)
             break;
         case R32G32B32A32_FLOAT:
             return DXGI_FORMAT_R32G32B32A32_FLOAT;
+            break; 
+        case R32G32B32A32_UINT:
+            return DXGI_FORMAT_R32G32B32A32_UINT;
             break;
         case R16_FLOAT:
             return DXGI_FORMAT_R16_FLOAT;

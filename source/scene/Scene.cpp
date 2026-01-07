@@ -48,21 +48,21 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
                                                    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     material_cache.resize(MAX_MATERIALS);
-    m_pointLights.reserve(100);
-    m_directionalLights.reserve(100);
+    m_pointLights.resize(20);
+    m_directionalLights.resize(20);
 
 
     CameraMats cam{};
 
     mStorageBuffers[CULLED_INSTANCE_DATA_BUFFER] =
-        std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL INSTANCE DATA",
+        std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "CULLED MODEL INSTANCE DATA",
                                         &m_instanceData[0], static_cast<uint32_t>(sizeof(InstanceData)), MAX_MESHES, false);
     mStorageBuffers[INSTANCE_DATA_BUFFER] =
         std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "MODEL INSTANCE DATA",
                                         &m_instanceData[0], static_cast<uint32_t>(sizeof(InstanceData)), MAX_MESHES, false);
 
     mUniformBuffers[MODEL_INDEX_BUFFER] =
-        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_meshAndInstanceCount, MAX_MESHES, false);
+        std::make_unique<UniformBuffer>(device, "MODEL INDEX BUFFER", m_drawCallCount, MAX_MESHES, false);
 
     mUniformBuffers[CAMERA_MAT_BUFFER] = std::make_shared<UniformBuffer>(device, "CAMERA MATRIX BUFFER", cam, 1);
 
@@ -208,35 +208,32 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 
             for (auto [mesh, material] : node.mesh_material_indices)
             {
-                if (m_meshAndInstanceCount >= MAX_MESHES)
+                if (m_drawCallCount >= MAX_MESHES)
                 {
-                    LOG(Log::Severity::WARN, "Maximum number of meshes {} has been reached. Command ignored.", MAX_MESHES);
+                    LOG(Log::Severity::WARN, "Maximum number of draw calls {} has been reached. Command ignored.", MAX_MESHES);
                     break;
                 }
 
                 auto meshHandle = ptr->meshes[mesh];
-                auto materialIndex = ptr->materialIndices[material];
+                auto mat = ptr->materialIndices[material];
 
                 std::shared_ptr<Mesh> meshPtr = GetMesh(meshHandle);
-                std::string key = name + std::to_string(m_meshAndInstanceCount);
+                std::string key = name + std::to_string(m_drawCallCount);
 
                 auto AABB = meshPtr->GetLocalBounds();
                 AABB = AABB.ApplyTransform(scene_transform);
 
-                draw_queue[m_meshAndInstanceCount] =
-                    KS::DrawEntry(meshHandle, scene_transform, 0, materialIndex, m_meshAndInstanceCount);
-                m_boundingBoxes[m_meshAndInstanceCount] = AABB;
+                draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform, 0, mat, m_drawCallCount);
+                m_boundingBoxes[m_drawCallCount] = AABB;
+                mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_drawCallCount, m_drawCallCount);
 
+                m_instanceData[m_drawCallCount].materialIndex = mat;
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
                 modelMat.mTransposed = glm::transpose(modelMat.mModel);
-                m_instanceData[m_meshAndInstanceCount].modelMatrix = modelMat;
-
-                mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_meshAndInstanceCount, m_meshAndInstanceCount);
-
-                m_instanceData[m_meshAndInstanceCount].materialIndex = materialIndex;
-                m_BVH->AddInstance(&draw_queue[m_meshAndInstanceCount], modelMat.mModel);
-                m_meshAndInstanceCount++;
+                m_instanceData[m_drawCallCount].modelMatrix = modelMat;
+                m_BVH->AddInstance(&draw_queue[m_drawCallCount], scene_transform);
+                m_drawCallCount++;
             }
         }
 
@@ -255,14 +252,16 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
     }
 
     mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_instanceData[0],
-                                                  m_meshAndInstanceCount);
-    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
-    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
+                                                  m_drawCallCount);
+    mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights.data(),
+                                              m_lightInfo.numDirLights);
+    mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights.data(),
+                                                m_lightInfo.numPointLights);
     mStorageBuffers[BOUNDING_BOX_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_boundingBoxes);
 
     commandContext.Close();
     m_updateScene = true;
-    return m_meshAndInstanceCount;
+    return m_drawCallCount;
 }
 
 void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
@@ -276,7 +275,7 @@ void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
 
     auto mesh = GetMesh(entry.meshHandle);
     auto AABB = mesh->GetLocalBounds();
-    m_boundingBoxes[m_meshAndInstanceCount] = AABB;
+    m_boundingBoxes[m_drawCallCount] = AABB;
 
     m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
 }
@@ -289,13 +288,13 @@ void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float inten
     pLight.mLinearAttenuation = att;
     pLight.mQuadraticAttenuation = att;
     pLight.mConstantAttenuation = att;
-    m_pointLights.push_back(pLight);
+    m_pointLights[m_lightInfo.numPointLights] = pLight;
     m_lightInfo.numPointLights++;
 }
 
 void KS::Scene::QueuePointLight(PointLightInfo info)
 {
-    m_pointLights.push_back(info);
+    m_pointLights[m_lightInfo.numPointLights] = info;
     m_lightInfo.numPointLights++;
 }
 
@@ -304,13 +303,13 @@ void KS::Scene::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, floa
     DirLightInfo dLight;
     dLight.mDir = glm::vec4(direction, 0.f);
     dLight.mColorAndIntensity = glm::vec4(color, intensity);
-    m_directionalLights.push_back(dLight);
+    m_directionalLights[m_lightInfo.numDirLights] = dLight;
     m_lightInfo.numDirLights++;
 }
 
 void KS::Scene::QueueDirectionalLight(DirLightInfo info)
 {
-    m_directionalLights.push_back(info);
+    m_directionalLights[m_lightInfo.numDirLights] = info;
     m_lightInfo.numDirLights++;
 }
 
@@ -346,7 +345,7 @@ void KS::Scene::Tick(Device& device)
     m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);
 
-    m_cullInfo.boundingBoxCount = m_meshAndInstanceCount;
+    m_cullInfo.boundingBoxCount = m_drawCallCount;
     // m_cullInfo.drawIndixesCount = 0;
 
     commandContext.Close();
@@ -400,7 +399,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
         Assimp::Importer importer;
         const aiScene* scene = nullptr;
 
-        scene = importer.ReadFile(model.path, 0);
+        scene = importer.ReadFile(model.path, aiProcess_FindInstances | aiProcess_CalcTangentSpace);
         if (!scene)
         {
             LOG(Log::Severity::WARN, "Could not import cached model: {} ({})", model.path, importer.GetErrorString());
@@ -536,10 +535,19 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
         std::vector<PointLightInfo> pointLights;
         std::vector<DirLightInfo> dirLights;
         std::vector<Model::Node> nodes;
+        std::vector<uint32_t> meshInstances = std::vector<uint32_t>(scene->mNumMeshes, 0);
 
         // Process Nodes
         {
-            Model::ProcessNodesRecursive(nodes, dirLights, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
+            Model::ProcessNodesRecursive(nodes, dirLights, meshInstances, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
+        }
+
+        for (size_t i = 0; i < meshInstances.size(); i++)
+        {
+            if (meshInstances[i] > 1)
+            {
+                std::cout << "Instance found"<<std::endl;
+            }
         }
 
         Model new_model{.nodes = std::move(nodes),
@@ -663,6 +671,7 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
     struct Key
     {
         uint32_t meshIndex;
+        uint32_t materialIndex;
         uint32_t drawIndex;  // the original ia (index into draw_queue)
     };
 
@@ -673,18 +682,23 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
     {
         uint32_t ia = m_drawIndices[i];
         const DrawEntry& a = draw_queue[ia];
-        keys[i] = {.meshIndex = GetMesh(a.meshHandle)->GetMeshIndex(), .drawIndex = ia};
+        keys[i] = {.meshIndex = GetMesh(a.meshHandle)->GetMeshIndex(), .materialIndex = a.materialIndex, .drawIndex = ia};
     }
 
     std::sort(keys.begin(), keys.end(),
               [](const Key& a, const Key& b)
               {
                   if (a.meshIndex != b.meshIndex) return a.meshIndex < b.meshIndex;
+                  if (a.materialIndex != b.materialIndex) return a.materialIndex < b.materialIndex;
                   return a.drawIndex < b.drawIndex;
               });
 
     // write back sorted indices
     for (uint32_t i = 0; i < m_culledIndicesCount; ++i) m_drawIndices[i] = keys[i].drawIndex;
+
+    // Batching
+    batch_queue.clear();
+    batch_queue.reserve(m_culledIndicesCount);
 
     for (uint32_t i = 0; i < m_culledIndicesCount; i++)
     {
@@ -697,21 +711,18 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
     }
 
     mStorageBuffers[CULLED_INSTANCE_DATA_BUFFER]->Update(device, list, GetResourceHeap()->Get(), m_instanceData.data(),
-                                                         m_culledIndicesCount);
-
-    // Batching
-    batch_queue.clear();
-    batch_queue.reserve(m_culledIndicesCount);
-
+                                                  m_culledIndicesCount);
 
     auto sameBatch = [&](DrawEntry& a, DrawEntry& b)
     {
         auto meshA = GetMesh(a.meshHandle);
         auto meshB = GetMesh(b.meshHandle);
         auto meshAIndex = meshA->GetMeshIndex();
+        auto materialAIndex = a.materialIndex;
         auto meshBIndex = meshB->GetMeshIndex();
+        auto materialBIndex = b.materialIndex;
 
-        return meshAIndex == meshBIndex;
+        return meshAIndex == meshBIndex && materialAIndex == materialBIndex;
     };
 
     for (uint32_t i = 0; i < m_culledIndicesCount;)
