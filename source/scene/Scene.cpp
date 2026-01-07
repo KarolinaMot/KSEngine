@@ -109,14 +109,6 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
             device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
             Formats::R32G32B32A32_UINT, "deferredRendererRTTexA " + std::to_string(i));
-        //deferredRendererTex[i][1] = std::make_shared<Texture>(
-        //    device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-        //    Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
-        //    Formats::R8G8B8A8_UNORM, "deferredRendererRTTexB " + std::to_string(i));
-        //deferredRendererTex[i][2] = std::make_shared<Texture>(
-        //    device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-        //    Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
-        //    Formats::R8G8B8A8_UNORM, "deferredRendererRTTexC " + std::to_string(i));
         deferredRendererTex[i][1] = std::make_shared<Texture>(
             device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(1.0f, 1.f, 1.f, 1.f),
@@ -124,7 +116,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
         compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                      glm::vec4(0.5f, 0.5f, 0.5f, 1.f), Formats::R8G8B8A8_UNORM,
+                                                      glm::vec4(0.0f, 0.0f, 0.0f, 1.f), Formats::R8G8B8A8_UNORM,
                                                       "PBRRTTexC " + std::to_string(i));
         raytracingResTex[i] = std::make_shared<Texture>(
             device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),

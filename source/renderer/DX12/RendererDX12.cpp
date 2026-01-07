@@ -90,7 +90,7 @@ KS::Renderer::Renderer(Device& device)
 
     int fullInputFlags = Shader::HAS_POSITIONS | Shader::HAS_NORMALS | Shader::HAS_UVS | Shader::HAS_TANGENTS |
                          Shader::PBR_TEXTURES | Shader::NO_CULLING;
-    int skyboxInputFlags = Shader::HAS_POSITIONS | Shader::DEPTH_DISABLED | Shader::NO_CULLING;
+    int skyboxInputFlags = Shader::HAS_POSITIONS | Shader::DEPTH_EQUAL | Shader::NO_CULLING | Shader::DEPTH_WRITE_DISABLED;
 
     std::shared_ptr<Shader> mainShader = ShaderBuilder()
                                              .SetType(PipelineType::ST_MESH_RENDER)
@@ -195,14 +195,16 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
         }
     }
 
-    GenCubemap(device, scene);
 
     GenerateMipmaps(device, scene);
 
-    RenderCubemap(device, scene);
     if (params.cameraUpdated) 
         Culling(device, scene);
     Main(device, scene, params.frustum, raytraced);
+
+    RenderCubemap(device, scene);
+
+    GenCubemap(device, scene);
 
     if (raytraced)
         Raytrace(device, scene);
@@ -227,6 +229,7 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
 
     RenderParameters defPar{};
     defPar.clearRt = true;
+    defPar.clearDs = true;
     defPar.ds = scene.GetDepthStencil();
     defPar.rt = scene.GetRenderTarget(DEFERRED_RENDER);
     defPar.scene = &scene;
@@ -411,7 +414,7 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
         ->SetDispatchSize(skydome.first->GetWidth(), skydome.first->GetHeight(), 6);
 
     RenderParameters defPar{};
-    defPar.clearRt = true;
+    defPar.clearRt = false;
     defPar.scene = &scene;
     defPar.inputs = &m_inputs[CUBEMAP_GEN];
 
@@ -434,7 +437,8 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
                                                                            rootSignature->GetInput("cubemap_tex"));
 
     RenderParameters par{};
-    par.clearRt = false;
+    par.clearRt = true;
+    par.clearDs = false;
     par.ds = scene.GetDepthStencil();
     par.rt = scene.GetRenderTarget(PBR_RENDER);
     par.scene = &scene;

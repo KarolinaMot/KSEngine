@@ -23,6 +23,7 @@ struct RenderParameters
     std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>* inputs;
     std::array<Plane, 6> cameraFrustum;
     bool clearRt = true;
+    bool clearDs = true;
 };
 
 class SubRenderer

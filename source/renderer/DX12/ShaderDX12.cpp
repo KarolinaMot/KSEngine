@@ -137,15 +137,15 @@ void KS::Shader::MeshRenderShader(const Device& device)
     if (m_flags & MeshInputFlags::HAS_UVS) builder.AddInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, VDS_UV);
     if (m_flags & MeshInputFlags::HAS_TANGENTS) builder.AddInput("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT, VDS_TANGENTS);
 
-    if (m_flags & MeshInputFlags::DEPTH_DISABLED)
-    {
-        CD3DX12_DEPTH_STENCIL_DESC depth = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-        depth.DepthEnable = TRUE;  // <- no depth testing
-        depth.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-        depth.StencilEnable = FALSE;
-        depth.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-        builder.SetDepthState(depth);
-    }
+    bool depthEnabled = !(m_flags & MeshInputFlags::DEPTH_DISABLED);
+    bool depthWriteDisabled = m_flags & MeshInputFlags::DEPTH_WRITE_DISABLED;
+    bool depthFuncEqual = m_flags & MeshInputFlags::DEPTH_EQUAL;
+
+    CD3DX12_DEPTH_STENCIL_DESC depth = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    depth.DepthEnable = depthEnabled;  // <- no depth testing
+    depth.DepthWriteMask = depthEnabled && !depthWriteDisabled ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+    depth.DepthFunc = depthFuncEqual ? D3D12_COMPARISON_FUNC_LESS_EQUAL : D3D12_COMPARISON_FUNC_LESS;
+    builder.SetDepthState(depth);
 
     if (m_flags & MeshInputFlags::NO_CULLING)
     {

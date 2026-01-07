@@ -77,7 +77,9 @@ public:
         HAS_TANGENTS = 1 << 3,
         DEPTH_DISABLED = 1 << 4,
         NO_CULLING = 1 << 5,
-        PBR_TEXTURES = 1 << 6
+        PBR_TEXTURES = 1 << 6,
+        DEPTH_EQUAL = 1 << 7,
+        DEPTH_WRITE_DISABLED = 1 << 8
     };
 
 private:

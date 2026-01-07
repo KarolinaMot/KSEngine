@@ -68,7 +68,11 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     {
         par.rt->Clear(*commandList, frameIndex);
     }
-    par.ds->Clear(*commandList);
+
+    if (par.clearDs)
+    {
+        par.ds->Clear(*commandList);
+    }
 
     auto BindDrawResources = [&](DXCommandList* cmdList)
     {

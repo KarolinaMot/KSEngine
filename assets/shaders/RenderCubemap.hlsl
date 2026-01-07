@@ -30,6 +30,7 @@ PS_INPUT mainVS(VS_INPUT input)
     PS_INPUT output;
     output.vertexPos = float4(input.pos, 1.f);
     output.pos = mul(cameraMats.mCameraNoTranslation, output.vertexPos);
+    output.pos.z = output.pos.w;
     return output;
 }
 
