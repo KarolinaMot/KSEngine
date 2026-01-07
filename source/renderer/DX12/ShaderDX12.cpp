@@ -206,7 +206,7 @@ void KS::Shader::RTShader(const Device& device)
                            m_links.size() * 2;                    // LOCAL_ROOT_SIGNATURE + its association
 
     std::vector<D3D12_STATE_SUBOBJECT> subs;
-    subs.reserve(numSubobjects+5);
+    subs.reserve(numSubobjects+10);
     std::vector<LPCWSTR> shaderPayloadExports;
 
     for (int i = 0; i < m_shaders.size(); i++)
@@ -245,7 +245,7 @@ void KS::Shader::RTShader(const Device& device)
 
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &lib.libDesc});
 
-        if (m_shaders[i].type != ShaderType::CLOSEST_HIT_SHADER) shaderPayloadExports.push_back(m_shaders[i].name.c_str());
+        if (m_shaders[i].type != ShaderType::HIT_GROUP_SHADER) shaderPayloadExports.push_back(m_shaders[i].name.c_str());
     }
 
     std::vector<D3D12_HIT_GROUP_DESC> hitGroupDescs;
@@ -254,9 +254,13 @@ void KS::Shader::RTShader(const Device& device)
     for (const auto& hitGroup : m_hitGroups)
     {
         shaderPayloadExports.push_back(hitGroup.hitGroupName.c_str());
-        D3D12_HIT_GROUP_DESC hitGroupDesc = {.HitGroupExport = hitGroup.hitGroupName.c_str(),
-                                             .Type = D3D12_HIT_GROUP_TYPE_TRIANGLES,
-                                             .ClosestHitShaderImport = hitGroup.closestHitExport.c_str()};
+        D3D12_HIT_GROUP_DESC hitGroupDesc{};
+        hitGroupDesc.HitGroupExport = hitGroup.hitGroupName.c_str();
+        hitGroupDesc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
+        if (hitGroup.anyHitExport.size()) 
+            hitGroupDesc.AnyHitShaderImport = hitGroup.anyHitExport.c_str();
+        if (hitGroup.closestHitExport.size()) 
+            hitGroupDesc.ClosestHitShaderImport = hitGroup.closestHitExport.c_str();
         hitGroupDescs.push_back(hitGroupDesc);
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &hitGroupDescs.back()});
 

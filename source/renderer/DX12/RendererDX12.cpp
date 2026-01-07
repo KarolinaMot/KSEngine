@@ -117,18 +117,16 @@ KS::Renderer::Renderer(Device& device)
         
     std::shared_ptr<Shader> rtShader = ShaderBuilder()
                                            .SetType(PipelineType::ST_RAYTRACER)
-                                           .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/Hit.hlsl", L"MainClosestHit")
-                                           .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowClosestHit")
-                                           .AddShaderPath(ShaderType::CLOSEST_HIT_SHADER, "assets/shaders/HitGI.hlsl", L"GIClosestHit")
+                                           .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowClosestHit")
+                                           .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowAnyHit")
+                                           .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/HitGI.hlsl", L"GIClosestHit")
                                            .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/Miss.hlsl", L"MainMiss")
                                            .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/ShadowMiss.hlsl", L"ShadowMiss")
                                            .AddShaderPath(ShaderType::RAY_GEN_SHADER, "assets/shaders/RayGen.hlsl", L"RayGen")
-                                           .AddHitGroup(L"MainHitGroup", L"MainClosestHit")
-                                           .AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit")
-                                           .AddHitGroup(L"GIHitGroup", L"GIClosestHit")
+                                           .AddHitGroup(L"GIHitGroup", L"GIClosestHit", L"")
+                                           .AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit", L"ShadowAnyHit")
                                            .SetGlobalSignature(m_rtInputs)
                                            .Build(device);
-
 
     std::shared_ptr<Shader> skyboxShader = ShaderBuilder()
                                                .SetType(PipelineType::ST_COMPUTE)

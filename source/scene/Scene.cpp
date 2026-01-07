@@ -540,80 +540,12 @@ void KS::Scene::InitializeShaderTable()
     for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
     {
         m_impl->m_shaderTable[i] = std::make_unique<DXShaderTable>();
+        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen");
+        m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup");
+        m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup");
 
-        std::vector<void*> heapPointers;
-        heapPointers.reserve(15);
-
-        D3D12_GPU_DESCRIPTOR_HANDLE outputHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        outputHandle.ptr += static_cast<uint64_t>((RAYTRACE_RT_SLOT + i) * m_impl->m_resourceHeap->GetDescriptorSize());
-
-        D3D12_GPU_DESCRIPTOR_HANDLE tlasHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        tlasHandle.ptr += static_cast<uint64_t>(BVH_SLOT + i) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE instanceDataHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        instanceDataHandle.ptr += static_cast<uint64_t>(GetStorageBuffer(CULLED_INSTANCE_DATA_BUFFER)->GetHandle(true)) *
-                                  m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE normalsHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        normalsHandle.ptr += static_cast<uint64_t>(NORMALS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE dirLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        dirLights.ptr += static_cast<uint64_t>(GetStorageBuffer(DIR_LIGHT_BUFFER)->GetHandle(true)) *
-                         m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE pointLights = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        pointLights.ptr += static_cast<uint64_t>(GetStorageBuffer(POINT_LIGHT_BUFFER)->GetHandle(true)) *
-                           m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE textures = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE indexHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        indexHandle.ptr += static_cast<uint64_t>(INDICES_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE vPosHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        vPosHandle.ptr += static_cast<uint64_t>(VPOS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE uvHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        uvHandle.ptr += static_cast<uint64_t>(UVS_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        D3D12_GPU_DESCRIPTOR_HANDLE tanHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        tanHandle.ptr += static_cast<uint64_t>(TAN_SLOT) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        auto skyboxHandleID = GetSkydome().first->GetHandleIndex(true);
-        D3D12_GPU_DESCRIPTOR_HANDLE skyboxHandle = m_impl->m_resourceHeap->Get()->GetGPUDescriptorHandleForHeapStart();
-        skyboxHandle.ptr += static_cast<uint64_t>(skyboxHandleID) * m_impl->m_resourceHeap->GetDescriptorSize();
-
-        heapPointers.push_back(reinterpret_cast<void*>(outputHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(tlasHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(GetUniformBuffer(CAMERA_MAT_BUFFER)->GetGPUAddress(0, i)));
-        heapPointers.push_back(reinterpret_cast<void*>(instanceDataHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(dirLights.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(pointLights.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(skyboxHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(normalsHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(indexHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(vPosHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(uvHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(tanHandle.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(textures.ptr));
-        heapPointers.push_back(reinterpret_cast<void*>(GetUniformBuffer(LIGHT_INFO_BUFFER)->GetGPUAddress(0, i)));
-
-        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen"/*, heapPointers.data(),
-                                            static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
-
-        m_impl->m_shaderTable[i]->AddHitGroup(L"MainHitGroup"/*, heapPointers.data(),
-                                              static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
-
-        m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup"/*, heapPointers.data(),
-                                              static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
-
-        m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup"/*, heapPointers.data(),
-                                              static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
-
-        m_impl->m_shaderTable[i]->AddMiss(
-            L"MainMiss" /*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
-        m_impl->m_shaderTable[i]->AddMiss(
-            L"ShadowMiss" /*, heapPointers.data(), static_cast<UINT>(sizeof(void*) * heapPointers.size())*/);
+        m_impl->m_shaderTable[i]->AddMiss(L"MainMiss");
+        m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss");
     }
 }
 

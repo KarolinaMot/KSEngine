@@ -119,6 +119,11 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
         
         GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, lightDiff, lightSpec);
 
+        RayDesc shadowRay;
+        shadowRay.Origin = vertexPos.xyz + normal * shadowBias; // simpler & correct
+        shadowRay.Direction = lightDirection;
+        shadowRay.TMin = 0;
+        shadowRay.TMax = dist - 1e-3f;
         diffuse += lightDiff;
         specular += lightSpec;
     }

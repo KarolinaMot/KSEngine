@@ -93,7 +93,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             {
                 float u1 = Rand(seed);
                 float u2 = Rand(seed);
-                float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
+                float2 d = CosineSampleHemisphere(u1, u2) * coneScale;
                 float3 dir = normalize(lightDir + T * d.x + B * d.y);
             
                 RayDesc shadowRay;
@@ -109,7 +109,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
                 TraceRay(
                   // Acceleration structure
                   SceneBVH,
-                  RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+                  RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
                   0xFF,
                   // Hit group
                   1,
@@ -139,63 +139,12 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         {
             PointLight light = pointLights[j];
 
-            float3 toL = light.mPosition.xyz - worldPos.xyz;
-            float dist = length(toL);
-            float3 L = toL / max(dist, 1e-6);
+            float3 lightDirection = light.mPosition.xyz - worldPos.xyz;
+            float dist = length(lightDirection);
+            float att = Attenuation(dist, 5.f);
 
-            float radius = 4.f; // store per-light if possible
-            float att = Attenuation(dist, /*range*/5.f);
+            GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.003f, att, diffuse, specular);
 
-            float3 T, B;
-            CreateCoordinateSystem(L, T, B);
-
-            uint samples = 2;
-            float visible = 0.f;
-
-            for (uint i = 0; i < samples; ++i)
-            {
-    // uniform disk sample
-                float u1 = Rand(seed);
-                float u2 = Rand(seed);
-                float r = sqrt(u1);
-                float phi = 2.0 * M_PI * u2;
-                float2 disk = r * float2(cos(phi), sin(phi));
-
-                float3 lightSamplePos = light.mPosition.xyz + (T * disk.x + B * disk.y) * radius;
-
-                float3 dir = lightSamplePos - worldPos.xyz;
-                float distS = length(dir);
-                dir /= max(distS, 1e-6);
-
-                RayDesc shadowRay;
-                shadowRay.Origin = worldPos.xyz + mat.normalColor * bias;
-                shadowRay.Direction = dir;
-                shadowRay.TMin = 0;
-                shadowRay.TMax = distS - 1e-3f;
-
-                ShadowPayload shadowPayload;
-                shadowPayload.hit = 0;
-
-                TraceRay(
-                SceneBVH,
-                RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-                0xFF,
-                1, 0, 1,
-                shadowRay,
-                shadowPayload);
-
-                visible += (shadowPayload.hit == 0) ? 1.0f : 0.0f;
-            }
-
-            visible *= (1.0f / samples);
-
-            // shade using center dir (fast approximation) OR per-sample dir (more correct)
-            float3 pointDiffuse = 0, pointSpecular = 0;
-            GetBRDF(mat, viewDirection, L, light.mColorAndIntensity.rgb,
-            light.mColorAndIntensity.a * 0.003f, att, pointDiffuse, pointSpecular);
-
-            diffuse += pointDiffuse * visible;
-            specular += pointSpecular * visible;
         }
     
     //Global illumination

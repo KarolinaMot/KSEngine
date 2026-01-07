@@ -33,7 +33,7 @@ enum class ShaderType
 
     MISS_SHADER,
 
-    CLOSEST_HIT_SHADER
+    HIT_GROUP_SHADER,
 };
 
 struct ShaderLibrary
@@ -47,6 +47,7 @@ struct ShaderHitGroup
 {
     std::wstring hitGroupName;
     std::wstring closestHitExport;
+    std::wstring anyHitExport;
 };
 
 struct ShaderInputLink
@@ -125,9 +126,9 @@ public:
         return *this;
     };
 
-    ShaderBuilder& AddHitGroup(std::wstring hitGroupName, std::wstring closestHitName)
+    ShaderBuilder& AddHitGroup(std::wstring hitGroupName, std::wstring closestHitName, std::wstring anyHitName)
     {
-        m_hitGroups.push_back({hitGroupName, closestHitName});
+        m_hitGroups.push_back({hitGroupName, closestHitName, anyHitName});
         return *this;
     };
 
