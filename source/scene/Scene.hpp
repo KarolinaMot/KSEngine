@@ -46,7 +46,6 @@ public:
     void QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
     void QueueDirectionalLight(DirLightInfo info);
     void SetAmbientLight(glm::vec3 color, float intensity);
-    void SetFogValues(Device& device, const FogInfo& newFogInfo);
     void SetCulledDrawCallIndicesCount(uint32_t count) { m_culledIndicesCount = count; }
 
     void Tick(Device& device);

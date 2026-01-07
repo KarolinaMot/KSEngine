@@ -212,4 +212,82 @@ float3 DirToFaceUV(float3 dir)
     uv = clamp(uv, eps, 1.0f - eps);
     return float3(uv, face);
 }
+
+float3 UnpackEmissive(uint p)
+{
+    uint r = (p) & 0x1FF;
+    uint g = (p >> 9) & 0x1FF;
+    uint b = (p >> 18) & 0x1FF;
+    uint e = (p >> 27) & 0x1F;
+
+    if (e == 0 && r == 0 && g == 0 && b == 0)
+        return 0.0.xxx;
+
+    // exponent is biased by 15
+    int expShared = (int) e - 15;
+
+    // Our pack used: mantissa ≈ round(c / 2^(expShared-9))
+    // => c ≈ mantissa * 2^(expShared-9)
+    float scale = exp2((float) expShared - 9.0);
+
+    return float3((float) r, (float) g, (float) b) * scale;
+}
+
+float UnpackUNorm16(uint v16)
+{
+    return (float) (v16 & 0xFFFF) / 65535.0;
+}
+
+void UnpackRoughOcc(uint packed, out float roughness, out float occlusion)
+{
+    uint r16 = packed & 0xFFFF;
+    uint o8 = (packed >> 16) & 0xFF;
+
+    roughness = UnpackUNorm16(r16);
+    occlusion = (float) o8 / 255.0;
+}
+
+float2 UnpackSnorm16x2(uint p)
+{
+    int sx = (int) (p << 16) >> 16; // sign-extend low 16
+    int sy = (int) p >> 16; // sign-extend high 16
+    return float2(sx, sy) / 32767.0;
+}
+
+float3 OctDecode(float2 e)
+{
+    float3 n = float3(e.x, e.y, 1.0 - abs(e.x) - abs(e.y));
+    if (n.z < 0.0)
+    {
+        float2 t = (1.0 - abs(n.yx)) * (float2(n.x >= 0 ? 1 : -1, n.y >= 0 ? 1 : -1));
+        n.x = t.x;
+        n.y = t.y;
+    }
+    return normalize(n);
+}
+
+float3 UnpackNormalOct(uint packed)
+{
+    float2 e = UnpackSnorm16x2(packed);
+    return OctDecode(e);
+}
+
+float3 UnpackRGB8(uint packed)
+{
+    float r = (float) (packed & 0xFF) / 255.0;
+    float g = (float) ((packed >> 8) & 0xFF) / 255.0;
+    float b = (float) ((packed >> 16) & 0xFF) / 255.0;
+    return float3(r, g, b);
+}
+
+float UnpackUNorm8(uint packed8)
+{
+    return (float) (packed8 & 0xFF) / 255.0;
+}
+
+void UnpackAlbedoMetal(uint packed, out float3 albedo, out float metallic)
+{
+    albedo = UnpackRGB8(packed);
+    metallic = UnpackUNorm8(packed >> 24);
+}
 #endif

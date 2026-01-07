@@ -21,7 +21,7 @@ cbuffer ModelIndex : register(b1)
     int meshIndex;
 };
 
-TextureCube skyMap : register(t1);
+TextureCube skyMap : register(t0);
 SamplerState samplr : register(s0);
 
 

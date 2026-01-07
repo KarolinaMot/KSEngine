@@ -50,11 +50,7 @@ enum ScenesToChoose
 enum Subrenderers
 {
     DEFERRED_RENDER,
-    OCCLUDER_RENDER,
     PBR_RENDER,
-    LIGHT_RENDER,
-    LIGHT_SHAFT_RENDER,
-    UPSCALING_RENDER,
     RT_RENDER,
     CUBEMAP_GEN,
     CUBEMAP_RENDER,
@@ -78,7 +74,6 @@ enum StorageBuffers
 enum UniformBuffers
 {
     LIGHT_INFO_BUFFER,
-    FOG_INFO_BUFFER,
     MODEL_INDEX_BUFFER,
     MIP_GEN_INFO,
     CAMERA_MAT_BUFFER,

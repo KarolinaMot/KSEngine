@@ -5,10 +5,10 @@
 
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
-Texture2D<float4> GBufferA : register(t5);
-Texture2D<float4> GBufferB : register(t6);
-Texture2D<float4> GBufferC : register(t7);
-Texture2D<float> GBufferD : register(t8);
+Texture2D<uint4> GBufferA : register(t5);
+Texture2D<float> GBufferB : register(t6);
+//Texture2D<float4> GBufferC : register(t7);
+//Texture2D<float> GBufferD : register(t8);
 
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
@@ -16,7 +16,6 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 SamplerState mainSampler : register(s0);
-SamplerState pointSampler : register(s1);
 
 cbuffer Camera : register(b0)
 {
@@ -44,24 +43,21 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 directLighting = 0.f;
     float3 indirectLighting = 0.f;
 
-    float4 ABuffer = GBufferA.SampleLevel(pointSampler, uv, 0).rgba;
-    float4 BBuffer = GBufferB.SampleLevel(pointSampler, uv, 0).rgba;
-    float4 CBuffer = GBufferC.SampleLevel(pointSampler, uv, 0).rgba;
-    float depth = GBufferB.SampleLevel(pointSampler, uv, 0).r;
-    float3 viewPos = ReconstructViewPosFromViewZ(uv, depth, cameraMats.mInvProjection);
+    float3 loadLocation = float3(launchIndex, 0.f);
+    uint4 bufferAValue = GBufferA.Load(loadLocation);
+    float bufferBValue = GBufferB.Load(loadLocation);
+    
+    float3 viewPos = ReconstructViewPosFromViewZ(uv, bufferBValue, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
     float3 diffuse = 0.f;
     float3 specular = 0.f;
 
     PBRMaterial mat;
-    mat.baseColor = ABuffer.rgba;
-    mat.normalColor = BBuffer.rgb;
-    mat.emissiveColor = CBuffer.rgb;
-    mat.metallic = ABuffer.a;
-    mat.roughness = BBuffer.a;
-    mat.occlusionColor = CBuffer.a;
-
+    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor, mat.metallic);
+    mat.normalColor = UnpackNormalOct(bufferAValue.y);
+    mat.emissiveColor = UnpackEmissive(bufferAValue.z);
+    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor);
     float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
     mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
 

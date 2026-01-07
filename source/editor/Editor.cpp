@@ -114,7 +114,6 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     ChooseScene(scenes, sceneCount, sceneIndex);
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
-    FogWindow(device, *scenes[sceneIndex].get());
     InfoWindow(device, fps, ms, recompileShaders, raytraced);
     CameraWindow(info, camTransform);
 
@@ -270,26 +269,6 @@ void KS::Editor::TransformWindow(Scene& scene)
             MeshInspector(scene);
             break;
     }
-    ImGui::End();
-}
-
-void KS::Editor::FogWindow(Device& device, Scene& scene)
-{
-    bool open = true;
-    FogInfo fogInfo = scene.GetFogValues();
-    bool fogChanged = false;
-
-    ImGui::Begin("Fog window", &open);
-
-    if (ImGui::DragFloat("Fog density", &fogInfo.fogDensity, 0.01f)) fogChanged = true;
-    if (ImGui::DragInt("Sample numbers", &fogInfo.lightShaftNumberSamples, 1)) fogChanged = true;
-    if (ImGui::DragFloat("Sample weight", &fogInfo.weight, 0.001f)) fogChanged = true;
-    if (ImGui::DragFloat("Sample decay", &fogInfo.decay, 0.001f)) fogChanged = true;
-    if (ImGui::DragFloat("Exposure", &fogInfo.exposure, 0.01f)) fogChanged = true;
-
-    if (fogChanged) 
-        scene.SetFogValues(device, fogInfo);
-
     ImGui::End();
 }
 

@@ -24,7 +24,6 @@ private:
     void ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount, int& index);
     void SceneHierarchy(Scene& scene);
     void TransformWindow(Scene& scene);
-    void FogWindow(Device& device, Scene& scene);
     void InfoWindow(Device&, float fps, float ms, bool& recompileShaders, bool& raytraced);
     void CameraWindow(ComponentFirstPersonCamera& info, ComponentTransform& camTransform);
     void MeshInspector(Scene& scene);

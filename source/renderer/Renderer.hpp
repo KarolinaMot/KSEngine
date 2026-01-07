@@ -41,7 +41,6 @@ public:
     void Render(Device& device, Scene& scene, const RenderTickParams& params, bool raytraced = false, bool recompileShaders = false);
 
 private:
-    void GodRays(Device& device, Scene& scene);
     void Main(Device& device, Scene& scene, const std::array<Plane, 6>& plane, bool raytraced);
 
     void GenerateMipmaps(Device& device, Scene& scene);

@@ -81,7 +81,6 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_fogInfo.decay = 0.99f;
 
     mUniformBuffers[KS::LIGHT_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "LIGHT INFO BUFFER", m_lightInfo, 1);
-    mUniformBuffers[KS::FOG_INFO_BUFFER] = std::make_unique<UniformBuffer>(device, "FOG INFO BUFFER", m_fogInfo, 1, false);
     mStorageBuffers[KS::DIR_LIGHT_BUFFER] = std::make_unique<StorageBuffer>(
         device, m_impl->m_resourceHeap.get(), *commandList, "DIRECTIONAL LIGHT BUFFER", m_directionalLights, false);
     mStorageBuffers[KS::MATERIAL_INFO_BUFFER] = std::make_unique<StorageBuffer>(
@@ -98,13 +97,10 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube/Cube.assbin"));
     m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\mesh0");
 
-    std::shared_ptr<Texture> deferredRendererTex[2][4];
+    std::shared_ptr<Texture> deferredRendererTex[2][2];
     std::shared_ptr<Texture> deferredRendererDepthTex;
     std::shared_ptr<Texture> compute_resTex[2];
     std::shared_ptr<Texture> raytracingResTex[2];
-    std::shared_ptr<Texture> lightRenderingTex[2];
-    std::shared_ptr<Texture> lightShaftTex[2];
-    std::shared_ptr<Texture> upscaledLightShaftTex[2];
     std::shared_ptr<Texture> finalRT[2];
 
     for (int i = 0; i < 2; i++)
@@ -112,19 +108,19 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         deferredRendererTex[i][0] = std::make_shared<Texture>(
             device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
-            Formats::R8G8B8A8_UNORM, "deferredRendererRTTexA " + std::to_string(i));
+            Formats::R32G32B32A32_UINT, "deferredRendererRTTexA " + std::to_string(i));
+        //deferredRendererTex[i][1] = std::make_shared<Texture>(
+        //    device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+        //    Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
+        //    Formats::R8G8B8A8_UNORM, "deferredRendererRTTexB " + std::to_string(i));
+        //deferredRendererTex[i][2] = std::make_shared<Texture>(
+        //    device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+        //    Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
+        //    Formats::R8G8B8A8_UNORM, "deferredRendererRTTexC " + std::to_string(i));
         deferredRendererTex[i][1] = std::make_shared<Texture>(
             device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 0.f),
-            Formats::R8G8B8A8_UNORM, "deferredRendererRTTexB " + std::to_string(i));
-        deferredRendererTex[i][2] = std::make_shared<Texture>(
-            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.f, 0.f, 1.f),
-            Formats::R8G8B8A8_UNORM, "deferredRendererRTTexC " + std::to_string(i));
-        deferredRendererTex[i][3] = std::make_shared<Texture>(
-            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(1.0f, 1.f, 1.f, 1.f),
-            Formats::R32_FLOAT, "deferredRendererRTTexD " + std::to_string(i));
+            Formats::R32_FLOAT, "deferredRendererRTTexB " + std::to_string(i));
 
         compute_resTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                       Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
@@ -134,21 +130,6 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
             device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.5f, 0.5f, 0.5f, 1.f),
             Formats::R8G8B8A8_UNORM, "RTX_RT " + std::to_string(i), -1, RAYTRACE_RT_SLOT + i);
-
-        lightRenderingTex[i] = std::make_shared<Texture>(
-            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
-            Formats::R32G32B32A32_FLOAT, "lightRenderingTex " + std::to_string(i), static_cast<std::uint16_t>(4));
-
-        lightShaftTex[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth() / 4, device.GetSwapchainHeight() / 4,
-                                                     Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
-                                                     glm::vec4(0.f, 0.f, 0.f, 0.f), Formats::R32G32B32A32_FLOAT,
-                                                     "lightShaftTex " + std::to_string(i));
-
-        upscaledLightShaftTex[i] = std::make_shared<Texture>(
-            device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.f, 0.f, 0.f, 0.f),
-            Formats::R8G8B8A8_UNORM, "upscaledLightShaftTex " + std::to_string(i));
 
         finalRT[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.f, 0.f, 0.f, 0.f),
@@ -162,7 +143,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_deferredRendererDepthStencil = std::make_shared<DepthStencil>(device, deferredRendererDepthTex);
 
     m_renderTargets[DEFERRED_RENDER] = std::make_shared<RenderTarget>();
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 2; i++)
     {
         m_renderTargets[DEFERRED_RENDER]->AddTexture(device, deferredRendererTex[0][i], deferredRendererTex[1][i],
                                                      "DEFERRED RENDERER" + std::to_string(i) + " ");
@@ -173,16 +154,6 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
     m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
-
-    m_renderTargets[LIGHT_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[LIGHT_RENDER]->AddTexture(device, lightRenderingTex[0], lightRenderingTex[1], "LIGHT RENDER RES");
-
-    m_renderTargets[LIGHT_SHAFT_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[LIGHT_SHAFT_RENDER]->AddTexture(device, lightShaftTex[0], lightShaftTex[1], "LIGHT SHAFT RENDER RES");
-
-    m_renderTargets[UPSCALING_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[UPSCALING_RENDER]->AddTexture(device, upscaledLightShaftTex[0], upscaledLightShaftTex[1],
-                                                  "UPSCALED LIGHT SHAFT RENDER RES");
 
     m_finalRT = std::make_shared<RenderTarget>();
     m_finalRT->AddTexture(device, finalRT[0], finalRT[1], "FINAL RENDER TARGET");
@@ -318,12 +289,6 @@ void KS::Scene::SetAmbientLight(glm::vec3 color, float intensity)
     m_lightInfo.mAmbientAndIntensity = glm::vec4(color, intensity);
 }
 
-void KS::Scene::SetFogValues(Device& device, const FogInfo& newFogInfo)
-{
-    m_fogInfo = newFogInfo;
-    mUniformBuffers[KS::FOG_INFO_BUFFER]->Update(device, m_fogInfo);
-}
-
 void KS::Scene::Tick(Device& device)
 {
     auto commandContext = device.GetCommandContext();
@@ -346,7 +311,6 @@ void KS::Scene::Tick(Device& device)
     m_BVH->Build(device, *this, *commandList);
 
     m_cullInfo.boundingBoxCount = m_drawCallCount;
-    // m_cullInfo.drawIndixesCount = 0;
 
     commandContext.Close();
 }
