@@ -55,16 +55,17 @@ KS::Renderer::Renderer(Device& device)
 
     m_rtInputs =
         KS::ShaderInputBlueprintBuilder()
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE)
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"})
-            .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"instance_data"})
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"dir_lights"})
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights"})
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"cubemap_tex"})
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"})
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"})
-            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE,1, {"material_info"})
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE) //u0
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"}) // t0
+            .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"}) //b0
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"instance_data"}) //t1
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"dir_lights"})  //t2
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"point_lights"})  //t3
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"cubemap_tex"}) //t4
+            .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"material_info"}) //t5
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"}) //t6
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"}) //t7
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"rendered_cubemap"}) //t8
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"normals"}, ShaderInputMod::READ_ONLY, 1)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"indices"}, ShaderInputMod::READ_ONLY, 2)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"vertexPos"}, ShaderInputMod::READ_ONLY, 3)
@@ -157,7 +158,7 @@ KS::Renderer::Renderer(Device& device)
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
-    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(11);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(12);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -348,6 +349,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
 
     auto rtTexture = scene.GetRenderTarget(RT_RENDER)->GetTexture(frameIndex, 0).get();
     auto cubemapTexture = scene.GetSkydome().first.get();
+    auto pbrTexture = scene.GetRenderTarget(PBR_RENDER)->GetTexture(frameIndex, 0).get();
     auto gbudfferA = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 0);
     auto gbudfferB = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 1);
     auto gbudfferC = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 2);
@@ -373,6 +375,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     m_inputs[RT_RENDER][9] = std::pair<ShaderInput*, ShaderInputDesc>(gbudfferB.get(), rootSignature->GetInput("GBufferB"));
     m_inputs[RT_RENDER][10] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetStorageBuffer(MATERIAL_INFO_BUFFER),
                                                                        rootSignature->GetInput("material_info"));
+    m_inputs[RT_RENDER][11] = std::pair<ShaderInput*, ShaderInputDesc>(pbrTexture,
+                                                                       rootSignature->GetInput("rendered_cubemap"));
 
     RenderParameters defPar{};
     defPar.clearRt = true;

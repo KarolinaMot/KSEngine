@@ -5,8 +5,9 @@
 
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
-Texture2D<uint4> GBufferA : register(t5);
-Texture2D<float> GBufferB : register(t6);
+Texture2D<uint4> GBufferA : register(t6);
+Texture2D<float> GBufferB : register(t7);
+Texture2D<float4> RenderedSkymap : register(t8);
 //Texture2D<float4> GBufferC : register(t7);
 //Texture2D<float> GBufferD : register(t8);
 
@@ -16,6 +17,7 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 SamplerState mainSampler : register(s0);
+
 
 cbuffer Camera : register(b0)
 {
@@ -58,11 +60,12 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     mat.normalColor = UnpackNormalOct(bufferAValue.y);
     mat.emissiveColor = UnpackEmissive(bufferAValue.z);
     UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor);
-    float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
+    float3 normalColor = mat.normalColor;
     mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
 
     
-    if (scalar > 0)
+    if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
+        normalColor.z == 1.f))
     {
         //Shadows
         float3 t = length(viewDirection);
@@ -77,58 +80,58 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         {
             DirLight light = dirLights[i];
             float3 lightDir = normalize(light.mDir.xyz);
-            //float angularRadius = 0.0047f;
-            //float coneScale = tan(angularRadius);
+            float angularRadius = 0.0047f;
+            float coneScale = tan(angularRadius);
         
-            //float3 T, B;
-            //CreateCoordinateSystem(lightDir, T, B);
+            float3 T, B;
+            CreateCoordinateSystem(lightDir, T, B);
     
-            //uint samples = 4;
-            //float visible = 0.f;
-            //for (uint i = 0; i < samples; i++)
-            //{
-            //    float u1 = Rand(seed);
-            //    float u2 = Rand(seed);
-            //    float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
-            //    float3 dir = normalize(lightDir + T * d.x + B * d.y);
+            uint samples = 4;
+            float visible = 0.f;
+            for (uint i = 0; i < samples; i++)
+            {
+                float u1 = Rand(seed);
+                float u2 = Rand(seed);
+                float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
+                float3 dir = normalize(lightDir + T * d.x + B * d.y);
             
-            //    RayDesc shadowRay;
-            //    shadowRay.Origin = worldPos.xyz + mat.normalColor * bias; // simpler & correct
-            //    shadowRay.Direction = dir;
-            //    shadowRay.TMin = 0;
-            //    shadowRay.TMax = 100000;
+                RayDesc shadowRay;
+                shadowRay.Origin = worldPos.xyz + mat.normalColor * bias; // simpler & correct
+                shadowRay.Direction = dir;
+                shadowRay.TMin = 0;
+                shadowRay.TMax = 100000;
 
         
-            //    ShadowPayload shadowPayload;
-            //    shadowPayload.hit = 0;
-            //    // Trace the ray
-            //    TraceRay(
-            //      // Acceleration structure
-            //      SceneBVH,
-            //      RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-            //      0xFF,
-            //      // Hit group
-            //      1,
-            //      0,
-            //      // Index of the miss shader
-            //      1,
-            //      // Ray information to trace
-            //      shadowRay,
-            //      // Payload associated to the ray, which will be used to communicate
-            //      // between the hit/miss shaders and the raygen
-            //      shadowPayload);
+                ShadowPayload shadowPayload;
+                shadowPayload.hit = 0;
+                // Trace the ray
+                TraceRay(
+                  // Acceleration structure
+                  SceneBVH,
+                  RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+                  0xFF,
+                  // Hit group
+                  1,
+                  0,
+                  // Index of the miss shader
+                  1,
+                  // Ray information to trace
+                  shadowRay,
+                  // Payload associated to the ray, which will be used to communicate
+                  // between the hit/miss shaders and the raygen
+                  shadowPayload);
             
-            //    visible += !shadowPayload.hit ? 1.0f : 0.0f;
-            //}
+                visible += !shadowPayload.hit ? 1.0f : 0.0f;
+            }
         
-            //visible = visible / samples;
+            visible = visible / samples;
             
             float3 dirDiffuse = 0.f;
             float3 dirSpecular = 0.f;
-            GetBRDF(mat, viewDirection, normalize(light.mDir.xyz), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, dirDiffuse, dirSpecular);
+            GetBRDF(mat, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, dirDiffuse, dirSpecular);
             
-            diffuse += dirDiffuse;
-            specular += dirSpecular;
+            diffuse += dirDiffuse * visible;
+            specular += dirSpecular * visible;
         }
         
         for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -182,11 +185,15 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             indirectLighting += r1 * indirectPayload.lightIntensityAndDistance.rgb * (mat.baseColor.rgb / M_PI) / pdf;
         }
         indirectLighting /= (float) smaples;
-
+        directLighting = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
     }
-    directLighting = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+    else
+    {
+        directLighting = RenderedSkymap.Load(loadLocation);
+    }
+    
     float3 res = directLighting.rgb + indirectLighting;
-    gOutput[launchIndex] = float4(directLighting, 1.f);
+    gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
 }
 
 float3 offset_ray(const float3 p, const float3 n)

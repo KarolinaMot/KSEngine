@@ -91,7 +91,7 @@ StructuredBuffer<PointLight> pointLights : register(t3);
         result.rgb = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
         result.rgb = LinearToSRGB(result.rgb);
         result.a = 1.f;
-        FinalRes[DispatchThreadID.xy] = float4(mat.baseColor, 1.f);
+        FinalRes[DispatchThreadID.xy] = result;
     }
     
 
