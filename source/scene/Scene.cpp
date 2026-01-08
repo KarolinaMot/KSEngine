@@ -71,6 +71,8 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     CullingInfo cullingInfo;
     mUniformBuffers[CULLING_INFO] = std::make_unique<UniformBuffer>(device, "CULLING INFO", cullingInfo, 1);
+    
+    mUniformBuffers[PATH_TRACING_BUFFER] = std::make_unique<UniformBuffer>(device, "PATH TRACING INFO", m_pathTracingInfo, 1);
 
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
     m_fogInfo.fogDensity = 0.6f;
@@ -298,6 +300,12 @@ void KS::Scene::Tick(Device& device)
         mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     if (m_updatePointLights)
         mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
+
+    mUniformBuffers[PATH_TRACING_BUFFER]->Update(device, m_pathTracingInfo);
+    m_pathTracingInfo.frameIndex++;
+
+    if (m_updateDirLights || m_updatePointLights || m_updateScene)
+        m_pathTracingInfo.frameIndex = 0;
 
     m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);

@@ -77,6 +77,7 @@ enum UniformBuffers
     MODEL_INDEX_BUFFER,
     MIP_GEN_INFO,
     CAMERA_MAT_BUFFER,
+    PATH_TRACING_BUFFER,
     CULLING_INFO,
     NUM_UBUFFER
 };
@@ -140,6 +141,14 @@ struct LightInfo
     uint32_t numPointLights = 0;
     uint32_t padding[2];
     glm::vec4 mAmbientAndIntensity = glm::vec4(1.f);
+};
+
+struct PathTracingData
+{
+    uint32_t frameIndex = 0;
+    uint32_t shadowSampleNumber = 2;
+    uint32_t GIsampleNumber = 4;
+    uint32_t padding;
 };
 
 template <typename A>

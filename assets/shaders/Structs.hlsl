@@ -81,6 +81,14 @@ struct LightInfo
     float4 ambientLightIntensity;
 };
 
+struct PathTracingData
+{
+    uint frameIndex;
+    uint shadowSampleNumber;
+    uint GIsampleNumber;
+    uint padding;
+};
+
 struct LightShaftInfo
 {
     float3 fogColor;

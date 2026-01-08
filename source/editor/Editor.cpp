@@ -112,11 +112,16 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
 {
     ImGui::DockSpaceOverViewport();
     ChooseScene(scenes, sceneCount, sceneIndex);
+    int shadowSample = scenes[sceneIndex]->GetShadowSample();
+    int giSamples = scenes[sceneIndex]->GetGISample();
+
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
-    InfoWindow(device, fps, ms, recompileShaders, raytraced);
+    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced);
     CameraWindow(info, camTransform);
 
+    scenes[sceneIndex]->SetGISample(giSamples);
+    scenes[sceneIndex]->SetShadowSample(shadowSample);
     auto frameIndex = device.GetCPUFrameIndex();
     uint64_t gpuPtr;
     uint32_t width, height;
@@ -272,19 +277,31 @@ void KS::Editor::TransformWindow(Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(Device&, float fps, float ms, bool& recompileShaders, bool& raytraced)
-{ 
+void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced)
+{
     bool open = true;
-    ImGui::Begin("DT window", &open); 
+    ImGui::Begin("DT window", &open);
     ImGui::Text(("FPS: " + std::format("{:.2f}", fps)).c_str());
     ImGui::Text(("Ms: " + std::format("{:.2f}", ms)).c_str());
 
-    if (ImGui::Button("Recompile shaders")) { recompileShaders = true; }
+    if (ImGui::Button("Recompile shaders"))
+    {
+        recompileShaders = true;
+    }
 
     bool currentValue = raytraced;
     if (ImGui::Checkbox("Raytraced", &currentValue))
     {
         raytraced = !raytraced;
+    }
+
+    if (raytraced)
+    {
+        ImGui::DragInt("Number of GI samples", &giSample, 4);
+        ImGui::DragInt("Number of shadow samples", &shadowSample, 4);
+
+        glm::clamp(giSample, 0, 64);
+        glm::clamp(shadowSample, 0, 16);
     }
 
     ImGui::End();

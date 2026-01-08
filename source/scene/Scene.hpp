@@ -81,6 +81,9 @@ public:
     uint32_t GetCulledIndicesCount() const { return m_culledIndicesCount; }
     void CreateBatches(Device& device, DXCommandList& list);
     const std::vector<BatchRange>& GetBatches() const { return batch_queue; }
+    void SetShadowSample(uint32_t value) { m_pathTracingInfo.shadowSampleNumber = value; }
+    void SetGISample(uint32_t value) { m_pathTracingInfo.GIsampleNumber = value; }
+
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
         if (auto lock = m_texWithoutMipmaps[index].lock())
@@ -92,6 +95,8 @@ public:
     const std::shared_ptr<Mesh> GetMesh(ResourceHandle<Mesh> meshHandle) const;
     void AddToMipmapQueue(std::weak_ptr<KS::Texture> tex) { m_texWithoutMipmaps.push_back(tex); }
     void ClearMipmapQueue() { m_texWithoutMipmaps.clear(); }
+    uint32_t GetShadowSample() const { return m_pathTracingInfo.shadowSampleNumber; }
+    uint32_t GetGISample() const { return m_pathTracingInfo.GIsampleNumber; }
     std::string GetName() const { return m_name; }
     ScenesToChoose GetIndex() const { return m_identifyingIndex; }
     std::vector<uint32_t>& GetDrawIndices() { return m_drawIndices; }
@@ -131,6 +136,7 @@ private:
     LightInfo m_lightInfo{};
     FogInfo m_fogInfo{};
     CullingInfo m_cullInfo{};
+    PathTracingData m_pathTracingInfo{};
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> m_skyDome;
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
     bool m_updateDirLights = false, m_updatePointLights = false;

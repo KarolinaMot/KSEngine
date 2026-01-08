@@ -27,6 +27,10 @@ cbuffer LightInfoBuffer : register(b1)
 {
     LightInfo lightInfo;
 };
+cbuffer RTX : register(b2)
+{
+    PathTracingData pathTracingData;
+};
 
 void CreateCoordinateSystem(const float3 N, out float3 Nt, out float3 Nb);
 float3 UniformSampleHemisphere(const float r1, const float r2);
@@ -71,7 +75,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         //Shadows
         float3 t = length(viewDirection);
         float bias = max(1e-4f, t * 1e-4f);
-        uint seed = InitSeed(launchIndex);
+        uint seed = InitSeed(launchIndex * pathTracingData.frameIndex);
 
         mat.F0 = float3(0.04, 0.04, 0.04);
         mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
@@ -87,7 +91,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float3 T, B;
             CreateCoordinateSystem(lightDir, T, B);
     
-            uint samples = 2;
+            uint samples = pathTracingData.shadowSampleNumber;
             float visible = 0.f;
             for (uint i = 0; i < samples; i++)
             {
@@ -149,7 +153,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float3 T, B;
             CreateCoordinateSystem(L, T, B);
 
-            uint samples = 2;
+            uint samples = pathTracingData.shadowSampleNumber;
             float visible = 0.f;
 
             for (uint i = 0; i < samples; ++i)
@@ -201,7 +205,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     //Global illumination
         float3 Nt, Nb;
         CreateCoordinateSystem(mat.normalColor, Nt, Nb);
-        uint smaples = 4;
+        uint smaples = pathTracingData.GIsampleNumber;
 
         for (uint n = 0; n < smaples; ++n)
         {

@@ -74,6 +74,7 @@ KS::Renderer::Renderer(Device& device)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, RESOURCE_HEAP_SIZE, {"textures"}, ShaderInputMod::READ_ONLY, 6)
             .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, KS::SamplerDesc{})
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"light_info"})
+            .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"path_tracing_info"})
             .Build(device, "RT SIGNATURE");
 
     m_mipMapShaderInputs = KS::ShaderInputBlueprintBuilder()
@@ -156,7 +157,7 @@ KS::Renderer::Renderer(Device& device)
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
-    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(12);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(13);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -378,6 +379,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
                                                                        rootSignature->GetInput("material_info"));
     m_inputs[RT_RENDER][11] = std::pair<ShaderInput*, ShaderInputDesc>(pbrTexture,
                                                                        rootSignature->GetInput("rendered_cubemap"));
+    m_inputs[RT_RENDER][12] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(PATH_TRACING_BUFFER),
+                                                                       rootSignature->GetInput("path_tracing_info"));
 
     RenderParameters defPar{};
     defPar.clearRt = true;
