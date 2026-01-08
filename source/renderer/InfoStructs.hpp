@@ -148,7 +148,7 @@ struct PathTracingData
 {
     uint32_t frameIndex = 0;
     uint32_t shadowSampleNumber = 2;
-    uint32_t GIsampleNumber = 4;
+    uint32_t GIsampleNumber = 1;
     uint32_t padding;
 };
 

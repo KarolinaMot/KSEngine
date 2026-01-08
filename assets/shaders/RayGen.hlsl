@@ -247,12 +247,24 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         directLighting = RenderedSkymap.Load(loadLocation);
     }
     
-    float3 historySum = giHistory.Load(loadLocation).rgb;
-    float3 currGI = indirectLighting / pathTracingData.GIsampleNumber;
     
-    float3 superSampledGI = (historySum + indirectLighting) / (pathTracingData.GIsampleNumber * pathTracingData.frameIndex + 1);
-    historySum += indirectLighting;
-    giHistory[launchIndex] = float4(historySum, 1.f);
+    //float3 histAvg = giHistory.Load(loadLocation).rgb;
+    //float3 currAvg = indirectLighting / (float) pathTracingData.GIsampleNumber;
+    
+    //float frameCount = (float) (pathTracingData.frameIndex + 1);
+    //float alpha = 1.0 / frameCount; // diminishing blend
+    
+    //float3 newAvg = lerp(histAvg, currAvg, alpha);
+    //giHistory[launchIndex] = float4(newAvg, 1.f);
+    
+    float4 historyValue = giHistory.Load(loadLocation).rgba;
+    float3 historySum = historyValue.rgb;
+    float sampleCount = historyValue.a;
+    float3 newGISum = historySum + indirectLighting;
+    float newSampleCount = sampleCount + pathTracingData.GIsampleNumber;
+    
+    float3 superSampledGI = newGISum / newSampleCount;
+    giHistory[launchIndex] = float4(newGISum, newSampleCount);
     
     
     float3 res = directLighting.rgb + superSampledGI;

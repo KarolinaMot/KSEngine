@@ -114,18 +114,14 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     ChooseScene(scenes, sceneCount, sceneIndex);
     int shadowSample = scenes[sceneIndex]->GetShadowSample();
     int giSamples = scenes[sceneIndex]->GetGISample();
-    bool updateSupersample = false;
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
-    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced, updateSupersample);
+    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced);
     CameraWindow(info, camTransform);
 
     scenes[sceneIndex]->SetGISample(giSamples);
     scenes[sceneIndex]->SetShadowSample(shadowSample);
-    if (updateSupersample)
-    {
-        scenes[sceneIndex]->SetUpdateSuperSampler();
-    }
+
     auto frameIndex = device.GetCPUFrameIndex();
     uint64_t gpuPtr;
     uint32_t width, height;
@@ -281,7 +277,7 @@ void KS::Editor::TransformWindow(Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced, bool& updateSupersampled)
+void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced)
 {
     bool open = true;
     ImGui::Begin("DT window", &open);
@@ -301,9 +297,8 @@ void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSampl
 
     if (raytraced)
     {
-        if (ImGui::DragInt("Number of GI samples", &giSample, 4)) updateSupersampled = true;
-        
-        if (ImGui::DragInt("Number of shadow samples", &shadowSample, 4)) updateSupersampled = true;
+        ImGui::DragInt("Number of GI samples", &giSample, 4);   
+        ImGui::DragInt("Number of shadow samples", &shadowSample, 4);
 
         glm::clamp(giSample, 0, 64);
         glm::clamp(shadowSample, 0, 16);

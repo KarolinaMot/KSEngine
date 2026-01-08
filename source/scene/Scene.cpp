@@ -264,12 +264,16 @@ void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float inten
     pLight.mConstantAttenuation = att;
     m_pointLights[m_lightInfo.numPointLights] = pLight;
     m_lightInfo.numPointLights++;
+    m_updatePointLights = true;
+    SetUpdateSuperSampler();
 }
 
 void KS::Scene::QueuePointLight(PointLightInfo info)
 {
     m_pointLights[m_lightInfo.numPointLights] = info;
     m_lightInfo.numPointLights++;
+    m_updatePointLights = true;
+    SetUpdateSuperSampler();
 }
 
 void KS::Scene::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity)
@@ -279,12 +283,16 @@ void KS::Scene::QueueDirectionalLight(glm::vec3 direction, glm::vec3 color, floa
     dLight.mColorAndIntensity = glm::vec4(color, intensity);
     m_directionalLights[m_lightInfo.numDirLights] = dLight;
     m_lightInfo.numDirLights++;
+    m_updateDirLights = true;
+    SetUpdateSuperSampler();
 }
 
 void KS::Scene::QueueDirectionalLight(DirLightInfo info)
 {
     m_directionalLights[m_lightInfo.numDirLights] = info;
     m_lightInfo.numDirLights++;
+    m_updateDirLights = true;
+    SetUpdateSuperSampler();
 }
 
 void KS::Scene::SetAmbientLight(glm::vec3 color, float intensity)
@@ -304,20 +312,21 @@ void KS::Scene::Tick(Device& device)
     if (m_updatePointLights)
         mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
 
-    mUniformBuffers[PATH_TRACING_BUFFER]->Update(device, m_pathTracingInfo);
     m_pathTracingInfo.frameIndex++;
 
-    if (m_updateDirLights || m_updatePointLights || m_cameraUpdated || m_updateSupersampled)
-    {       
-        m_pathTracingInfo.frameIndex = 0;
-
+    if (m_updateSupersampled)
+    {
         m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, device.GetFrameIndex(), m_deferredRendererDepthStencil.get());
         m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, device.GetFrameIndex());
-        m_cameraUpdated = false;
-        m_updateSupersampled = false;
+        m_pathTracingInfo.frameIndex = 0;
+        m_updateSupersampled--;
     }
 
+    mUniformBuffers[PATH_TRACING_BUFFER]->Update(device, m_pathTracingInfo);
+
     m_updateDirLights = m_updatePointLights = false;
+    m_cameraUpdated = false;
+
     m_BVH->Build(device, *this, *commandList);
 
     m_cullInfo.boundingBoxCount = m_drawCallCount;
@@ -691,12 +700,14 @@ void KS::Scene::UpdateDirLights(int index, DirLightInfo info)
 {
     m_directionalLights[index] = info;
     m_updateDirLights = true;
+    SetUpdateSuperSampler();
 }
 
 void KS::Scene::UpdatePointLights(int index, PointLightInfo info)
 {
     m_pointLights[index] = info;
     m_updatePointLights = true;
+    SetUpdateSuperSampler();
 }
 
 DXShaderTable* KS::Scene::GetShaderTable(int index) const { return m_impl->m_shaderTable[index].get(); }
