@@ -193,6 +193,7 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
         {
             if (m_subrenderers[i]) m_subrenderers[i]->Recompile(device);
         }
+        scene.SetUpdateSuperSampler();
     }
 
 

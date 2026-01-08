@@ -74,7 +74,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         normalColor.z == 1.f))
     {
         //Shadows
-        float3 t = length(viewDirection);
+        float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
         float bias = max(1e-4f, t * 1e-4f);
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
         uint shadowSeed = InitSeed(launchIndex);
@@ -221,7 +221,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         
             RayDesc indirectRay;
             indirectRay.Direction = normalize(sampleWorld);
-            indirectRay.Origin = worldPos + indirectRay.Direction * bias;
+            indirectRay.Origin = worldPos + mat.normalColor * bias;
             indirectRay.TMin = 0;
             indirectRay.TMax = 100000;
         
@@ -238,7 +238,14 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             indirectPayload);
         
             float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
-            indirectLighting += indirectPayload.lightIntensityAndDistance.rgb * mat.baseColor;
+            float3 Li = indirectPayload.lightIntensityAndDistance.rgb;
+
+            // luminance clamp (example)
+            float lum = dot(Li, float3(0.2126, 0.7152, 0.0722));
+            float maxLum = 10.0; // tune
+            Li *= min(1.0, maxLum / max(lum, 1e-6));
+
+            indirectLighting += Li * mat.baseColor;
         }
         directLighting = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
     }
@@ -246,17 +253,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     {
         directLighting = RenderedSkymap.Load(loadLocation);
     }
-    
-    
-    //float3 histAvg = giHistory.Load(loadLocation).rgb;
-    //float3 currAvg = indirectLighting / (float) pathTracingData.GIsampleNumber;
-    
-    //float frameCount = (float) (pathTracingData.frameIndex + 1);
-    //float alpha = 1.0 / frameCount; // diminishing blend
-    
-    //float3 newAvg = lerp(histAvg, currAvg, alpha);
-    //giHistory[launchIndex] = float4(newAvg, 1.f);
-    
+        
     float4 historyValue = giHistory.Load(loadLocation).rgba;
     float3 historySum = historyValue.rgb;
     float sampleCount = historyValue.a;
