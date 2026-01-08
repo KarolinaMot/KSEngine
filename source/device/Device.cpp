@@ -181,7 +181,7 @@ void KS::Device::EndFrame()
     m_impl->m_fence_values[m_cpu_frame] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
     m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
 
-    if (FAILED(m_impl->m_swapchain->Present(1, 0)))
+    if (FAILED(m_impl->m_swapchain->Present(0, 0)))
     {
         LOG(Log::Severity::FATAL, "Failed to present");
     }

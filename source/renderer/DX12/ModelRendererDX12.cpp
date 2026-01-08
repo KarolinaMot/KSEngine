@@ -20,6 +20,7 @@
 #include <renderer/DX12/Helpers/DXShaderTable.hpp>
 #include <renderer/DX12/Helpers/DXCommandContextPool.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
+#include <future>
 
 KS::ModelRenderer::ModelRenderer(const Device& device, std::shared_ptr<Shader>& shader, bool onlyCubemap)
     : SubRenderer(device, shader)
@@ -128,19 +129,20 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         context.Close();
     };
 
-    std::vector<std::thread> workerThreads;
+    std::vector<std::future<void>> workerThreads;
+
     for (int i = 0; i < NUM_DRAW_THREAD; ++i)
     {
         int start, end = 0;
         bool enoughMeshes = SplitEven(batchQueueSize, NUM_DRAW_THREAD, i, start, end);
         if (!enoughMeshes) break;
 
-        workerThreads.emplace_back(RecordDrawCommandList, start, end, std::ref(device));
+        workerThreads.emplace_back(std::async(RecordDrawCommandList, start, end, std::ref(device)));
     }
 
     for (auto& t : workerThreads)
     {
-        t.join();
+        t.wait();
     }
 }
 
