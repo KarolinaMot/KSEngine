@@ -56,6 +56,7 @@ KS::Renderer::Renderer(Device& device)
     m_rtInputs =
         KS::ShaderInputBlueprintBuilder()
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE) //u0
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"gi_history"}, ShaderInputMod::READ_WRITE) //u0
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"}) // t0
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"}) //b0
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"instance_data"}) //t1
@@ -157,7 +158,7 @@ KS::Renderer::Renderer(Device& device)
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
-    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(13);
+    m_inputs[RT_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(14);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -197,8 +198,11 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
 
     GenerateMipmaps(device, scene);
 
-    if (params.cameraUpdated) 
+    if (params.cameraUpdated)
+    {
         Culling(device, scene);
+        scene.SetUpdateCamera();
+    }
     Main(device, scene, params.frustum, raytraced);
 
     RenderCubemap(device, scene);
@@ -350,6 +354,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto frameIndex = device.GetCPUFrameIndex();
 
     auto rtTexture = scene.GetRenderTarget(RT_RENDER)->GetTexture(frameIndex, 0).get();
+    auto giHistory = scene.GetRenderTarget(SUPER_SAMPLED_GI)->GetTexture(frameIndex, 0).get();
     auto cubemapTexture = scene.GetSkydome().first.get();
     auto pbrTexture = scene.GetRenderTarget(PBR_RENDER)->GetTexture(frameIndex, 0).get();
     auto gbudfferA = scene.GetRenderTarget(DEFERRED_RENDER)->GetTexture(frameIndex, 0);
@@ -381,6 +386,8 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
                                                                        rootSignature->GetInput("rendered_cubemap"));
     m_inputs[RT_RENDER][12] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(PATH_TRACING_BUFFER),
                                                                        rootSignature->GetInput("path_tracing_info"));
+    m_inputs[RT_RENDER][13] = std::pair<ShaderInput*, ShaderInputDesc>(giHistory,
+                                                                       rootSignature->GetInput("gi_history"));
 
     RenderParameters defPar{};
     defPar.clearRt = true;

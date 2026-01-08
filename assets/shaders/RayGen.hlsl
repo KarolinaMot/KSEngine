@@ -5,6 +5,7 @@
 
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
+RWTexture2D<float4> giHistory : register(u1);
 Texture2D<uint4> GBufferA : register(t6);
 Texture2D<float> GBufferB : register(t7);
 Texture2D<float4> RenderedSkymap : register(t8);
@@ -75,8 +76,9 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         //Shadows
         float3 t = length(viewDirection);
         float bias = max(1e-4f, t * 1e-4f);
-        uint seed = InitSeed(launchIndex * pathTracingData.frameIndex);
-
+        uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
+        uint shadowSeed = InitSeed(launchIndex);
+        
         mat.F0 = float3(0.04, 0.04, 0.04);
         mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
         mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
@@ -95,8 +97,8 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float visible = 0.f;
             for (uint i = 0; i < samples; i++)
             {
-                float u1 = Rand(seed);
-                float u2 = Rand(seed);
+                float u1 = Rand(shadowSeed);
+                float u2 = Rand(shadowSeed);
                 float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
                 float3 dir = normalize(lightDir + T * d.x + B * d.y);
             
@@ -159,8 +161,8 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             for (uint i = 0; i < samples; ++i)
             {
     // uniform disk sample
-                float u1 = Rand(seed);
-                float u2 = Rand(seed);
+                float u1 = Rand(shadowSeed);
+                float u2 = Rand(shadowSeed);
                 float r = sqrt(u1);
                 float phi = 2.0 * M_PI * u2;
                 float2 disk = r * float2(cos(phi), sin(phi));
@@ -238,7 +240,6 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
             indirectLighting += indirectPayload.lightIntensityAndDistance.rgb * mat.baseColor;
         }
-        indirectLighting /= (float) smaples;
         directLighting = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
     }
     else
@@ -246,7 +247,15 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         directLighting = RenderedSkymap.Load(loadLocation);
     }
     
-    float3 res = directLighting.rgb + indirectLighting;
+    float3 historySum = giHistory.Load(loadLocation).rgb;
+    float3 currGI = indirectLighting / pathTracingData.GIsampleNumber;
+    
+    float3 superSampledGI = (historySum + indirectLighting) / (pathTracingData.GIsampleNumber * pathTracingData.frameIndex + 1);
+    historySum += indirectLighting;
+    giHistory[launchIndex] = float4(historySum, 1.f);
+    
+    
+    float3 res = directLighting.rgb + superSampledGI;
     gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
 }
 

@@ -56,6 +56,7 @@ enum Subrenderers
     CUBEMAP_RENDER,
     MIP_GEN,
     MESH_CULLING,
+    SUPER_SAMPLED_GI,
     NUM_SUBRENDER
 };
 

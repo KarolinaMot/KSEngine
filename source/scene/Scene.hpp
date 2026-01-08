@@ -67,6 +67,8 @@ public:
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,
                                         bool isSrgb = false);
+    void SetUpdateSuperSampler() { m_updateSupersampled = true; }
+    void SetUpdateCamera() { m_cameraUpdated = true; }
     TLAS* GetBVH() const { return m_BVH.get(); }
     DXDescHeap* GetResourceHeap() const;
     void UpdateDirLights(int index, DirLightInfo info);
@@ -141,5 +143,7 @@ private:
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
     bool m_updateDirLights = false, m_updatePointLights = false;
     bool m_updateScene = false;
+    bool m_updateSupersampled = false;
+    bool m_cameraUpdated=false;
 };
 }  // namespace KS

@@ -104,6 +104,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     std::shared_ptr<Texture> compute_resTex[2];
     std::shared_ptr<Texture> raytracingResTex[2];
     std::shared_ptr<Texture> finalRT[2];
+    std::shared_ptr<Texture> superSampledGI[2];
 
     for (int i = 0; i < 2; i++)
     {
@@ -124,6 +125,11 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
             device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.5f, 0.5f, 0.5f, 1.f),
             Formats::R8G8B8A8_UNORM, "RTX_RT " + std::to_string(i), -1, RAYTRACE_RT_SLOT + i);
+
+        superSampledGI[i] = std::make_shared<Texture>(
+            device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
+            Formats::R32G32B32A32_FLOAT, "superSampledGI " + std::to_string(i));
 
         finalRT[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.f, 0.f, 0.f, 0.f),
@@ -148,6 +154,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
     m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
+
+    m_renderTargets[SUPER_SAMPLED_GI] = std::make_shared<RenderTarget>();
+    m_renderTargets[SUPER_SAMPLED_GI]->AddTexture(device, superSampledGI[0], superSampledGI[1], "SUPERSAMPLED GI");
 
     m_finalRT = std::make_shared<RenderTarget>();
     m_finalRT->AddTexture(device, finalRT[0], finalRT[1], "FINAL RENDER TARGET");
@@ -288,12 +297,6 @@ void KS::Scene::Tick(Device& device)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
 
-    if (m_updateScene)
-    {
-        // CreateBatches();
-        m_updateScene = false;
-    }
-
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
 
     if (m_updateDirLights)
@@ -304,8 +307,15 @@ void KS::Scene::Tick(Device& device)
     mUniformBuffers[PATH_TRACING_BUFFER]->Update(device, m_pathTracingInfo);
     m_pathTracingInfo.frameIndex++;
 
-    if (m_updateDirLights || m_updatePointLights || m_updateScene)
+    if (m_updateDirLights || m_updatePointLights || m_cameraUpdated || m_updateSupersampled)
+    {       
         m_pathTracingInfo.frameIndex = 0;
+
+        m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, device.GetFrameIndex(), m_deferredRendererDepthStencil.get());
+        m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, device.GetFrameIndex());
+        m_cameraUpdated = false;
+        m_updateSupersampled = false;
+    }
 
     m_updateDirLights = m_updatePointLights = false;
     m_BVH->Build(device, *this, *commandList);
