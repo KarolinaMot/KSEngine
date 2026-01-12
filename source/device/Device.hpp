@@ -54,7 +54,7 @@ public:
     void FinishInitialization();
     void InitializeImGUI();
     void ResizeSwapchain(uint32_t newWidth, uint32_t newHeight);
-
+    void SetVSync(bool value) { m_vSyncOn = value; }
     unsigned int GetFrameIndex() const { return m_gpu_frame; }
     unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
 
@@ -62,7 +62,7 @@ public:
     int GetSwapchainHeight() const { return m_swapchainHeight; }
     int GetWindowWidth() const { return m_windowWidth; }
     int GetWindowHeight() const { return m_windowHeight; }
-
+    bool GetVSync() const { return m_vSyncOn; }
     //RenderTarget* GetRenderTarget() { return m_swapchainRT.get(); };
     //DepthStencil* GetDepthStencil() { return m_swapchainDS.get(); };
     void CopyToSwapchainRT(DXCommandList& commandList, std::shared_ptr<RenderTarget> rt);
@@ -86,6 +86,7 @@ private:
     glm::vec4 m_clear_color;
     std::shared_ptr<RenderTarget> m_swapchainRT;
     std::shared_ptr<DepthStencil> m_swapchainDS;
+    bool m_vSyncOn = true;
 };
 
 } // namespace KS

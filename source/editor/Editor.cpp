@@ -116,7 +116,11 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     int giSamples = scenes[sceneIndex]->GetGISample();
     SceneHierarchy(*scenes[sceneIndex].get());
     TransformWindow(*scenes[sceneIndex].get());
-    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced);
+
+    bool m_vSyncOn = device.GetVSync();
+    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced, m_vSyncOn);
+    device.SetVSync(m_vSyncOn);
+
     CameraWindow(info, camTransform);
 
     scenes[sceneIndex]->SetGISample(giSamples);
@@ -277,7 +281,7 @@ void KS::Editor::TransformWindow(Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced)
+void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced, bool& vSync)
 {
     bool open = true;
     ImGui::Begin("DT window", &open);
@@ -287,6 +291,12 @@ void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSampl
     if (ImGui::Button("Recompile shaders"))
     {
         recompileShaders = true;
+    }
+
+    bool currentVSync = vSync;
+    if (ImGui::Checkbox("VSync", &currentVSync))
+    {
+        vSync = !vSync;
     }
 
     bool currentValue = raytraced;
