@@ -83,3 +83,34 @@ MaterialPayload ShootMaterialRay(float3 direction, float3 position, RaytracingAc
     
     return materialPayload;
 }
+
+ShadowPayload ShootShadowRay(float3 direction, float3 position, RaytracingAccelerationStructure SceneBVH)
+{
+    RayDesc shadowRay;
+    shadowRay.Origin = position; // simpler & correct
+    shadowRay.Direction = direction;
+    shadowRay.TMin = 0;
+    shadowRay.TMax = 100000;
+
+        
+    ShadowPayload shadowPayload;
+    shadowPayload.hit = 0;
+                // Trace the ray
+    TraceRay(
+        // Acceleration structure
+        SceneBVH,
+        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+        0xFF,
+        // Hit group
+        1,
+        3,
+        // Index of the miss shader
+        1,
+        // Ray information to trace
+        shadowRay,
+        // Payload associated to the ray, which will be used to communicate
+        // between the hit/miss shaders and the raygen
+        shadowPayload);
+    
+    return shadowPayload;
+}

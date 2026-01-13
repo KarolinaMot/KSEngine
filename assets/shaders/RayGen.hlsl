@@ -177,32 +177,9 @@ float3 DirectLighting(PBRMaterial mat, float2 launchIndex, float3 worldPos, floa
             float u2 = Rand(shadowSeed);
             float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
             float3 dir = normalize(lightDir + T * d.x + B * d.y);
-            
-            RayDesc shadowRay;
-            shadowRay.Origin = worldPos.xyz + mat.normalColor * bias; // simpler & correct
-            shadowRay.Direction = dir;
-            shadowRay.TMin = 0;
-            shadowRay.TMax = 100000;
+            float3 origin = worldPos.xyz + mat.normalColor * bias;
 
-        
-            ShadowPayload shadowPayload;
-            shadowPayload.hit = 0;
-                // Trace the ray
-            TraceRay(
-                  // Acceleration structure
-                  SceneBVH,
-                  RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-                  0xFF,
-                  // Hit group
-                  1,
-                  3,
-                  // Index of the miss shader
-                  1,
-                  // Ray information to trace
-                  shadowRay,
-                  // Payload associated to the ray, which will be used to communicate
-                  // between the hit/miss shaders and the raygen
-                  shadowPayload);
+            ShadowPayload shadowPayload = ShootShadowRay(dir, origin, SceneBVH);        
             
             visible += !shadowPayload.hit ? 1.0f : 0.0f;
         }
@@ -248,23 +225,8 @@ float3 DirectLighting(PBRMaterial mat, float2 launchIndex, float3 worldPos, floa
             float3 dir = lightSamplePos - worldPos.xyz;
             float distS = length(dir);
             dir /= max(distS, 1e-6);
-
-            //RayDesc shadowRay;
-            //shadowRay.Origin = worldPos.xyz + mat.normalColor * bias;
-            //shadowRay.Direction = dir;
-            //shadowRay.TMin = 0;
-            //shadowRay.TMax = distS - 1e-3f;
-
-            //ShadowPayload shadowPayload;
-            //shadowPayload.hit = 0;
-
-            //TraceRay(
-            //    SceneBVH,
-            //    RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-            //    0xFF,
-            //    1, 0, 1,
-            //    shadowRay,
-            //    shadowPayload);
+            float3 origin = worldPos.xyz + mat.normalColor * bias;
+            //ShadowPayload shadowPayload = ShootShadowRay(dir, origin, SceneBVH);
 
             //visible += (shadowPayload.hit == 0) ? 1.0f : 0.0f;
         }
