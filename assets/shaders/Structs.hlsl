@@ -23,7 +23,7 @@ struct PointLight
 
 struct PBRMaterial
 {
-    float3 baseColor;
+    float4 baseColor;
     float3 emissiveColor;
     float metallic;
     float roughness;

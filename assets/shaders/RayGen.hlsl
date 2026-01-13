@@ -36,6 +36,7 @@ cbuffer RTX : register(b2)
 void CreateCoordinateSystem(const float3 N, out float3 Nt, out float3 Nb);
 float3 UniformSampleHemisphere(const float r1, const float r2);
 float3 CosineSampleHemisphere(float u1, float u2);
+float3 DirectLighting(PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias);
 
 uint Hash(uint x);
 float Rand(inout uint seed);
@@ -58,184 +59,60 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 viewPos = ReconstructViewPosFromViewZ(uv, bufferBValue, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-    float3 diffuse = 0.f;
-    float3 specular = 0.f;
-
+    float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    float bias = max(1e-4f, t * 1e-4f);
+    float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
+    
     PBRMaterial mat;
-    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor, mat.metallic);
+    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
     mat.normalColor = UnpackNormalOct(bufferAValue.y);
     mat.emissiveColor = UnpackEmissive(bufferAValue.z);
-    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor);
+    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
     float3 normalColor = mat.normalColor;
     mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    mat.baseColor.rgb *= mat.baseColor.a;
 
-    
+
+        
     if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
         normalColor.z == 1.f))
     {
-        //Shadows
-        float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-        float bias = max(1e-4f, t * 1e-4f);
+        if (!mat.baseColor.a)
+        {
+            MaterialPayload matPayload = (MaterialPayload) 0;
+            matPayload.bounceCount = 31;
+            matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
+        
+            UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
+            mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
+            mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
+            UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+            float3 normalColor = mat.normalColor;
+            mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    
+
+        }
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
-        uint shadowSeed = InitSeed(launchIndex);
+
+        directLighting = DirectLighting(mat, launchIndex, worldPos, viewDirection, seed, bias);
         
-        mat.F0 = float3(0.04, 0.04, 0.04);
-        mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
-        mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
-        
-        for (uint i = 0; i < lightInfo.numDirLight; i++)
-        {
-            DirLight light = dirLights[i];
-            float3 lightDir = normalize(light.mDir.xyz);
-            float angularRadius = 0.0047f;
-            float coneScale = tan(angularRadius);
-        
-            float3 T, B;
-            CreateCoordinateSystem(lightDir, T, B);
-    
-            uint samples = pathTracingData.shadowSampleNumber;
-            float visible = 0.f;
-            for (uint i = 0; i < samples; i++)
-            {
-                float u1 = Rand(shadowSeed);
-                float u2 = Rand(shadowSeed);
-                float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
-                float3 dir = normalize(lightDir + T * d.x + B * d.y);
-            
-                RayDesc shadowRay;
-                shadowRay.Origin = worldPos.xyz + mat.normalColor * bias; // simpler & correct
-                shadowRay.Direction = dir;
-                shadowRay.TMin = 0;
-                shadowRay.TMax = 100000;
-
-        
-                ShadowPayload shadowPayload;
-                shadowPayload.hit = 0;
-                // Trace the ray
-                TraceRay(
-                  // Acceleration structure
-                  SceneBVH,
-                  RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-                  0xFF,
-                  // Hit group
-                  1,
-                  0,
-                  // Index of the miss shader
-                  1,
-                  // Ray information to trace
-                  shadowRay,
-                  // Payload associated to the ray, which will be used to communicate
-                  // between the hit/miss shaders and the raygen
-                  shadowPayload);
-            
-                visible += !shadowPayload.hit ? 1.0f : 0.0f;
-            }
-        
-            visible = visible / samples;
-            
-            float3 dirDiffuse = 0.f;
-            float3 dirSpecular = 0.f;
-            GetBRDF(mat, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, dirDiffuse, dirSpecular);
-            
-            diffuse += dirDiffuse * visible;
-            specular += dirSpecular * visible;
-        }
-        
-        for (uint j = 0; j < lightInfo.numPointLight; j++)
-        {
-            PointLight light = pointLights[j];
-
-            float3 toL = light.mPosition.xyz - worldPos.xyz;
-            float dist = length(toL);
-            float3 L = toL / max(dist, 1e-6);
-
-            float radius = 4.f; // store per-light if possible
-            float att = Attenuation(dist, /*range*/5.f);
-
-            float3 T, B;
-            CreateCoordinateSystem(L, T, B);
-
-            uint samples = pathTracingData.shadowSampleNumber;
-            float visible = 0.f;
-
-            for (uint i = 0; i < samples; ++i)
-            {
-    // uniform disk sample
-                float u1 = Rand(shadowSeed);
-                float u2 = Rand(shadowSeed);
-                float r = sqrt(u1);
-                float phi = 2.0 * M_PI * u2;
-                float2 disk = r * float2(cos(phi), sin(phi));
-
-                float3 lightSamplePos = light.mPosition.xyz + (T * disk.x + B * disk.y) * radius;
-
-                float3 dir = lightSamplePos - worldPos.xyz;
-                float distS = length(dir);
-                dir /= max(distS, 1e-6);
-
-                RayDesc shadowRay;
-                shadowRay.Origin = worldPos.xyz + mat.normalColor * bias;
-                shadowRay.Direction = dir;
-                shadowRay.TMin = 0;
-                shadowRay.TMax = distS - 1e-3f;
-
-                ShadowPayload shadowPayload;
-                shadowPayload.hit = 0;
-
-                TraceRay(
-                SceneBVH,
-                RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-                0xFF,
-                1, 0, 1,
-                shadowRay,
-                shadowPayload);
-
-                visible += (shadowPayload.hit == 0) ? 1.0f : 0.0f;
-            }
-
-            visible *= (1.0f / samples);
-
-            // shade using center dir (fast approximation) OR per-sample dir (more correct)
-            float3 pointDiffuse = 0, pointSpecular = 0;
-            GetBRDF(mat, viewDirection, L, light.mColorAndIntensity.rgb,
-            light.mColorAndIntensity.a * 0.003f, att, pointDiffuse, pointSpecular);
-
-            diffuse += pointDiffuse * visible;
-            specular += pointSpecular * visible;
-        }
-    
-    //Global illumination
+        //Global illumination
         float3 Nt, Nb;
         CreateCoordinateSystem(mat.normalColor, Nt, Nb);
         uint smaples = pathTracingData.GIsampleNumber;
 
         for (uint n = 0; n < smaples; ++n)
         {
-        //How high above the horizon of the hemisphere the line is
+            //How high above the horizon of the hemisphere the line is
             float r1 = Rand(seed);
-        //The spin around the axis
+            //The spin around the axis
             float r2 = Rand(seed);
             float3 s = CosineSampleHemisphere(r1, r2);
             float3 sampleWorld = s.x * Nt + s.y * Nb + s.z * mat.normalColor;
-            //float3 sampleWorld = sample.x * Nt + sample.z * Nb + sample.y * mat.normalColor;
-        
-            RayDesc indirectRay;
-            indirectRay.Direction = normalize(sampleWorld);
-            indirectRay.Origin = worldPos + mat.normalColor * bias;
-            indirectRay.TMin = 0;
-            indirectRay.TMax = 100000;
-        
-            HitInfo indirectPayload;
-            indirectPayload.albedoAndRayType.a = 1;
-            TraceRay(
-            SceneBVH,
-            RAY_FLAG_NONE,
-            0xFF,
-            0,
-            0,
-            0,
-            indirectRay,
-            indirectPayload);
+       
+            HitInfo indirectPayload = (HitInfo) 0;
+            indirectPayload.bounceCount = 35;
+            indirectPayload = ShootBRDFRay(normalize(sampleWorld), worldPos + mat.normalColor * bias, SceneBVH, indirectPayload);
         
             float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
             float3 Li = indirectPayload.lightIntensityAndDistance.rgb;
@@ -245,9 +122,9 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             float maxLum = 10.0; // tune
             Li *= min(1.0, maxLum / max(lum, 1e-6));
 
-            indirectLighting += Li * mat.baseColor;
+            indirectLighting += Li * mat.baseColor.rgb;
         }
-        directLighting = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+        
     }
     else
     {
@@ -267,6 +144,145 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 res = directLighting.rgb + superSampledGI;
     gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
 }
+
+
+
+float3 DirectLighting(PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias)
+{
+    float3 diffuse = 0.f;
+    float3 specular = 0.f;
+    
+    //Shadows
+    uint shadowSeed = InitSeed(launchIndex);
+        
+    mat.F0 = float3(0.04, 0.04, 0.04);
+    mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
+        
+    for (uint i = 0; i < lightInfo.numDirLight; i++)
+    {
+        DirLight light = dirLights[i];
+        float3 lightDir = normalize(light.mDir.xyz);
+        float angularRadius = 0.0047f;
+        float coneScale = tan(angularRadius);
+        
+        float3 T, B;
+        CreateCoordinateSystem(lightDir, T, B);
+    
+        uint samples = pathTracingData.shadowSampleNumber;
+        float visible = 0.f;
+        for (uint i = 0; i < samples; i++)
+        {
+            float u1 = Rand(shadowSeed);
+            float u2 = Rand(shadowSeed);
+            float2 d = UniformSampleHemisphere(u1, u2) * coneScale;
+            float3 dir = normalize(lightDir + T * d.x + B * d.y);
+            
+            RayDesc shadowRay;
+            shadowRay.Origin = worldPos.xyz + mat.normalColor * bias; // simpler & correct
+            shadowRay.Direction = dir;
+            shadowRay.TMin = 0;
+            shadowRay.TMax = 100000;
+
+        
+            ShadowPayload shadowPayload;
+            shadowPayload.hit = 0;
+                // Trace the ray
+            TraceRay(
+                  // Acceleration structure
+                  SceneBVH,
+                  RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+                  0xFF,
+                  // Hit group
+                  1,
+                  3,
+                  // Index of the miss shader
+                  1,
+                  // Ray information to trace
+                  shadowRay,
+                  // Payload associated to the ray, which will be used to communicate
+                  // between the hit/miss shaders and the raygen
+                  shadowPayload);
+            
+            visible += !shadowPayload.hit ? 1.0f : 0.0f;
+        }
+        
+        visible = visible / samples;
+            
+        float3 dirDiffuse = 0.f;
+        float3 dirSpecular = 0.f;
+        GetBRDF(mat, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, dirDiffuse, dirSpecular);
+            
+        diffuse += dirDiffuse * visible;
+        specular += dirSpecular * visible;
+    }
+        
+    for (uint j = 0; j < lightInfo.numPointLight; j++)
+    {
+        PointLight light = pointLights[j];
+
+        float3 toL = light.mPosition.xyz - worldPos.xyz;
+        float dist = length(toL);
+        float3 L = toL / max(dist, 1e-6);
+
+        float radius = 4.f; // store per-light if possible
+        float att = Attenuation(dist, /*range*/5.f);
+
+        float3 T, B;
+        CreateCoordinateSystem(L, T, B);
+
+        uint samples = pathTracingData.shadowSampleNumber;
+        float visible = 0.f;
+
+        for (uint i = 0; i < samples; ++i)
+        {
+    // uniform disk sample
+            float u1 = Rand(shadowSeed);
+            float u2 = Rand(shadowSeed);
+            float r = sqrt(u1);
+            float phi = 2.0 * M_PI * u2;
+            float2 disk = r * float2(cos(phi), sin(phi));
+
+            float3 lightSamplePos = light.mPosition.xyz + (T * disk.x + B * disk.y) * radius;
+
+            float3 dir = lightSamplePos - worldPos.xyz;
+            float distS = length(dir);
+            dir /= max(distS, 1e-6);
+
+            //RayDesc shadowRay;
+            //shadowRay.Origin = worldPos.xyz + mat.normalColor * bias;
+            //shadowRay.Direction = dir;
+            //shadowRay.TMin = 0;
+            //shadowRay.TMax = distS - 1e-3f;
+
+            //ShadowPayload shadowPayload;
+            //shadowPayload.hit = 0;
+
+            //TraceRay(
+            //    SceneBVH,
+            //    RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+            //    0xFF,
+            //    1, 0, 1,
+            //    shadowRay,
+            //    shadowPayload);
+
+            //visible += (shadowPayload.hit == 0) ? 1.0f : 0.0f;
+        }
+
+       // visible *= (1.0f / samples);
+
+            // shade using center dir (fast approximation) OR per-sample dir (more correct)
+        float3 pointDiffuse = 0, pointSpecular = 0;
+        GetBRDF(mat, viewDirection, L, light.mColorAndIntensity.rgb,
+            light.mColorAndIntensity.a * 0.003f, att, pointDiffuse, pointSpecular);
+
+        diffuse += pointDiffuse;
+        specular += pointSpecular;
+    }
+    
+    return (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+}
+
 
 float3 CosineSampleHemisphere(float u1, float u2)
 {

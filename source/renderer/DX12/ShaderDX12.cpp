@@ -193,7 +193,7 @@ void KS::Shader::RTShader(const Device& device)
     rtPipeline = std::make_shared<DXRTPipeline>();
 
 
-    D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 2};
+    D3D12_RAYTRACING_PIPELINE_CONFIG pipelineCfg = {.MaxTraceRecursionDepth = 31};
 
     std::vector<Impl::DXRLibrary> libraries;
     libraries.reserve(m_shaders.size());

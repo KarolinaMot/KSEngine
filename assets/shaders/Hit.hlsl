@@ -58,7 +58,7 @@ void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu
 
 
 [shader("closesthit")] 
-void MainClosestHit(inout HitInfo payload, Attributes attrib) 
+void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
 {
     uint vertId = 3 * PrimitiveIndex();
     uint instance = InstanceID();
@@ -70,6 +70,7 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
+    uv.y *= -1;
     float3 tangent = GetTangent(instance, vertId, barycentrics);
     float3 tangentWS = normalize(mul((float3x3) instanceData[instance].modelMatrix.mModelMat, tangent));
     tangentWS = normalize(tangentWS - dot(tangentWS, normal) * normal);
@@ -83,59 +84,24 @@ void MainClosestHit(inout HitInfo payload, Attributes attrib)
     
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
     PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
+
     
-    float3 result = 0.f;
-    float3 diffuse = 0.f;
-    float3 specular = 0.f;
-    float3 viewDirection = normalize(WorldRayDirection());
-    const float shadowBias = 1e-3f; // tune for your scene scale
-    
-    for (uint i = 0; i < lightInfo.numDirLight; i++)
+    if (material.baseColor.a == 0 && payload.bounceCount > 0)
     {
-        DirLight light = dirLights[i];
-        float3 lightDir = normalize(light.mDir.xyz) * float3(1, 1, -1);
-        
-        float3 lightDiff = 0.f;
-        float3  lightSpec = 0.f;
-        GetBRDF(material, viewDirection, lightDir, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, lightDiff, lightSpec);
-        
-        diffuse += lightDiff;
-        specular += lightSpec;
+        float3 rayO = WorldRayOrigin();
+        float3 rayD = WorldRayDirection(); // <-- this is the ray direction
+        float t = RayTCurrent();
+
+        float3 hitPos = rayO + rayD * t;
+        payload = ShootMaterialRay(rayD, hitPos, SceneBVH, payload);
+        return;
     }
     
-    for (uint j = 0; j < lightInfo.numPointLight; j++)
-    {
-        PointLight light = pointLights[j];
-
-        float3 lightDirection = light.mPosition.xyz - vertexPos.xyz;
-        float dist = length(lightDirection);
-        lightDirection /= dist;
-        float att = Attenuation(dist, 3.f);
-        float3 lightDiff = 0.f;
-        float3 lightSpec = 0.f;
-
-        if(att <=0.001f)
-            continue;
-        
-        GetBRDF(material, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, att, lightDiff, lightSpec);
-
-        diffuse += lightDiff;
-        specular += lightSpec;
-    }
-
-    if (payload.albedoAndRayType.a == 0)
-    {
-        result = (diffuse + specular) * material.occlusionColor + material.emissiveColor;
-    }
-    else
-    {
-        result = diffuse;
-    }
-    
-    payload.lightIntensityAndDistance = float4(diffuse, t);
-    payload.hitNormal = normal;
-    payload.hitPoint = vertexPos;
-    payload.albedoAndRayType.rgb = material.baseColor;
+    payload.bufferA.x = PackAlbedoMetal(material.baseColor.rgb, material.metallic);
+    payload.bufferA.y = PackNormalOct(material.normalColor);
+    payload.bufferA.z = PackRGB9E5(material.emissiveColor);
+    payload.bufferA.w = PackRoughOcc(material.roughness, material.occlusionColor, material.baseColor.a);
+  
 }
 
 float3 NormalToColor(float3 normal)
@@ -285,8 +251,8 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     
     
     PBRMaterial mat;
-    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor).rgb);
-    mat.baseColor *= info.colorFactor.rgb;
+    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor));
+    mat.baseColor.rgb *= info.colorFactor.rgb;
 
     mat.emissiveColor = abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb);
     mat.emissiveColor *= info.emissiveFactor.rgb;
@@ -301,13 +267,10 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
     mat.normalColor = mat.normalColor * 2.0 - 1.0;
     mat.normalColor = mul(mat.normalColor, tangentBasis);
-   // mat.normalColor = (mat.normalColor + 1) * 0.5f;
-    
-   // mat.normalColor = normals;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
-    mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
-    mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
+    mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic);
 
     // To alpha roughness
     mat.roughness = mat.roughness * mat.roughness;

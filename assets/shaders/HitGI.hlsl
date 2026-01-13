@@ -84,7 +84,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
     PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
-    
+
     float3 result = 0.f;
     float3 viewDirection = normalize(WorldRayDirection());
 
@@ -115,7 +115,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     payload.lightIntensityAndDistance = float4(result, t);
     payload.hitNormal = normal;
     payload.hitPoint = vertexPos;
-    payload.albedoAndRayType.rgb = material.baseColor;
+    payload.albedo = material.baseColor.rgb;
 }
 
 float3 NormalToColor(float3 normal)
@@ -265,8 +265,8 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     
     
     PBRMaterial mat;
-    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor).rgb);
-    mat.baseColor *= info.colorFactor.rgb;
+    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor));
+    mat.baseColor.rgb *= info.colorFactor.rgb;
 
     mat.emissiveColor = abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb);
     mat.emissiveColor *= info.emissiveFactor.rgb;

@@ -570,6 +570,7 @@ void KS::Scene::InitializeShaderTable()
         m_impl->m_shaderTable[i]->AddRayGen(L"RayGen");
         m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup");
         m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup");
+        m_impl->m_shaderTable[i]->AddHitGroup(L"MaterialHitGroup");
 
         m_impl->m_shaderTable[i]->AddMiss(L"MainMiss");
         m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss");

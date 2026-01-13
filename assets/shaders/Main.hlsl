@@ -50,10 +50,10 @@ StructuredBuffer<PointLight> pointLights : register(t3);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
     
     PBRMaterial mat;
-    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor, mat.metallic);
+    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
     mat.normalColor = UnpackNormalOct(bufferAValue.y);
     mat.emissiveColor = UnpackEmissive(bufferAValue.z);
-    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor);
+    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
     float scalar = mat.normalColor.x + mat.normalColor.y + mat.normalColor.z;
     mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
     
@@ -65,8 +65,8 @@ StructuredBuffer<PointLight> pointLights : register(t3);
     if (scalar != 0)
     {
         mat.F0 = float3(0.04, 0.04, 0.04);
-        mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
-        mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
+        mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+        mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
 
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
