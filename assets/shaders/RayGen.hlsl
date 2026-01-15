@@ -71,6 +71,8 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
     float3 normalColor = mat.normalColor;
     mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
     mat.baseColor.rgb *= mat.baseColor.a;
+    float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
+    float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
 
 
         
@@ -81,6 +83,7 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
         {
             MaterialPayload matPayload = (MaterialPayload) 0;
             matPayload.bounceCount = 31;
+            matPayload.coneAngle = alpha0;
             matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
         
             UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
@@ -89,9 +92,13 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
             UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
             float3 normalColor = mat.normalColor;
             mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-    
+            worldPos = matPayload.position;
+            viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+            t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+            bias = max(1e-4f, t * 1e-4f);
 
         }
+        
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
         directLighting = DirectLighting(mat, launchIndex, worldPos, viewDirection, seed, bias);
@@ -112,6 +119,8 @@ void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
        
             HitInfo indirectPayload = (HitInfo) 0;
             indirectPayload.bounceCount = 35;
+            indirectPayload.coneAngle = alpha0;
+
             indirectPayload = ShootBRDFRay(normalize(sampleWorld), worldPos + mat.normalColor * bias, SceneBVH, indirectPayload);
         
             float nDotWi = saturate(dot(mat.normalColor, sampleWorld));

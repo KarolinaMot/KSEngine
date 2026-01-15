@@ -23,7 +23,8 @@ struct MaterialPayload
     float4 bufferA;
     float coneAngle;
     uint bounceCount;
-    uint2 padding;
+    float3 position;
+    uint padding;
     
 };
 

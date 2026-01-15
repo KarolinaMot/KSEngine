@@ -101,7 +101,7 @@ void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
     payload.bufferA.y = PackNormalOct(material.normalColor);
     payload.bufferA.z = PackRGB9E5(material.emissiveColor);
     payload.bufferA.w = PackRoughOcc(material.roughness, material.occlusionColor, material.baseColor.a);
-  
+    payload.position = vertexPos;
 }
 
 float3 NormalToColor(float3 normal)
