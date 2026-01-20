@@ -35,6 +35,29 @@ struct Attributes
   float2 bary;
 };
 
+struct RISSample
+{
+    uint lightType; // 0=directional, 1=point
+    uint lightIndex; // index in light buffers
+    float target; // scalar target value for this sample at this pixel (e.g. luminance of unshadowed contribution)
+};
+
+struct Reservoir
+{
+    RISSample s; // the selected sample (light choice)
+    float W; // sum of weights across all candidates (weight = target/pdf)
+    uint M; // number of candidates represented
+};
+
+void ReservoirInit(out Reservoir R)
+{
+    R.W = 0.0f;
+    R.M = 0u;
+    R.s.lightType = 0u;
+    R.s.lightIndex = 0u;
+    R.s.target = 0.0f;
+}
+
 HitInfo ShootBRDFRay(float3 direction, float3 position, RaytracingAccelerationStructure SceneBVH, HitInfo indirectPayload)
 {
     indirectPayload.bounceCount--; // decrement BEFORE tracing
@@ -85,18 +108,17 @@ MaterialPayload ShootMaterialRay(float3 direction, float3 position, RaytracingAc
     return materialPayload;
 }
 
-ShadowPayload ShootShadowRay(float3 direction, float3 position, RaytracingAccelerationStructure SceneBVH)
+ShadowPayload ShootShadowRay(float3 direction, float3 position, RaytracingAccelerationStructure SceneBVH, float tmax)
 {
     RayDesc shadowRay;
     shadowRay.Origin = position; // simpler & correct
     shadowRay.Direction = direction;
     shadowRay.TMin = 0;
-    shadowRay.TMax = 100000;
+    shadowRay.TMax = tmax;
 
-        
     ShadowPayload shadowPayload;
     shadowPayload.hit = 0;
-                // Trace the ray
+    // Trace the ray
     TraceRay(
         // Acceleration structure
         SceneBVH,
@@ -112,6 +134,6 @@ ShadowPayload ShootShadowRay(float3 direction, float3 position, RaytracingAccele
         // Payload associated to the ray, which will be used to communicate
         // between the hit/miss shaders and the raygen
         shadowPayload);
-    
+
     return shadowPayload;
 }
