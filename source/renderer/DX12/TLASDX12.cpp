@@ -72,12 +72,11 @@ void KS::TLAS::Clear()
     m_Impl->m_updateStructure[1] = true;
 }
 
-void KS::TLAS::Bind(const Device& device, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
+void KS::TLAS::Bind(uint32_t frameIndex, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
                     uint32_t)
 {
-    auto frame = device.GetCPUFrameIndex();
-    auto& tlas = m_Impl->m_tlas[frame];
-    commandList.BindHeapResource(*tlas, m_Impl->m_SRVHandle[frame], desc.rootIndex);
+    auto& tlas = m_Impl->m_tlas[frameIndex];
+    commandList.BindHeapResource(*tlas, m_Impl->m_SRVHandle[frameIndex], desc.rootIndex);
 }
 
 size_t KS::TLAS::GetGPUAddress(int, int frameIndex) const
@@ -91,7 +90,7 @@ static UINT64 Align256(UINT64 v) { return (v + 255ull) & ~255ull; }
 void KS::TLAS::EnsureInstanceCapacity(const Device& device, uint32_t count)
 {
     UINT newCap = m_capacity <= 1 ? 2 : m_capacity;
-    auto frameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
 
     if (count >= m_capacity)
     {
@@ -146,7 +145,7 @@ void KS::TLAS::WriteInstanceDescs(uint32_t frameIndex, bool onlyUpdate, const Sc
 
 void KS::TLAS::EnsureTLAS(const Device& device, uint64_t neededBytes, bool forceRecreate)
 {
-    auto frameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
 
     if (!forceRecreate && m_Impl->m_tlas[frameIndex] && m_Impl->m_tlas[frameIndex]->GetDesc().Width >= neededBytes) return;
 
@@ -162,7 +161,7 @@ void KS::TLAS::EnsureTLAS(const Device& device, uint64_t neededBytes, bool force
 
 void KS::TLAS::EnsureScratch(const Device& device, uint64_t neededBytes)
 {
-    auto frameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
 
     if (m_Impl->m_scratch[frameIndex] && m_Impl->m_scratch[frameIndex]->GetDesc().Width >= neededBytes) return;
 
@@ -178,7 +177,7 @@ void KS::TLAS::EnsureScratch(const Device& device, uint64_t neededBytes)
 
 void KS::TLAS::Build(const Device& device, const Scene& scene, DXCommandList& cmd)
 {
-    auto frameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
     if (!m_Impl->m_updateTransforms[frameIndex] && !m_Impl->m_updateStructure[frameIndex]) return;
 
     const UINT count = static_cast<UINT>(m_instances.size());

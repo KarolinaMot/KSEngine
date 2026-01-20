@@ -58,7 +58,7 @@ public:
     FogInfo GetFogValues() const { return m_fogInfo; }
     StorageBuffer* GetStorageBuffer(StorageBuffers buffer) const { return mStorageBuffers[buffer].get(); }
     UniformBuffer* GetUniformBuffer(UniformBuffers buffer) const { return mUniformBuffers[buffer].get(); }
-    size_t GetDrawQueueSize() const { return draw_queue.size(); }
+    uint32_t GetDrawQueueSize() const { return m_drawCallCount; }
     LightInfo GetLightInfo() { return m_lightInfo; }
     const DrawEntry& GetDrawEntry(uint32_t index) const { return draw_queue[index]; }
     CullingInfo GetCullingInfo() const { return m_cullInfo; }
@@ -89,6 +89,7 @@ public:
     const std::vector<BatchRange>& GetBatches() const { return batch_queue; }
     void SetShadowSample(uint32_t value) { m_pathTracingInfo.shadowSampleNumber = value; }
     void SetGISample(uint32_t value) { m_pathTracingInfo.GIsampleNumber = value; }
+    Texture* GetDIReservoir(uint32_t index) const { return m_DIReservoirs[index].get(); }
 
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
@@ -132,6 +133,7 @@ private:
     std::unique_ptr<TLAS> m_BVH;
     std::string m_name;
     ScenesToChoose m_identifyingIndex;
+    std::shared_ptr<Texture> m_DIReservoirs[4];
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);

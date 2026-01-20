@@ -23,7 +23,7 @@ public:
 KS::ShaderInputBlueprintBuilder::ShaderInputBlueprintBuilder()
 {
     m_impl = std::make_unique<Impl>();
-    m_impl->mRanges.resize(20);
+    m_impl->mRanges.resize(40);
 }
 
 KS::ShaderInputBlueprintBuilder::~ShaderInputBlueprintBuilder() {}

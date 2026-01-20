@@ -211,9 +211,9 @@ void KS::StorageBuffer::Resize(const Device& device, DXCommandList& commandList,
     }
 }
 
-void KS::StorageBuffer::Bind(const Device&, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
-                             uint32_t)
+void KS::StorageBuffer::Bind(uint32_t, void*, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t)
 {
+
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {
         commandList.TransitionResource(

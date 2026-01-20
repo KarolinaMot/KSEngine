@@ -17,7 +17,7 @@ class Skydome : public ShaderInput
 public:
     Skydome(Device& device, void* resourceHeap, const Texture& tex);
     ~Skydome();
-    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+    virtual void Bind(uint32_t frameIndex, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
                       uint32_t offsetIndex = 0);
 
     uint32_t GetWidth() const { return m_width; }

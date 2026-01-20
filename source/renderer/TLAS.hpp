@@ -37,7 +37,7 @@ public:
     void RemoveInstance(uint32_t instanceHandle);
     void UpdateTransform(uint32_t instanceHandle, glm::mat4x4 mat);
     void Clear();
-    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+    virtual void Bind(uint32_t frameIndex, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
                       uint32_t offset = 0) override;
     virtual size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 

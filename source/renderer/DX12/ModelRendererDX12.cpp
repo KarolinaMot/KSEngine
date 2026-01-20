@@ -61,7 +61,8 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     auto modelIndexInp = shaderInput->GetInput("model_index");
     auto texturesRoot = shaderInput->GetInput("textures").rootIndex;
     int shaderFlags = m_shader->GetFlags();
-    auto frameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
+    auto prevFrameIndex = device.GetCPUFrameIndex();
 
     par.rt->Bind(*commandList, frameIndex, par.ds.get());
 
@@ -85,7 +86,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
         {
             auto& input = (*par.inputs)[i];
             if (input.first)
-                input.first->Bind(device, resourceHeap, *cmdList, input.second.desc, input.second.bindOffset);
+                input.first->Bind(input.second.prev ? prevFrameIndex : frameIndex, resourceHeap, *cmdList, input.second.desc, input.second.bindOffset);
             else
                 LOG(Log::Severity::WARN, "One of the inputs {} in a model renderer was empty", i);
         }
@@ -163,7 +164,7 @@ void KS::ModelRenderer::DrawMesh(const Device& device, DXCommandList& commandLis
     auto tangents = mesh->GetAttribute(ATTRIBUTE_TANGENTS_NAME);
     auto indices = mesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
 
-    modelIndexUBO->Bind(device, resourceHeap, commandList, modelIndexInputDesc, batch.first);
+    modelIndexUBO->Bind(device.GetFrameIndex(), resourceHeap, commandList, modelIndexInputDesc, batch.first);
 
     if (shaderFlags & Shader::MeshInputFlags::HAS_POSITIONS && positions) positions->BindAsVertexData(commandList, 0);
     if (shaderFlags & Shader::MeshInputFlags::HAS_NORMALS && normals) normals->BindAsVertexData(commandList, 1);

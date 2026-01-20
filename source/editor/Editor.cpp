@@ -126,7 +126,7 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     scenes[sceneIndex]->SetGISample(giSamples);
     scenes[sceneIndex]->SetShadowSample(shadowSample);
 
-    auto frameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
     uint64_t gpuPtr;
     uint32_t width, height;
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetImguiHeap());

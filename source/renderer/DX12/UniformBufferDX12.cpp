@@ -66,11 +66,11 @@ size_t KS::UniformBuffer::GetGPUAddress(int elementIndex, int frameIndex) const
         return m_impl->mBuffers[0]->GetResource()->GetGPUVirtualAddress() + (m_buffer_stride * elementIndex);
 }
 
-void KS::UniformBuffer::Bind(const Device& device, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
+void KS::UniformBuffer::Bind(uint32_t frameIndex, void*, DXCommandList& commandList, const ShaderInputDesc& desc,
                              uint32_t offsetIndex)
 {
     if (m_double_buffer)
-        commandList.BindBuffer(*m_impl->mBuffers[device.GetFrameIndex()], desc.rootIndex, m_buffer_stride, offsetIndex);
+        commandList.BindBuffer(*m_impl->mBuffers[frameIndex], desc.rootIndex, m_buffer_stride, offsetIndex);
     else
         commandList.BindBuffer(*m_impl->mBuffers[0], desc.rootIndex, m_buffer_stride, offsetIndex);
 }

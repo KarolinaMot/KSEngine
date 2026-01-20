@@ -54,7 +54,7 @@ public:
     size_t GetElementCount() const { return m_num_elements; }
     size_t GetGPUAddress(int elementIndex, int frameIndex) const override;
 
-    virtual void Bind(const Device& device, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+    virtual void Bind(uint32_t frameIndex, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
                       uint32_t offset = 0) override;
 
 private:

@@ -134,6 +134,16 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         finalRT[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
                                                Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.f, 0.f, 0.f, 0.f),
                                                Formats::R8G8B8A8_UNORM, "finalRT " + std::to_string(i));
+
+        m_DIReservoirs[i] = std::make_shared<Texture>(
+            device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
+            Formats::R8G8B8A8_UINT, "DIReservoirA " + std::to_string(i));
+
+        m_DIReservoirs[2 + i] = std::make_shared<Texture>(
+            device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
+            Formats::R32G32B32A32_FLOAT, "DIReservoirB " + std::to_string(i));
     }
 
     deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
@@ -304,6 +314,7 @@ void KS::Scene::Tick(Device& device)
 {
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
+    auto frameIndex = device.GetFrameIndex();
 
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
 
@@ -316,8 +327,8 @@ void KS::Scene::Tick(Device& device)
 
     if (m_updateSupersampled)
     {
-        m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, device.GetFrameIndex(), m_deferredRendererDepthStencil.get());
-        m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, device.GetFrameIndex());
+        m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, frameIndex, m_deferredRendererDepthStencil.get());
+        m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, frameIndex);
         m_pathTracingInfo.frameIndex = 0;
         m_updateSupersampled--;
     }

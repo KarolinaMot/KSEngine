@@ -56,7 +56,7 @@ KS::Skydome::Skydome(Device& device, void* resourceHeap, const Texture& tex) : S
 
 KS::Skydome::~Skydome() {}
 
-void KS::Skydome::Bind(const Device&, void*, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t mip)
+void KS::Skydome::Bind(uint32_t, void*, DXCommandList& commandList, const ShaderInputDesc& desc, uint32_t mip)
 {
     if (desc.modifications == ShaderInputMod::READ_ONLY)
     {

@@ -43,9 +43,10 @@ struct ShaderInputBindDesc
 {
     ShaderInputBindDesc() = default;
     ShaderInputBindDesc(uint32_t bindOff, ShaderInputDesc description) : bindOffset(bindOff), desc(description){};
-    ShaderInputBindDesc(ShaderInputDesc description) : desc(description){};
+    ShaderInputBindDesc(ShaderInputDesc description, bool bindPrevious = false) : desc(description), prev(bindPrevious){};
     uint32_t bindOffset = 0;
     ShaderInputDesc desc{};
+    bool prev = false;
 };
 
 class Device;

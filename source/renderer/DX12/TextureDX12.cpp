@@ -230,7 +230,7 @@ KS::Texture::Texture(const Device& device, void* resourceHeap, uint32_t width, u
 
 KS::Texture::~Texture() { delete m_impl; }
 
-void KS::Texture::Bind(const Device&, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
+void KS::Texture::Bind(uint32_t, void* resourceHeap, DXCommandList& commandList, const ShaderInputDesc& desc,
                        uint32_t mip)
 {
     auto heap = reinterpret_cast<DXDescHeap*>(resourceHeap);

@@ -31,11 +31,12 @@ KS::RTRenderer::~RTRenderer() {}
 void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, RenderParameters& par)
 {
     auto commandList = commandContext->m_commandList.get();
-    auto cpuFrameIndex = device.GetCPUFrameIndex();
+    auto frameIndex = device.GetFrameIndex();
+    auto prevFrameIndex = device.GetCPUFrameIndex();
     auto engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
 
-    par.rt->GetTexture(cpuFrameIndex, 0)->TransitionToRW(resourceHeap, *commandList);
+    par.rt->GetTexture(frameIndex, 0)->TransitionToRW(resourceHeap, *commandList);
 
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
@@ -47,7 +48,8 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
 
         for (const auto& input : *par.inputs)
         {
-            input.first->Bind(device, resourceHeap, *commandList, input.second.desc);
+            input.first->Bind(input.second.prev ? prevFrameIndex : frameIndex, resourceHeap, *commandList, input.second.desc,
+                              input.second.bindOffset);
         }
 
         commandList->BindHeapSlot(*resourceHeap, NORMALS_SLOT, m_shader->GetShaderInput()->GetInput("normals").rootIndex);
@@ -58,7 +60,7 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
         commandList->BindHeapSlot(*resourceHeap, 0, m_shader->GetShaderInput()->GetInput("textures").rootIndex);
     }
 
-    auto shaderTable = par.scene->GetShaderTable(cpuFrameIndex);
+    auto shaderTable = par.scene->GetShaderTable(frameIndex);
     auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
 
     if (!shaderTable->GetIsBuilt())
