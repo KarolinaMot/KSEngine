@@ -112,13 +112,10 @@ int main()
     KS::Timer frametimer{};
     bool raytraced = true;
 
-    //scenes[TEST_SCENE]->SetAmbientLight(glm::vec3(1.f, 1.f, 1.f), .8f);
-
     auto sanMiguelModel =
-        KS::ModelImporter::ImportFromFile("assets/models/SanMiguel.glb", aiProcess_FindInstances).value();
+    KS::ModelImporter::ImportFromFile("assets/models/SanMiguel.glb", aiProcess_FindInstances).value();
     //auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
-    //auto sphereModel = KS::ModelImporter::ImportFromFile("assets/models/Sphere.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     transform = glm::mat4x4(1.f);

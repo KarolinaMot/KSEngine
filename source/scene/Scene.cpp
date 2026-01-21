@@ -95,9 +95,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices, true,
                                         StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
 
-        SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
-    GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube/Cube.assbin"));
-    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube\\mesh0");
+    SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
+    GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube.glb"));
+    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube");
 
     std::shared_ptr<Texture> deferredRendererTex[2][2];
     std::shared_ptr<Texture> deferredRendererDepthTex;
@@ -534,14 +534,6 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
         // Process Nodes
         {
             Model::ProcessNodesRecursive(nodes, dirLights, meshInstances, pointLights, scene, scene->mRootNode, glm::identity<glm::mat4>());
-        }
-
-        for (size_t i = 0; i < meshInstances.size(); i++)
-        {
-            if (meshInstances[i] > 1)
-            {
-                std::cout << "Instance found"<<std::endl;
-            }
         }
 
         Model new_model{.nodes = std::move(nodes),
