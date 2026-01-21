@@ -101,6 +101,11 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     {
         auto skydomeMeshHandle = par.scene->GetSkydomeMesh().second;
         auto skydomeMesh = par.scene->GetMesh(skydomeMeshHandle);
+        if (!skydomeMesh)
+        {
+            LOG(Log::Severity::WARN, "Skydome mesh failed to load, thus the skybox won't be rendered");
+            return;
+        }
         using namespace MeshConstants;
         auto positions = skydomeMesh->GetAttribute(ATTRIBUTE_POSITIONS_NAME);
         auto indices = skydomeMesh->GetAttribute(ATTRIBUTE_INDICES_NAME);
