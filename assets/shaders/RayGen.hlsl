@@ -9,19 +9,34 @@ RWTexture2D<float4> giHistory : register(u1);
 Texture2D<uint4> GBufferA : register(t6);
 Texture2D<float> GBufferB : register(t7);
 Texture2D<float4> RenderedSkymap : register(t8);
-// Texture2D<float4> GBufferC : register(t7);
-// Texture2D<float> GBufferD : register(t8);
+RWTexture2D<uint4> DIReservoirA : register(u2);
+RWTexture2D<float4> DIReservoirB : register(u3);
+
+Texture2D<uint4> DIPRevReservoirA : register(t9);
+Texture2D<float4> DIPrevReservoirB : register(t10);
 
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
 
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
+
+bool ReprojectToPrevPixel(float3 worldPos,
+                          float4x4 prevViewProj,
+                          uint2 dims,
+                          out uint2 prevPix,
+                          out float prevNdcDepth);
+
+
 SamplerState mainSampler : register(s0);
 
 cbuffer Camera : register(b0)
 {
     CameraMats cameraMats;
+};
+cbuffer prevCamera : register(b3)
+{
+    CameraMats prevCameraMats;
 };
 cbuffer LightInfoBuffer : register(b1)
 {
@@ -37,6 +52,10 @@ float3 UniformSampleHemisphere(const float r1, const float r2);
 float3 CosineSampleHemisphere(float u1, float u2);
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias);
 Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float3 worldPos);
+bool DepthCompatible(float currLinearDepth, float prevLinearDepth);
+bool NormalCompatible(float3 currN, float3 prevN);
+void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng);
+float TargetAtPixel(RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat);
 
 uint Hash(uint x);
 float Rand(inout uint seed);
@@ -53,15 +72,17 @@ uint InitSeed(uint2 pixel);
 
     float3 loadLocation = float3(launchIndex, 0.f);
     uint4 bufferAValue = GBufferA.Load(loadLocation);
-    float bufferBValue = GBufferB.Load(loadLocation);
+    float depthValue = GBufferB.Load(loadLocation);
 
-    float3 viewPos = ReconstructViewPosFromViewZ(uv, bufferBValue, cameraMats.mInvProjection);
+    float3 viewPos = ReconstructViewPosFromViewZ(uv, depthValue, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
     float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
     float bias = max(1e-4f, t * 1e-4f);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
-
+    float3 res = 0.f;
+    bool ok = false;
+    
     PBRMaterial mat = (PBRMaterial) 0;
     UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
     mat.normalColor = UnpackNormalOct(bufferAValue.y);
@@ -72,28 +93,28 @@ uint InitSeed(uint2 pixel);
     mat.baseColor.rgb *= mat.baseColor.a;
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
-
+    bool valid = false;
     if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
           normalColor.z == 1.f))
     {
-        if (!mat.baseColor.a)
-        {
-            MaterialPayload matPayload = (MaterialPayload) 0;
-            matPayload.bounceCount = 31;
-            matPayload.coneAngle = alpha0;
-            matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
+        //if (!mat.baseColor.a)
+        //{
+        //    MaterialPayload matPayload = (MaterialPayload) 0;
+        //    matPayload.bounceCount = 31;
+        //    matPayload.coneAngle = alpha0;
+        //    matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
 
-            UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
-            mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
-            mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
-            UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-            float3 normalColor = mat.normalColor;
-            mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-            worldPos = matPayload.position;
-            viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            bias = max(1e-4f, t * 1e-4f);
-        }
+        //    UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
+        //    mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
+        //    mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
+        //    UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+        //    float3 normalColor = mat.normalColor;
+        //    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+        //    worldPos = matPayload.position;
+        //    viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+        //    t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+        //    bias = max(1e-4f, t * 1e-4f);
+        //}
 
         mat.F0 = float3(0.04, 0.04, 0.04);
         mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
@@ -103,8 +124,68 @@ uint InitSeed(uint2 pixel);
 
         Reservoir currentR = BuildReservoir(seed, mat, viewDirection, worldPos);
 
+        uint2 prevPix;
+        float prevNdcZ;
+        ok = ReprojectToPrevPixel(worldPos, prevCameraMats.mCamera, dims, prevPix, prevNdcZ);
+
+        if (ok)
+        {
+            uint4 aPrev = DIPRevReservoirA[prevPix];
+            float4 bPrev = DIPrevReservoirB[prevPix];
+            
+            Reservoir Rprev;
+            Rprev.s.lightIndex = aPrev.x;
+            Rprev.s.lightType = aPrev.y;
+            Rprev.s.target = bPrev.z;
+            
+            Rprev.W = bPrev.x;
+            Rprev.M = (uint) (aPrev.z + 0.5f);
+            float prevDepth = bPrev.y; // whatever prev depth texture is
+            
+            valid = DepthCompatible(depthValue, prevDepth);
+
+            if (valid)
+            {
+                float t_prev = Rprev.s.target; // target at previous pixel
+                float t_here = TargetAtPixel(Rprev.s, worldPos, viewDirection, mat); // target at this pixel
+                RISSample cand = Rprev.s;
+                cand.target = t_here; // IMPORTANT: store target for THIS pixel
+
+                if (t_prev > 1e-4f && t_here > 1e-4f)   // use bigger epsilon than 1e-8
+                {
+                    float ratio = t_here / t_prev;
+
+                    // Clamp ratio to prevent extreme rescaling from tiny target changes
+                    ratio = clamp(ratio, 0.25f, 4.0f); // start conservative, loosen later
+
+                    float wTotal_here = Rprev.W * ratio;
+                    ReservoirUpdate(currentR, cand, wTotal_here, Rprev.M, seed);
+                }
+            }
+        }
+        
+        const uint M_CAP = 32;
+        if (currentR.M > M_CAP)
+        {
+            float scale = (float) M_CAP / (float) currentR.M;
+            currentR.W *= scale;
+            currentR.M = M_CAP;
+        }
+        
         directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
 
+        DIReservoirA[launchIndex] = uint4(
+        currentR.s.lightIndex,
+        currentR.s.lightType,
+        currentR.M,
+        PackNormalOct(normalColor));
+        
+        DIReservoirB[launchIndex] = float4(
+        currentR.W, // sum of weights
+        depthValue, // chosen sample's target
+        currentR.s.target, // candidate count (stored as float)
+        0.0f);
+        
         // Global illumination
         float3 Nt, Nb;
         CreateCoordinateSystem(mat.normalColor, Nt, Nb);
@@ -150,8 +231,63 @@ uint InitSeed(uint2 pixel);
     float3 superSampledGI = newGISum / newSampleCount;
     giHistory[launchIndex] = float4(newGISum, newSampleCount);
 
-    float3 res = directLighting.rgb + superSampledGI;
-    gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
+    res = directLighting.rgb + superSampledGI;
+    //gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
+    gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
+}
+
+// Returns false if the point projects off-screen or behind camera.
+bool ReprojectToPrevPixel(float3 worldPos,
+                          float4x4 prevViewProj,
+                          uint2 dims,
+                          out uint2 prevPix,
+                          out float prevNdcDepth)
+{
+    // 1) World -> previous clip space
+    float4 prevClip = mul(prevViewProj, float4(worldPos, 1.0f));
+
+    // If behind the camera or too close to w=0, reject
+    if (prevClip.w <= 1e-6f)
+        return false;
+
+    // 2) Clip -> NDC (-1..1)
+    float3 prevNdc = prevClip.xyz / prevClip.w;
+
+    // If outside the NDC cube, it's off-screen (z test optional depending on convention)
+    // x,y outside [-1,1] means off-screen.
+    if (prevNdc.x < -1.0f || prevNdc.x > 1.0f ||
+        prevNdc.y < -1.0f || prevNdc.y > 1.0f)
+        return false;
+
+    // Save NDC depth for later comparisons
+    prevNdcDepth = prevNdc.z;
+
+    // 3) NDC -> UV (0..1)
+    // NDC y is +up, texture UV y is +down for typical DX conventions.
+    float2 prevUv;
+    prevUv.x = prevNdc.x * 0.5f + 0.5f;
+    prevUv.y = -prevNdc.y * 0.5f + 0.5f;
+
+    // 4) UV -> pixel coords
+    // Use floor to get integer pixel index.
+    int2 p = int2(prevUv * float2(dims));
+
+    // Clamp/check bounds
+    if (p.x < 0 || p.y < 0 || p.x >= (int) dims.x || p.y >= (int) dims.y)
+        return false;
+
+    prevPix = (uint2) p;
+    return true;
+}
+
+bool DepthCompatible(float currLinearDepth, float prevLinearDepth)
+{
+    return abs(currLinearDepth - prevLinearDepth) < max(0.002f, 0.002f * currLinearDepth);
+}
+
+bool NormalCompatible(float3 currN, float3 prevN)
+{
+    return dot(currN, prevN) > 0.9f; // tune
 }
 
 float3 ShadeChosen(RISSample s, out float3 lightDir, out float tmax, float3 worldPos, float3 viewDirection, PBRMaterial mat)
@@ -195,6 +331,9 @@ float3 ShadeChosen(RISSample s, out float3 lightDir, out float tmax, float3 worl
     return diff + spec;
 }
 
+
+
+
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias)
 {
     float3 direct = 0.0f;
@@ -227,7 +366,6 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
         // If target is tiny, norm can blow up -> fireflies.
         // Clamp if needed (or clamp c/target).
         float norm = R.W / (max(1u, R.M) * max(R.s.target, 1e-8f));
-        norm = min(norm, 50.0f); // debug clamp
         direct = c * visible * norm;
     }
 
@@ -237,6 +375,14 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
 float Luminance(float3 c)
 {
     return dot(c, float3(0.2126, 0.7152, 0.0722));
+}
+
+float TargetAtPixel(RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat)
+{
+    float3 L;
+    float tmax;
+    float3 c = ShadeChosen(s, L, tmax, worldPos, viewDir, mat);
+    return Luminance(max(c, 0.0f));
 }
 
 void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng)
@@ -280,7 +426,7 @@ Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float
     uint numDL = lightInfo.numDirLight;
     uint numLights = numPL + numDL;
 
-    uint candidatesPerPixel = numLights;
+    uint candidatesPerPixel = 4;
     float3 c = 0.0f; // "unshadowed contribution estimate" for candidate
 
     for (int i = 0; i < candidatesPerPixel; i++)
