@@ -51,7 +51,8 @@ enum Subrenderers
 {
     DEFERRED_RENDER,
     PBR_RENDER,
-    RT_RENDER,
+    RT_TEMPORAL_RENDER,
+    RT_SPACIAL_RENDER,
     CUBEMAP_GEN,
     CUBEMAP_RENDER,
     MIP_GEN,

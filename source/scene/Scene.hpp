@@ -77,7 +77,6 @@ public:
     DXDescHeap* GetResourceHeap() const;
     void UpdateDirLights(int index, DirLightInfo info);
     void UpdatePointLights(int index, PointLightInfo info);
-    DXShaderTable* GetShaderTable(int index) const;
     size_t GetTexWithoutMipmapCount() const { return m_texWithoutMipmaps.size(); }
     std::shared_ptr<RenderTarget> GetRenderTarget(Subrenderers subrender) { return m_renderTargets[subrender]; }
     std::shared_ptr<DepthStencil> GetDepthStencil() { return m_deferredRendererDepthStencil; }
@@ -113,7 +112,6 @@ private:
     std::unique_ptr<Impl> m_impl;
 
     const Model* GetModel(Device& device, DXCommandList& commandList, ResourceHandle<Model> model);
-    void InitializeShaderTable();
 
     std::vector<DrawEntry> draw_queue{};
     std::vector<BatchRange> batch_queue{};

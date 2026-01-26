@@ -25,7 +25,6 @@ class KS::Scene::Impl
 {
 public:
     std::shared_ptr<DXDescHeap> m_resourceHeap;
-    std::unique_ptr<DXShaderTable> m_shaderTable[FRAME_BUFFER_COUNT];
 };
 
 KS::Scene::Scene() {}
@@ -162,8 +161,8 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_renderTargets[PBR_RENDER] = std::make_shared<RenderTarget>();
     m_renderTargets[PBR_RENDER]->AddTexture(device, compute_resTex[0], compute_resTex[1], "PBR RENDER RES");
 
-    m_renderTargets[RT_RENDER] = std::make_shared<RenderTarget>();
-    m_renderTargets[RT_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
+    m_renderTargets[RT_TEMPORAL_RENDER] = std::make_shared<RenderTarget>();
+    m_renderTargets[RT_TEMPORAL_RENDER]->AddTexture(device, raytracingResTex[0], raytracingResTex[1], "RAYTRACED RENDER RES");
 
     m_renderTargets[SUPER_SAMPLED_GI] = std::make_shared<RenderTarget>();
     m_renderTargets[SUPER_SAMPLED_GI]->AddTexture(device, superSampledGI[0], superSampledGI[1], "SUPERSAMPLED GI");
@@ -171,7 +170,6 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     m_finalRT = std::make_shared<RenderTarget>();
     m_finalRT->AddTexture(device, finalRT[0], finalRT[1], "FINAL RENDER TARGET");
     m_BVH = std::make_unique<TLAS>();
-    InitializeShaderTable();
 
     commandContext.Close();
 }
@@ -565,21 +563,6 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHand
     }
 }
 
-void KS::Scene::InitializeShaderTable()
-{
-    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
-    {
-        m_impl->m_shaderTable[i] = std::make_unique<DXShaderTable>();
-        m_impl->m_shaderTable[i]->AddRayGen(L"RayGen");
-        m_impl->m_shaderTable[i]->AddHitGroup(L"GIHitGroup");
-        m_impl->m_shaderTable[i]->AddHitGroup(L"ShadowHitGroup");
-        m_impl->m_shaderTable[i]->AddHitGroup(L"MaterialHitGroup");
-
-        m_impl->m_shaderTable[i]->AddMiss(L"MainMiss");
-        m_impl->m_shaderTable[i]->AddMiss(L"ShadowMiss");
-    }
-}
-
 void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
 {
     // Sorting
@@ -713,8 +696,6 @@ void KS::Scene::UpdatePointLights(int index, PointLightInfo info)
     m_updatePointLights = true;
     SetUpdateSuperSampler();
 }
-
-DXShaderTable* KS::Scene::GetShaderTable(int index) const { return m_impl->m_shaderTable[index].get(); }
 
 KS::MaterialInfo KS::Scene::GetMaterialInfo(const Material& material) const
 {

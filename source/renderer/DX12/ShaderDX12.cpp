@@ -3,6 +3,7 @@
 #include <renderer/DX12/Helpers/DXIncludes.hpp>
 #include <renderer/DX12/Helpers/DXPipeline.hpp>
 #include <renderer/DX12/Helpers/DXRTPipeline.hpp>
+#include <renderer/DX12/Helpers/DXShaderTable.hpp>
 #include <renderer/Shader.hpp>
 #include <renderer/ShaderInputBlueprint.hpp>
 #include <renderer/InfoStructs.hpp>
@@ -355,4 +356,20 @@ void KS::Shader::RTShader(const Device& device)
     }
 
     rtPipeline->m_stateObjectProps = testProp;
+
+    for (int i = 0; i < FRAME_BUFFER_COUNT; i++)
+    {
+        auto& shaderTable = rtPipeline->m_shaderTable[i];
+        shaderTable = std::make_unique<DXShaderTable>();
+        shaderTable->AddRayGen(L"RayGen");
+        shaderTable->AddHitGroup(L"GIHitGroup");
+        shaderTable->AddHitGroup(L"ShadowHitGroup");
+        shaderTable->AddHitGroup(L"MaterialHitGroup");
+
+        shaderTable->AddMiss(L"MainMiss");
+        shaderTable->AddMiss(L"ShadowMiss");
+        shaderTable->Build(engineDevice, rtPipeline->m_stateObjectProps.Get());
+    }
+
+
 }

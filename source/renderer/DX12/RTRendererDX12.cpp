@@ -33,10 +33,10 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
     auto commandList = commandContext->m_commandList.get();
     auto frameIndex = device.GetFrameIndex();
     auto prevFrameIndex = device.GetCPUFrameIndex();
-    auto engineDevice = static_cast<ID3D12Device5*>(device.GetDevice());
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
 
-    par.rt->GetTexture(frameIndex, 0)->TransitionToRW(resourceHeap, *commandList);
+    if (par.rt) 
+        par.rt->GetTexture(frameIndex, 0)->TransitionToRW(resourceHeap, *commandList);
 
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
@@ -60,15 +60,8 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
         commandList->BindHeapSlot(*resourceHeap, 0, m_shader->GetShaderInput()->GetInput("textures").rootIndex);
     }
 
-    auto shaderTable = par.scene->GetShaderTable(frameIndex);
     auto pipeline = reinterpret_cast<DXRTPipeline*>(m_shader->GetPipeline());
-
-    if (!shaderTable->GetIsBuilt())
-    {
-        shaderTable->Build(engineDevice, pipeline->m_stateObjectProps.Get());
-    }
-
-
+    auto shaderTable = pipeline->m_shaderTable->get();
 
     D3D12_DISPATCH_RAYS_DESC desc = shaderTable->FillDispatchDesc(par.rt->GetWidth(), par.rt->GetHeight(), 1);
 
