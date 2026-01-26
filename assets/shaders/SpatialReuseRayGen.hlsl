@@ -44,11 +44,9 @@ void CreateCoordinateSystem(const float3 N, out float3 Nt, out float3 Nb);
 float3 UniformSampleHemisphere(const float r1, const float r2);
 float3 CosineSampleHemisphere(float u1, float u2);
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias);
-Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float3 worldPos);
 bool DepthCompatible(float currLinearDepth, float prevLinearDepth);
 bool NormalCompatible(float3 currN, float3 prevN);
 void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng);
-float TargetAtPixel(RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat);
 
 uint Hash(uint x);
 float Rand(inout uint seed);
@@ -56,104 +54,106 @@ uint InitSeed(uint2 pixel);
 
 [shader("raygeneration")]void RayGen()
 {
-    //uint2 launchIndex = DispatchRaysIndex().xy;
-    //uint2 dims = DispatchRaysDimensions().xy;
-    //float2 uv = (launchIndex + 0.5) / dims;
-    //float3 loadLocation = float3(launchIndex, 0.f);
+    uint2 launchIndex = DispatchRaysIndex().xy;
+    uint2 dims = DispatchRaysDimensions().xy;
+    float2 uv = (launchIndex + 0.5) / dims;
+    float3 loadLocation = float3(launchIndex, 0.f);
     
-    //uint4 bufferAValue = GBufferA.Load(loadLocation);
-    //float depthValue = GBufferB.Load(loadLocation);
+    uint4 bufferAValue = GBufferA.Load(loadLocation);
+    float depthValue = GBufferB.Load(loadLocation);
 
-    //float3 viewPos = ReconstructViewPosFromViewZ(uv, depthValue, cameraMats.mInvProjection);
-    //float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
-    //float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-    //float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-    //float bias = max(1e-4f, t * 1e-4f);
-    //float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
+    float3 viewPos = ReconstructViewPosFromViewZ(uv, depthValue, cameraMats.mInvProjection);
+    float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
+    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    float bias = max(1e-4f, t * 1e-4f);
+    float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
 
-    //PBRMaterial mat = (PBRMaterial) 0;
-    //UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
-    //mat.normalColor = UnpackNormalOct(bufferAValue.y);
-    //mat.emissiveColor = UnpackEmissive(bufferAValue.z);
-    //UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-    //float3 normalColor = mat.normalColor;
-    //mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-    //mat.baseColor.rgb *= mat.baseColor.a;
+    PBRMaterial mat = (PBRMaterial) 0;
+    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
+    mat.normalColor = UnpackNormalOct(bufferAValue.y);
+    mat.emissiveColor = UnpackEmissive(bufferAValue.z);
+    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+    float3 normalColor = mat.normalColor;
+    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    mat.baseColor.rgb *= mat.baseColor.a;
     
-    //float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
-    //float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
-    //bool valid = false;
-    //float3 directLighting = 0.f;
-    //float3 indirectLighting = 0.f;
-    //float3 res = 0.f;
-    
-    //if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
-    //      normalColor.z == 1.f))
-    //{
+    float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
+    float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
+    bool valid = false;
+    float3 directLighting = 0.f;
+    float3 indirectLighting = 0.f;
+    float3 res = 0.f;
+    Reservoir currentR;
 
-    //    uint4 aRes = DIReservoirA[launchIndex];
-    //    float4 bRes = DIReservoirB[launchIndex];
+    if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
+          normalColor.z == 1.f))
+    {
+        mat.F0 = float3(0.04, 0.04, 0.04);
+        mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+        mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
 
-    //    Reservoir currentR;
-    //    currentR.s.lightIndex = aRes.x;
-    //    currentR.s.lightType = aRes.y;
-    //    currentR.s.target = bRes.z;
+        uint4 aRes = DIReservoirA[launchIndex];
+        float4 bRes = DIReservoirB[launchIndex];
+
+        currentR.s.lightIndex = aRes.x;
+        currentR.s.lightType = aRes.y;
+        currentR.s.target = bRes.z;
             
-    //    currentR.W = bRes.x;
-    //    currentR.M = (uint) (aRes.z + 0.5f);
+        currentR.W = bRes.x;
+        currentR.M = (uint) (aRes.z + 0.5f);
         
-    //    uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
+        uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
-    //    directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
+        directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
 
-    //    // Global illumination
-    //    float3 Nt, Nb;
-    //    CreateCoordinateSystem(mat.normalColor, Nt, Nb);
-    //    uint smaples = pathTracingData.GIsampleNumber;
+        // Global illumination
+        float3 Nt, Nb;
+        CreateCoordinateSystem(mat.normalColor, Nt, Nb);
+        uint smaples = pathTracingData.GIsampleNumber;
 
-    //    for (uint n = 0; n < smaples; ++n)
-    //    {
-    //        // How high above the horizon of the hemisphere the line is
-    //        float r1 = Rand(seed);
-    //        // The spin around the axis
-    //        float r2 = Rand(seed);
-    //        float3 s = CosineSampleHemisphere(r1, r2);
-    //        float3 sampleWorld = s.x * Nt + s.y * Nb + s.z * mat.normalColor;
+        for (uint n = 0; n < smaples; ++n)
+        {
+            // How high above the horizon of the hemisphere the line is
+            float r1 = Rand(seed);
+            // The spin around the axis
+            float r2 = Rand(seed);
+            float3 s = CosineSampleHemisphere(r1, r2);
+            float3 sampleWorld = s.x * Nt + s.y * Nb + s.z * mat.normalColor;
 
-    //        HitInfo indirectPayload = (HitInfo) 0;
-    //        indirectPayload.bounceCount = 35;
-    //        indirectPayload.coneAngle = alpha0;
+            HitInfo indirectPayload = (HitInfo) 0;
+            indirectPayload.bounceCount = 35;
+            indirectPayload.coneAngle = alpha0;
 
-    //        indirectPayload = ShootBRDFRay(normalize(sampleWorld), worldPos + mat.normalColor * bias, SceneBVH, indirectPayload);
+            indirectPayload = ShootBRDFRay(normalize(sampleWorld), worldPos + mat.normalColor * bias, SceneBVH, indirectPayload);
 
-    //        float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
-    //        float3 Li = indirectPayload.lightIntensityAndDistance.rgb;
+            float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
+            float3 Li = indirectPayload.lightIntensityAndDistance.rgb;
 
-    //        // luminance clamp (example)
-    //        float lum = dot(Li, float3(0.2126, 0.7152, 0.0722));
-    //        float maxLum = 10.0; // tune
-    //        Li *= min(1.0, maxLum / max(lum, 1e-6));
+            // luminance clamp (example)
+            float lum = dot(Li, float3(0.2126, 0.7152, 0.0722));
+            float maxLum = 10.0; // tune
+            Li *= min(1.0, maxLum / max(lum, 1e-6));
 
-    //        indirectLighting += Li * mat.baseColor.rgb;
-    //    }
-    //}
-    //else
-    //{
-    //    directLighting = RenderedSkymap.Load(loadLocation);
-    //}
+            indirectLighting += Li * mat.baseColor.rgb;
+        }
+    }
+    else
+    {
+        directLighting = RenderedSkymap.Load(loadLocation);
+    }
 
-    //float4 historyValue = giHistory.Load(loadLocation).rgba;
-    //float3 historySum = historyValue.rgb;
-    //float sampleCount = historyValue.a;
-    //float3 newGISum = historySum + indirectLighting;
-    //float newSampleCount = sampleCount + pathTracingData.GIsampleNumber;
-    //float3 superSampledGI = newGISum / newSampleCount;
+    float4 historyValue = giHistory.Load(loadLocation).rgba;
+    float3 historySum = historyValue.rgb;
+    float sampleCount = historyValue.a;
+    float3 newGISum = historySum + indirectLighting;
+    float newSampleCount = sampleCount + pathTracingData.GIsampleNumber;
+    float3 superSampledGI = newGISum / newSampleCount;
     
-    //giHistory[launchIndex] = float4(newGISum, newSampleCount);
+    giHistory[launchIndex] = float4(newGISum, newSampleCount);
 
-    //res = directLighting.rgb + superSampledGI;
-    //gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
-    //gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
+    res = directLighting.rgb + superSampledGI;
+    gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
 
 }
 
@@ -253,6 +253,8 @@ float3 ShadeChosen(RISSample s, out float3 lightDir, out float tmax, float3 worl
 }
 
 
+
+
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias)
 {
     float3 direct = 0.0f;
@@ -291,17 +293,10 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
     return direct * mat.occlusionColor + mat.emissiveColor;
 }
 
+
 float Luminance(float3 c)
 {
     return dot(c, float3(0.2126, 0.7152, 0.0722));
-}
-
-float TargetAtPixel(RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat)
-{
-    float3 L;
-    float tmax;
-    float3 c = ShadeChosen(s, L, tmax, worldPos, viewDir, mat);
-    return Luminance(max(c, 0.0f));
 }
 
 void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng)
@@ -332,57 +327,6 @@ void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, in
         // Update sum of weights.
         R.W = Wnew;
     }
-}
-
-// Build a per-pixel reservoir from K unshadowed candidates.
-// We only evaluate BRDF and light attenuation (math), not visibility.
-Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float3 worldPos)
-{
-    Reservoir R;
-    ReservoirInit(R);
-
-    uint numPL = lightInfo.numPointLight;
-    uint numDL = lightInfo.numDirLight;
-    uint numLights = numPL + numDL;
-
-    uint candidatesPerPixel = 4;
-    float3 c = 0.0f; // "unshadowed contribution estimate" for candidate
-
-    for (int i = 0; i < candidatesPerPixel; i++)
-    {
-        // Randomly choose a light uniformly (later I could replace it with CDF).
-        uint li = (uint) (Rand(seed) * numLights);
-        li = min(li, numLights - 1);
-
-        RISSample cand;
-
-        if (li < numDL)
-        {
-            cand.lightType = 0u;
-            cand.lightIndex = li;
-        }
-        else
-        {
-            cand.lightType = 1u;
-            cand.lightIndex = li - numDL;
-        }
-        float3 lightDir;
-        float tmax;
-        c = ShadeChosen(cand, lightDir, tmax, worldPos, viewDir, mat);
-
-        cand.target = Luminance(max(c, 0.0f));
-
-        // Uniform over lights => pdf = 1 / numLights.
-        float pdf = 1.0f / max(1.0f, (float) numLights);
-
-        // Candidate weight is target/pdf (RIS weight).
-        // This is the quantity summed into reservoir.W.
-        float w = cand.target / max(pdf, 1e-8f);
-
-        // Update reservoir with this single candidate (m=1).
-        ReservoirUpdate(R, cand, w, 1u, seed);
-    }
-    return R;
 }
 
 float3 CosineSampleHemisphere(float u1, float u2)
