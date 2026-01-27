@@ -3,6 +3,8 @@
 // Note that the payload should be kept as small as possible,
 // and that its size must be declared in the corresponding
 // D3D12_RAYTRACING_SHADER_CONFIG pipeline subobjet.
+#include "PBR.hlsl"
+
 struct HitInfo
 {
     float4 lightIntensityAndDistance;
@@ -136,4 +138,52 @@ ShadowPayload ShootShadowRay(float3 direction, float3 position, RaytracingAccele
         shadowPayload);
 
     return shadowPayload;
+}
+
+Reservoir LoadReservoir(Texture2D<uint4> ResA, Texture2D<float4> ResB, uint2 launchIndex)
+{
+    uint4 aRes = ResA.Load(uint3(launchIndex, 0));
+    float4 bRes = ResB.Load(uint3(launchIndex, 0));
+    
+    Reservoir R;
+    R.s.lightIndex = aRes.x;
+    R.s.lightType = aRes.y;
+    R.s.target = bRes.z;
+            
+    R.W = bRes.x;
+    R.M = (uint) (aRes.z + 0.5f);
+
+    return R;
+}
+
+Reservoir LoadReservoirAndOther(Texture2D<uint4> ResA, Texture2D<float4> ResB, uint2 launchIndex, out float depth, out float3 normal)
+{
+    uint4 aRes = ResA.Load(uint3(launchIndex, 0));
+    float4 bRes = ResB.Load(uint3(launchIndex, 0));
+    
+    Reservoir R = LoadReservoir(ResA, ResB, launchIndex);
+    depth = bRes.y; // whatever prev depth texture is
+    normal = UnpackNormalOct(aRes.w);
+    normal = normalize(normal * 2.0 - 1.0);
+    
+    return R;
+}
+
+PBRMaterial LoadMaterialFromGBuffer(Texture2D<uint4> GBufferA, uint2 loadLocation, out bool emptyPixel)
+{
+    uint4 bufferAValue = GBufferA.Load(uint3(loadLocation, 0));
+
+    PBRMaterial mat = (PBRMaterial) 0;
+    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
+    mat.normalColor = UnpackNormalOct(bufferAValue.y);
+    mat.emissiveColor = UnpackEmissive(bufferAValue.z);
+    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+    float3 normalColor = mat.normalColor;
+    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    mat.baseColor.rgb *= mat.baseColor.a;
+    mat.F0 = float3(0.04, 0.04, 0.04);
+    mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
+    emptyPixel = (normalColor.x == 0.f && normalColor.y == 0.f &&  normalColor.z == 1.f);
+    return mat;
 }

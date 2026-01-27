@@ -68,8 +68,8 @@ KS::Renderer::Renderer(Device& device)
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"})                // t6
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"})                // t7
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"rendered_cubemap"})        // t8
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPRevReservoirA"}) //t9
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPrevReservoirB"}) //t10
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPRevReservoirA", "DIReservoirARO"})      // t9
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPrevReservoirB", "DIReservoirBRO"})      // t10
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"normals"}, ShaderInputMod::READ_ONLY, 1)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"indices"}, ShaderInputMod::READ_ONLY, 2)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"vertexPos"}, ShaderInputMod::READ_ONLY, 3)
@@ -460,9 +460,9 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
                                                                            rootSignature->GetInput("path_tracing_info"));
     m_inputs[RT_SPACIAL_RENDER][13] = std::pair<ShaderInput*, ShaderInputBindDesc>(giHistory, rootSignature->GetInput("gi_history"));
     m_inputs[RT_SPACIAL_RENDER][14] =
-        std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirA, rootSignature->GetInput("DIReservoirA"));
+        std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirA, rootSignature->GetInput("DIReservoirARO"));
     m_inputs[RT_SPACIAL_RENDER][15] =
-        std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirB, rootSignature->GetInput("DIReservoirB"));
+        std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirB, rootSignature->GetInput("DIReservoirBRO"));
 
     defPar.clearRt = true;
     defPar.rt = scene.GetRenderTarget(RT_TEMPORAL_RENDER);

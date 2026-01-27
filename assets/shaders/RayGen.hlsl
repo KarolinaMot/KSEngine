@@ -68,32 +68,24 @@ uint InitSeed(uint2 pixel);
     float3 directLighting = 0.f;
     float3 indirectLighting = 0.f;
 
-    float3 loadLocation = float3(launchIndex, 0.f);
-    uint4 bufferAValue = GBufferA.Load(loadLocation);
-    float depthValue = GBufferB.Load(loadLocation);
-
+    float depthValue = GBufferB.Load(uint3(launchIndex, 0));
     float3 viewPos = ReconstructViewPosFromViewZ(uv, depthValue, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    
     float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
     float bias = max(1e-4f, t * 1e-4f);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
     float3 res = 0.f;
     bool ok = false;
     
-    PBRMaterial mat = (PBRMaterial) 0;
-    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
-    mat.normalColor = UnpackNormalOct(bufferAValue.y);
-    mat.emissiveColor = UnpackEmissive(bufferAValue.z);
-    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-    float3 normalColor = mat.normalColor;
-    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-    mat.baseColor.rgb *= mat.baseColor.a;
+    bool emptyPixel;
+    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex, emptyPixel);
+    
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
     bool valid = false;
-    if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
-          normalColor.z == 1.f))
+    if (!emptyPixel)
     {
         //if (!mat.baseColor.a)
         //{
@@ -114,10 +106,6 @@ uint InitSeed(uint2 pixel);
         //    bias = max(1e-4f, t * 1e-4f);
         //}
 
-        mat.F0 = float3(0.04, 0.04, 0.04);
-        mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
-        mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
-
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
         Reservoir currentR = BuildReservoir(seed, mat, viewDirection, worldPos);
@@ -128,17 +116,10 @@ uint InitSeed(uint2 pixel);
 
         if (ok)
         {
-            uint4 aPrev = DIPRevReservoirA[prevPix];
-            float4 bPrev = DIPrevReservoirB[prevPix];
-            
-            Reservoir Rprev;
-            Rprev.s.lightIndex = aPrev.x;
-            Rprev.s.lightType = aPrev.y;
-            Rprev.s.target = bPrev.z;
-            
-            Rprev.W = bPrev.x;
-            Rprev.M = (uint) (aPrev.z + 0.5f);
-            float prevDepth = bPrev.y; // whatever prev depth texture is
+            float prevDepth = 0.f; // whatever prev depth texture is
+            float3 prevNormal = 0.f; // whatever prev depth texture is
+
+            Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, launchIndex, prevDepth, prevNormal);
             
             valid = DepthCompatible(depthValue, prevDepth);
 
@@ -175,7 +156,7 @@ uint InitSeed(uint2 pixel);
         currentR.s.lightIndex,
         currentR.s.lightType,
         currentR.M,
-        PackNormalOct(normalColor));
+        PackNormalOct((mat.normalColor + 1.f) * 0.5f));
         
         DIReservoirB[launchIndex] = float4(
         currentR.W, // sum of weights

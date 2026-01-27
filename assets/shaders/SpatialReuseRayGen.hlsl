@@ -9,8 +9,8 @@ RWTexture2D<float4> giHistory : register(u1);
 Texture2D<uint4> GBufferA : register(t6);
 Texture2D<float> GBufferB : register(t7);
 Texture2D<float4> RenderedSkymap : register(t8);
-RWTexture2D<uint4> DIReservoirA : register(u2);
-RWTexture2D<float4> DIReservoirB : register(u3);
+Texture2D<uint4> DIReservoirA : register(t9);
+Texture2D<float4> DIReservoirB : register(t10);
 
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
@@ -59,7 +59,6 @@ uint InitSeed(uint2 pixel);
     float2 uv = (launchIndex + 0.5) / dims;
     float3 loadLocation = float3(launchIndex, 0.f);
     
-    uint4 bufferAValue = GBufferA.Load(loadLocation);
     float depthValue = GBufferB.Load(loadLocation);
 
     float3 viewPos = ReconstructViewPosFromViewZ(uv, depthValue, cameraMats.mInvProjection);
@@ -69,14 +68,8 @@ uint InitSeed(uint2 pixel);
     float bias = max(1e-4f, t * 1e-4f);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
 
-    PBRMaterial mat = (PBRMaterial) 0;
-    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
-    mat.normalColor = UnpackNormalOct(bufferAValue.y);
-    mat.emissiveColor = UnpackEmissive(bufferAValue.z);
-    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-    float3 normalColor = mat.normalColor;
-    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-    mat.baseColor.rgb *= mat.baseColor.a;
+    bool emptyPixel;
+    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex, emptyPixel);
     
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
@@ -84,24 +77,10 @@ uint InitSeed(uint2 pixel);
     float3 directLighting = 0.f;
     float3 indirectLighting = 0.f;
     float3 res = 0.f;
-    Reservoir currentR;
 
-    if (!(normalColor.x == 0.f && normalColor.y == 0.f &&
-          normalColor.z == 1.f))
+    if (!emptyPixel)
     {
-        mat.F0 = float3(0.04, 0.04, 0.04);
-        mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
-        mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
-
-        uint4 aRes = DIReservoirA[launchIndex];
-        float4 bRes = DIReservoirB[launchIndex];
-
-        currentR.s.lightIndex = aRes.x;
-        currentR.s.lightType = aRes.y;
-        currentR.s.target = bRes.z;
-            
-        currentR.W = bRes.x;
-        currentR.M = (uint) (aRes.z + 0.5f);
+        Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
         
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
