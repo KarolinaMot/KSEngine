@@ -6,11 +6,14 @@
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
 RWTexture2D<float4> giHistory : register(u1);
+RWTexture2D<float4> diHistory : register(u2);
 Texture2D<uint4> GBufferA : register(t6);
 Texture2D<float> GBufferB : register(t7);
 Texture2D<float4> RenderedSkymap : register(t8);
 Texture2D<uint4> DIReservoirA : register(t9);
 Texture2D<float4> DIReservoirB : register(t10);
+Texture2D<uint4> DIPRevReservoirA : register(t11);
+Texture2D<float4> DIPrevReservoirB : register(t12);
 
 StructuredBuffer<DirLight> dirLights : register(t2);
 StructuredBuffer<PointLight> pointLights : register(t3);
@@ -73,13 +76,46 @@ void SpatialReuse(
     float3 indirectLighting = 0.f;
     float3 res = 0.f;
     uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
-
+    float3 outDI = directLighting;
+    float outW = 1.0f;
+    
     if (!emptyPixel)
     {
         Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
-                
+        SpatialReuse(launchIndex, dims, depthValue, mat.normalColor, worldPos, viewDirection, mat, DIReservoirA, DIReservoirB, currentR, seed);
+
         directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
 
+        float4 h = diHistory.Load(loadLocation);
+        float3 histDI = h.rgb;
+        float histW = h.a;
+        uint4 prebReservA = DIPRevReservoirA.Load(uint3(launchIndex, 0));
+        float4 prebReservB = DIPrevReservoirB.Load(uint3(launchIndex, 0));
+        float3 prevNormal = UnpackNormalOct(prebReservA.w);
+        prevNormal = normalize(prevNormal);
+        float prevDepth = prebReservB.y;
+        
+        bool valid = DepthCompatible(depthValue, prevDepth) &&
+                 NormalCompatible(mat.normalColor, prevNormal);
+        
+        
+        if (valid && (histW > 0.f))
+        {
+           // EMA factor (bigger alpha = react faster, less stable)
+            float alpha = 0.1f; // start 0.05–0.2
+
+            outDI = lerp(histDI, directLighting, alpha);
+            outW = min(histW + 1.0f, 64.0f); // cap to avoid huge weights
+        }
+        else
+        {
+           // reset history if invalid
+            outDI = directLighting;
+            outW = 1.0f;
+        }
+        
+        diHistory[launchIndex] = float4(outDI, outW);
+        
         // Global illumination
         float3 Nt, Nb;
         CreateCoordinateSystem(mat.normalColor, Nt, Nb);
@@ -110,10 +146,13 @@ void SpatialReuse(
 
             indirectLighting += Li * mat.baseColor.rgb;
         }
+        
+
+        
     }
     else
     {
-        directLighting = RenderedSkymap.Load(loadLocation);
+        outDI = RenderedSkymap.Load(loadLocation);
     }
 
     float4 historyValue = giHistory.Load(loadLocation).rgba;
@@ -125,9 +164,9 @@ void SpatialReuse(
     
     giHistory[launchIndex] = float4(newGISum, newSampleCount);
 
-    res = directLighting.rgb + superSampledGI;
-    float4 value = DIReservoirB.Load(uint3(launchIndex, 0.f));
-    gOutput[launchIndex] = float4(value);
+    res = outDI.rgb + superSampledGI;
+    //gOutput[launchIndex] = float4(LinearToSRGB(directLighting.rgb), 1.f);
+    gOutput[launchIndex] = float4(LinearToSRGB(res.rgb)*1.25f, 1.f);
 
 }
 
@@ -176,7 +215,7 @@ void SpatialReuse(
         if (Rn.M == 0u || Rn.W <= 0.0f || Rn.s.target <= 1e-8f)
             continue;
 
-        if (!DepthCompatible(currDepth, neighDepth))
+        if (!DepthCompatible(currDepth, neighDepth) || !NormalCompatible(mat.normalColor, neighN))
             continue;
 
         // Target ratio correction (THIS is important)
@@ -188,8 +227,10 @@ void SpatialReuse(
         RISSample cand = Rn.s;
         cand.target = t_here;
 
-        float wTotal_here = Rn.W * (t_here / max(t_prev, 1e-8f));
-
+        float ratio = t_here / max(t_prev, 1e-4f);
+        ratio = clamp(ratio, 0.25f, 4.0f); // start conservative
+        float wTotal_here = Rn.W * ratio;
+        
         ReservoirUpdate(R, cand, wTotal_here, Rn.M, rng);
     }
     
@@ -226,10 +267,13 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
         float3 lightDir;
         float tmax;
         float3 c = ShadeChosen(dirLights, pointLights, R.s, lightDir, tmax, worldPos, viewDirection, mat);
-
+        float visible = 1.f;
+        
         // Harsh shadows for now
+
         ShadowPayload shadowPayload = ShootShadowRay(lightDir, worldPos + mat.normalColor * bias, SceneBVH, tmax);
-        float visible = (shadowPayload.hit == 0) ? 1.0f : 0.0f;
+            
+        visible = (shadowPayload.hit == 0) ? 1.0f : 0.0f;
 
         // -----------------------------
         // Reservoir normalization
@@ -244,7 +288,7 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
         // If target is tiny, norm can blow up -> fireflies.
         // Clamp if needed (or clamp c/target).
         float norm = R.W / (max(1u, R.M) * max(R.s.target, 1e-8f));
-        direct = c * visible * norm;
+        direct = c  *visible *norm;
     }
 
     return direct * mat.occlusionColor + mat.emissiveColor;

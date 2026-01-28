@@ -19,13 +19,6 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 
-bool ReprojectToPrevPixel(float3 worldPos,
-                          float4x4 prevViewProj,
-                          uint2 dims,
-                          out uint2 prevPix,
-                          out float prevNdcDepth);
-
-
 SamplerState mainSampler : register(s0);
 
 cbuffer Camera : register(b0)
@@ -95,8 +88,8 @@ bool NormalCompatible(float3 currN, float3 prevN);
 
             Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, prevPix, prevDepth, prevNormal);
             
-            //valid = DepthCompatible(depthValue, prevDepth);
-            valid = NormalCompatible(mat.normalColor, prevNormal);
+            valid = DepthCompatible(depthValue, prevDepth);
+            valid &= NormalCompatible(mat.normalColor, prevNormal);
 
             if (valid)
             {
@@ -131,53 +124,11 @@ bool NormalCompatible(float3 currN, float3 prevN);
         PackReservoir(currentR, mat.normalColor, depthValue, A, B);
         
         DIReservoirA[launchIndex] = A;      
-        DIReservoirB[launchIndex] = float4(prevNormal, 1.f);
+        DIReservoirB[launchIndex] = B;
     }
 }
 
-// Returns false if the point projects off-screen or behind camera.
-bool ReprojectToPrevPixel(float3 worldPos,
-                          float4x4 prevViewProj,
-                          uint2 dims,
-                          out uint2 prevPix,
-                          out float prevNdcDepth)
-{
-    // 1) World -> previous clip space
-    float4 prevClip = mul(prevViewProj, float4(worldPos, 1.0f));
 
-    // If behind the camera or too close to w=0, reject
-    if (prevClip.w <= 1e-6f)
-        return false;
-
-    // 2) Clip -> NDC (-1..1)
-    float3 prevNdc = prevClip.xyz / prevClip.w;
-
-    // If outside the NDC cube, it's off-screen (z test optional depending on convention)
-    // x,y outside [-1,1] means off-screen.
-    if (prevNdc.x < -1.0f || prevNdc.x > 1.0f ||
-        prevNdc.y < -1.0f || prevNdc.y > 1.0f)
-        return false;
-
-    // Save NDC depth for later comparisons
-    prevNdcDepth = prevNdc.z;
-
-    // 3) NDC -> UV (0..1)
-    // NDC y is +up, texture UV y is +down for typical DX conventions.
-    float2 prevUv;
-    prevUv.x = prevNdc.x * 0.5f + 0.5f;
-    prevUv.y = -prevNdc.y * 0.5f + 0.5f;
-
-    // 4) UV -> pixel coords
-    // Use floor to get integer pixel index.
-    int2 p = int2(prevUv * float2(dims));
-
-    // Clamp/check bounds
-    if (p.x < 0 || p.y < 0 || p.x >= (int) dims.x || p.y >= (int) dims.y)
-        return false;
-
-    prevPix = (uint2) p;
-    return true;
-}
 
 bool DepthCompatible(float currLinearDepth, float prevLinearDepth)
 {
@@ -186,7 +137,7 @@ bool DepthCompatible(float currLinearDepth, float prevLinearDepth)
 
 bool NormalCompatible(float3 currN, float3 prevN)
 {
-    return dot(currN, prevN) > 0.7f;
+    return dot(currN, prevN) > 0.f;
 }
 
 // Build a per-pixel reservoir from K unshadowed candidates.

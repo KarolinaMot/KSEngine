@@ -137,12 +137,18 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         m_DIReservoirs[i] = std::make_shared<Texture>(
             device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
-            Formats::R8G8B8A8_UINT, "DIReservoirA " + std::to_string(i));
+            Formats::R32G32B32A32_UINT, "DIReservoirA " + std::to_string(i));
 
         m_DIReservoirs[2 + i] = std::make_shared<Texture>(
             device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
             Formats::R32G32B32A32_FLOAT, "DIReservoirB " + std::to_string(i));
+
+        m_DIhistory[i] = std::make_shared<Texture>(
+            device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+            Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
+            Formats::R32G32B32A32_FLOAT, "diHistory " + std::to_string(i));
+
     }
 
     deferredRendererDepthTex = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),

@@ -56,7 +56,7 @@ KS::Renderer::Renderer(Device& device)
    m_rtInputs =  KS::ShaderInputBlueprintBuilder()
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"output_tex"}, ShaderInputMod::READ_WRITE)  // u0
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"gi_history"}, ShaderInputMod::READ_WRITE)  // u1
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIReservoirA"}, ShaderInputMod::READ_WRITE) //u2
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIReservoirA", "di_history"}, ShaderInputMod::READ_WRITE)  // u2
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIReservoirB"}, ShaderInputMod::READ_WRITE) //u3
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, 1, {"BVH"})            // t0
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"camera_buffer"})           // b0
@@ -68,8 +68,10 @@ KS::Renderer::Renderer(Device& device)
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferA"})                // t6
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"GBufferB"})                // t7
             .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"rendered_cubemap"})        // t8
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPRevReservoirA", "DIReservoirARO"})      // t9
-            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPrevReservoirB", "DIReservoirBRO"})      // t10
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIReservoirARO"})      // t9
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIReservoirBRO"})      // t10
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPrevReservoirA"})      // t11
+            .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"DIPrevReservoirB"})      // t12
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"normals"}, ShaderInputMod::READ_ONLY, 1)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"indices"}, ShaderInputMod::READ_ONLY, 2)
             .AddStorageBuffer(KS::ShaderInputVisibility::COMPUTE, MAX_MESHES, {"vertexPos"}, ShaderInputMod::READ_ONLY, 3)
@@ -182,7 +184,7 @@ KS::Renderer::Renderer(Device& device)
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
     m_inputs[RT_TEMPORAL_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(17);
-    m_inputs[RT_SPACIAL_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(16);
+    m_inputs[RT_SPACIAL_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(19);
     m_inputs[MIP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(5);
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
@@ -390,6 +392,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto DIReservoirB = scene.GetDIReservoir(2 + frameIndex);
     auto DIPRevReservoirA = scene.GetDIReservoir(0 + prevFrameIndex);
     auto DIPRevReservoirB = scene.GetDIReservoir(2 + prevFrameIndex);
+    auto DIHistory = scene.GetDIHistory(frameIndex);
 
     m_inputs[RT_TEMPORAL_RENDER][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(reinterpret_cast<ShaderInput*>(scene.GetBVH()),
                                                                           rootSignature->GetInput("BVH"));
@@ -418,7 +421,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     m_inputs[RT_TEMPORAL_RENDER][13] = std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirB,
                                                                     rootSignature->GetInput("DIReservoirB"));
     m_inputs[RT_TEMPORAL_RENDER][14] = std::pair<ShaderInput*, ShaderInputBindDesc>(DIPRevReservoirA,
-                                                                    rootSignature->GetInput("DIPRevReservoirA"));
+                                                                    rootSignature->GetInput("DIPrevReservoirA"));
     m_inputs[RT_TEMPORAL_RENDER][15] =
         std::pair<ShaderInput*, ShaderInputBindDesc>(DIPRevReservoirB, rootSignature->GetInput("DIPrevReservoirB"));
     m_inputs[RT_TEMPORAL_RENDER][16] = std::pair<ShaderInput*, ShaderInputBindDesc>(
@@ -463,6 +466,12 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
         std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirA, rootSignature->GetInput("DIReservoirARO"));
     m_inputs[RT_SPACIAL_RENDER][15] =
         std::pair<ShaderInput*, ShaderInputBindDesc>(DIReservoirB, rootSignature->GetInput("DIReservoirBRO"));
+    m_inputs[RT_SPACIAL_RENDER][16] =
+        std::pair<ShaderInput*, ShaderInputBindDesc>(DIPRevReservoirA, rootSignature->GetInput("DIPrevReservoirA"));
+    m_inputs[RT_SPACIAL_RENDER][17] =
+        std::pair<ShaderInput*, ShaderInputBindDesc>(DIPRevReservoirB, rootSignature->GetInput("DIPrevReservoirB"));
+    m_inputs[RT_SPACIAL_RENDER][18] =
+        std::pair<ShaderInput*, ShaderInputBindDesc>(DIHistory, rootSignature->GetInput("di_history"));
 
     defPar.clearRt = true;
     defPar.rt = scene.GetRenderTarget(RT_TEMPORAL_RENDER);

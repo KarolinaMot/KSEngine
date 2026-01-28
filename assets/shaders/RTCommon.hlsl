@@ -115,7 +115,7 @@ ShadowPayload ShootShadowRay(float3 direction, float3 position, RaytracingAccele
     RayDesc shadowRay;
     shadowRay.Origin = position; // simpler & correct
     shadowRay.Direction = direction;
-    shadowRay.TMin = 0;
+    shadowRay.TMin = 1e-4f;
     shadowRay.TMax = tmax;
 
     ShadowPayload shadowPayload;
@@ -154,6 +154,50 @@ Reservoir LoadReservoir(Texture2D<uint4> ResA, Texture2D<float4> ResB, uint2 lau
     R.M = (uint) (aRes.z + 0.5f);
 
     return R;
+}
+
+// Returns false if the point projects off-screen or behind camera.
+bool ReprojectToPrevPixel(float3 worldPos,
+                          float4x4 prevViewProj,
+                          uint2 dims,
+                          out uint2 prevPix,
+                          out float prevNdcDepth)
+{
+    // 1) World -> previous clip space
+    float4 prevClip = mul(prevViewProj, float4(worldPos, 1.0f));
+
+    // If behind the camera or too close to w=0, reject
+    if (prevClip.w <= 1e-6f)
+        return false;
+
+    // 2) Clip -> NDC (-1..1)
+    float3 prevNdc = prevClip.xyz / prevClip.w;
+
+    // If outside the NDC cube, it's off-screen (z test optional depending on convention)
+    // x,y outside [-1,1] means off-screen.
+    if (prevNdc.x < -1.0f || prevNdc.x > 1.0f ||
+        prevNdc.y < -1.0f || prevNdc.y > 1.0f)
+        return false;
+
+    // Save NDC depth for later comparisons
+    prevNdcDepth = prevNdc.z;
+
+    // 3) NDC -> UV (0..1)
+    // NDC y is +up, texture UV y is +down for typical DX conventions.
+    float2 prevUv;
+    prevUv.x = prevNdc.x * 0.5f + 0.5f;
+    prevUv.y = -prevNdc.y * 0.5f + 0.5f;
+
+    // 4) UV -> pixel coords
+    // Use floor to get integer pixel index.
+    int2 p = int2(prevUv * float2(dims));
+
+    // Clamp/check bounds
+    if (p.x < 0 || p.y < 0 || p.x >= (int) dims.x || p.y >= (int) dims.y)
+        return false;
+
+    prevPix = (uint2) p;
+    return true;
 }
 
 Reservoir LoadReservoirAndOther(Texture2D<uint4> ResA, Texture2D<float4> ResB, uint2 launchIndex, out float depth, out float3 normal)
