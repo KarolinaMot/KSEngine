@@ -146,9 +146,7 @@ void SpatialReuse(
 
             indirectLighting += Li * mat.baseColor.rgb;
         }
-        
 
-        
     }
     else
     {
@@ -166,7 +164,7 @@ void SpatialReuse(
 
     res = outDI.rgb + superSampledGI;
     //gOutput[launchIndex] = float4(LinearToSRGB(directLighting.rgb), 1.f);
-    gOutput[launchIndex] = float4(LinearToSRGB(res.rgb)*1.25f, 1.f);
+    gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
 
 }
 

@@ -392,7 +392,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto DIReservoirB = scene.GetDIReservoir(2 + frameIndex);
     auto DIPRevReservoirA = scene.GetDIReservoir(0 + prevFrameIndex);
     auto DIPRevReservoirB = scene.GetDIReservoir(2 + prevFrameIndex);
-    auto DIHistory = scene.GetDIHistory(frameIndex);
+    auto DIHistory = scene.GetRenderTarget(SUPER_SAMPLED_DI)->GetTexture(frameIndex, 0).get();
 
     m_inputs[RT_TEMPORAL_RENDER][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(reinterpret_cast<ShaderInput*>(scene.GetBVH()),
                                                                           rootSignature->GetInput("BVH"));

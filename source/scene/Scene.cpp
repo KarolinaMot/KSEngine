@@ -104,6 +104,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     std::shared_ptr<Texture> raytracingResTex[2];
     std::shared_ptr<Texture> finalRT[2];
     std::shared_ptr<Texture> superSampledGI[2];
+    std::shared_ptr<Texture> diHistory[2];
 
     for (int i = 0; i < 2; i++)
     {
@@ -144,7 +145,7 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
             Formats::R32G32B32A32_FLOAT, "DIReservoirB " + std::to_string(i));
 
-        m_DIhistory[i] = std::make_shared<Texture>(
+        diHistory[i] = std::make_shared<Texture>(
             device, m_impl->m_resourceHeap.get(), device.GetSwapchainWidth(), device.GetSwapchainHeight(),
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
             Formats::R32G32B32A32_FLOAT, "diHistory " + std::to_string(i));
@@ -172,6 +173,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
 
     m_renderTargets[SUPER_SAMPLED_GI] = std::make_shared<RenderTarget>();
     m_renderTargets[SUPER_SAMPLED_GI]->AddTexture(device, superSampledGI[0], superSampledGI[1], "SUPERSAMPLED GI");
+
+    m_renderTargets[SUPER_SAMPLED_DI] = std::make_shared<RenderTarget>();
+    m_renderTargets[SUPER_SAMPLED_DI]->AddTexture(device, diHistory[0], diHistory[1], "SUPERSAMPLED DI");
 
     m_finalRT = std::make_shared<RenderTarget>();
     m_finalRT->AddTexture(device, finalRT[0], finalRT[1], "FINAL RENDER TARGET");
@@ -333,6 +337,9 @@ void KS::Scene::Tick(Device& device)
     {
         m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, frameIndex, m_deferredRendererDepthStencil.get());
         m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, frameIndex);
+        m_renderTargets[SUPER_SAMPLED_DI]->Bind(*commandList, frameIndex, m_deferredRendererDepthStencil.get());
+        m_renderTargets[SUPER_SAMPLED_DI]->Clear(*commandList, frameIndex);
+
         m_pathTracingInfo.frameIndex = 0;
         m_updateSupersampled--;
     }

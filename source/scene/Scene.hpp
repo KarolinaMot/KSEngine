@@ -89,7 +89,6 @@ public:
     void SetShadowSample(uint32_t value) { m_pathTracingInfo.shadowSampleNumber = value; }
     void SetGISample(uint32_t value) { m_pathTracingInfo.GIsampleNumber = value; }
     Texture* GetDIReservoir(uint32_t index) const { return m_DIReservoirs[index].get(); }
-    Texture* GetDIHistory(uint32_t frame) const { return m_DIhistory[frame].get(); }
 
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
@@ -133,7 +132,6 @@ private:
     std::string m_name;
     ScenesToChoose m_identifyingIndex;
     std::shared_ptr<Texture> m_DIReservoirs[4];
-    std::shared_ptr<Texture> m_DIhistory[2];
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);

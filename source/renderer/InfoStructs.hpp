@@ -58,6 +58,7 @@ enum Subrenderers
     MIP_GEN,
     MESH_CULLING,
     SUPER_SAMPLED_GI,
+    SUPER_SAMPLED_DI,
     NUM_SUBRENDER
 };
 
