@@ -18,13 +18,6 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
 
-bool ReprojectToPrevPixel(float3 worldPos,
-                          float4x4 prevViewProj,
-                          uint2 dims,
-                          out uint2 prevPix,
-                          out float prevNdcDepth);
-
-
 SamplerState mainSampler : register(s0);
 
 cbuffer Camera : register(b0)
@@ -46,11 +39,13 @@ float3 CosineSampleHemisphere(float u1, float u2);
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias);
 bool DepthCompatible(float currLinearDepth, float prevLinearDepth);
 bool NormalCompatible(float3 currN, float3 prevN);
-void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng);
-
-uint Hash(uint x);
-float Rand(inout uint seed);
-uint InitSeed(uint2 pixel);
+void SpatialReuse(
+    uint2 p, uint2 dims,
+    float currDepth, float3 currN,
+    float3 worldPos, float3 viewDir, PBRMaterial mat,
+    Texture2D<uint4> A0, Texture2D<float4> B0,
+    inout Reservoir R,
+    inout uint rng);
 
 [shader("raygeneration")]void RayGen()
 {
@@ -77,13 +72,12 @@ uint InitSeed(uint2 pixel);
     float3 directLighting = 0.f;
     float3 indirectLighting = 0.f;
     float3 res = 0.f;
+    uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
     if (!emptyPixel)
     {
         Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
-        
-        uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
-
+                
         directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
 
         // Global illumination
@@ -132,52 +126,79 @@ uint InitSeed(uint2 pixel);
     giHistory[launchIndex] = float4(newGISum, newSampleCount);
 
     res = directLighting.rgb + superSampledGI;
-    gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
+    float4 value = DIReservoirB.Load(uint3(launchIndex, 0.f));
+    gOutput[launchIndex] = float4(value);
 
 }
 
-// Returns false if the point projects off-screen or behind camera.
-bool ReprojectToPrevPixel(float3 worldPos,
-                          float4x4 prevViewProj,
-                          uint2 dims,
-                          out uint2 prevPix,
-                          out float prevNdcDepth)
+uint2 ClampPixel(int2 p, uint2 dims)
 {
-    // 1) World -> previous clip space
-    float4 prevClip = mul(prevViewProj, float4(worldPos, 1.0f));
+    p.x = clamp(p.x, 0, (int) dims.x - 1);
+    p.y = clamp(p.y, 0, (int) dims.y - 1);
+    return (uint2) p;
+}
 
-    // If behind the camera or too close to w=0, reject
-    if (prevClip.w <= 1e-6f)
-        return false;
+bool InBounds(int2 p, uint2 dims)
+{
+    return (p.x >= 0 && p.y >= 0 && p.x < (int) dims.x && p.y < (int) dims.y);
+}
 
-    // 2) Clip -> NDC (-1..1)
-    float3 prevNdc = prevClip.xyz / prevClip.w;
+void SpatialReuse(
+    uint2 p, uint2 dims,
+    float currDepth, float3 currN,
+    float3 worldPos, float3 viewDir, PBRMaterial mat,
+    Texture2D<uint4> A0, Texture2D<float4> B0,
+    inout Reservoir R,
+    inout uint rng)
+{
+    static const int2 kOffsets8[8] =
+    {
+        int2(-1, 0), int2(1, 0),
+                int2(0, -1), int2(0, 1),
+                int2(-1, -1), int2(1, -1),
+                int2(-1, 1), int2(1, 1),
+    };
+    
+    [unroll]
+    for (int i = 0; i < 8; ++i)
+    {
+        int2 pn_i = (int2) p + kOffsets8[i];
+        
+        if (!InBounds(pn_i, dims))
+            continue;
+        uint2 pn = (uint2) pn_i;
 
-    // If outside the NDC cube, it's off-screen (z test optional depending on convention)
-    // x,y outside [-1,1] means off-screen.
-    if (prevNdc.x < -1.0f || prevNdc.x > 1.0f ||
-        prevNdc.y < -1.0f || prevNdc.y > 1.0f)
-        return false;
+        float neighDepth;
+        float3 neighN;
 
-    // Save NDC depth for later comparisons
-    prevNdcDepth = prevNdc.z;
+        Reservoir Rn = LoadReservoirAndOther(A0, B0, pn, neighDepth, neighN);
+        
+        if (Rn.M == 0u || Rn.W <= 0.0f || Rn.s.target <= 1e-8f)
+            continue;
 
-    // 3) NDC -> UV (0..1)
-    // NDC y is +up, texture UV y is +down for typical DX conventions.
-    float2 prevUv;
-    prevUv.x = prevNdc.x * 0.5f + 0.5f;
-    prevUv.y = -prevNdc.y * 0.5f + 0.5f;
+        if (!DepthCompatible(currDepth, neighDepth))
+            continue;
 
-    // 4) UV -> pixel coords
-    // Use floor to get integer pixel index.
-    int2 p = int2(prevUv * float2(dims));
+        // Target ratio correction (THIS is important)
+        float t_prev = Rn.s.target;
+        float t_here = TargetAtPixel(dirLights, pointLights, Rn.s, worldPos, viewDir, mat);
+        if (t_here <= 1e-8f)
+            continue;
 
-    // Clamp/check bounds
-    if (p.x < 0 || p.y < 0 || p.x >= (int) dims.x || p.y >= (int) dims.y)
-        return false;
+        RISSample cand = Rn.s;
+        cand.target = t_here;
 
-    prevPix = (uint2) p;
-    return true;
+        float wTotal_here = Rn.W * (t_here / max(t_prev, 1e-8f));
+
+        ReservoirUpdate(R, cand, wTotal_here, Rn.M, rng);
+    }
+    
+    const uint M_CAP = 32;
+    if (R.M > M_CAP)
+    {
+        R.W *= (float) M_CAP / (float) R.M;
+        R.M = M_CAP;
+    }
 }
 
 bool DepthCompatible(float currLinearDepth, float prevLinearDepth)
@@ -189,49 +210,6 @@ bool NormalCompatible(float3 currN, float3 prevN)
 {
     return dot(currN, prevN) > 0.9f; // tune
 }
-
-float3 ShadeChosen(RISSample s, out float3 lightDir, out float tmax, float3 worldPos, float3 viewDirection, PBRMaterial mat)
-{
-    float3 diff = 0.0f;
-    float3 spec = 0.0f;
-    float att = 1.f;
-    float3 lightColor;
-    float lightIntensity;
-
-    if (s.lightType == 0u)
-    {
-        DirLight light = dirLights[s.lightIndex];
-        lightDir = normalize(light.mDir.xyz);
-        lightColor = light.mColorAndIntensity.rgb;
-        lightIntensity = light.mColorAndIntensity.a;
-        tmax = 100000;
-    }
-    else
-    {
-        PointLight light = pointLights[s.lightIndex];
-
-        float3 toLight = light.mPosition.xyz - worldPos;
-        float dist = length(toLight);
-
-        // Normalize direction safely.
-        lightDir = toLight / max(dist, 1e-6f);
-
-        att = Attenuation(dist, /*range*/5.f);
-        lightColor = light.mColorAndIntensity.rgb;
-        lightIntensity = light.mColorAndIntensity.a;
-        tmax = dist - 1e-3f;
-    }
-
-    GetBRDF(mat, viewDirection, lightDir,
-            lightColor,
-            lightIntensity * 0.005,
-            att,
-            diff, spec);
-
-    return diff + spec;
-}
-
-
 
 
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias)
@@ -247,7 +225,7 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
         uint shadowSeed = InitSeed(launchIndex);
         float3 lightDir;
         float tmax;
-        float3 c = ShadeChosen(R.s, lightDir, tmax, worldPos, viewDirection, mat);
+        float3 c = ShadeChosen(dirLights, pointLights, R.s, lightDir, tmax, worldPos, viewDirection, mat);
 
         // Harsh shadows for now
         ShadowPayload shadowPayload = ShootShadowRay(lightDir, worldPos + mat.normalColor * bias, SceneBVH, tmax);
@@ -272,41 +250,6 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
     return direct * mat.occlusionColor + mat.emissiveColor;
 }
 
-
-float Luminance(float3 c)
-{
-    return dot(c, float3(0.2126, 0.7152, 0.0722));
-}
-
-void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng)
-{
-    // Increase how many candidates we represent.
-    // For "normal" per-pixel candidate generation, m=1 each time.
-    // For temporal/spatial merge, m can be >1 (the other reservoir's M).
-    R.M += m;
-
-    // New total weight after merging in the packet.
-    float Wnew = R.W + wTotal;
-
-    // If Wnew is zero, everything is zero contribution so skip.
-    // (This happens if all candidates had target=0, e.g. surface facing away from all lights.)
-    if (Wnew > 0.0f)
-    {
-        // Draw a random number in [0,1).
-        float pick = Rand(rng);
-
-        // With probability wTotal / Wnew, replace chosen sample.
-        // This is weighted reservoir sampling: the chosen sample is distributed
-        // proportionally to candidate weights without storing them all.
-        if (pick < (wTotal / Wnew))
-        {
-            R.s = cand; // accept the new candidate (or packet representative)
-        }
-
-        // Update sum of weights.
-        R.W = Wnew;
-    }
-}
 
 float3 CosineSampleHemisphere(float u1, float u2)
 {
@@ -356,28 +299,3 @@ float3 UniformSampleHemisphere(const float r1, const float r2)
     return float3(x, r1, z);
 }
 
-uint Hash(uint x)
-{
-    x ^= x >> 17;
-    x *= 0xed5ad4bb;
-    x ^= x >> 11;
-    x *= 0xac4c1b51;
-    x ^= x >> 15;
-    x *= 0x31848bab;
-    x ^= x >> 14;
-    return x;
-}
-
-// Returns a random float in [0,1)
-float Rand(inout uint seed)
-{
-    seed = Hash(seed);
-    // Take lower 24 bits and normalize
-    return (seed & 0x00FFFFFFu) / 16777216.0f; // 2^24
-}
-
-uint InitSeed(uint2 pixel)
-{
-    uint s = pixel.x * 1973u + pixel.y * 9277u;
-    return Hash(s);
-}

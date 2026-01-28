@@ -48,16 +48,9 @@ cbuffer RTX : register(b2)
 void CreateCoordinateSystem(const float3 N, out float3 Nt, out float3 Nb);
 float3 UniformSampleHemisphere(const float r1, const float r2);
 float3 CosineSampleHemisphere(float u1, float u2);
-float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias);
 Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float3 worldPos);
 bool DepthCompatible(float currLinearDepth, float prevLinearDepth);
 bool NormalCompatible(float3 currN, float3 prevN);
-void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng);
-float TargetAtPixel(RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat);
-
-uint Hash(uint x);
-float Rand(inout uint seed);
-uint InitSeed(uint2 pixel);
 
 [shader("raygeneration")]void RayGen( /*uint3 dispatchThreadID : SV_DispatchThreadID*/)
 {
@@ -78,7 +71,9 @@ uint InitSeed(uint2 pixel);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
     float3 res = 0.f;
     bool ok = false;
-    
+    float prevDepth = 0.f; // whatever prev depth texture is
+    float3 prevNormal = 0.f; // whatever prev depth texture is
+
     bool emptyPixel;
     PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex, emptyPixel);
     
@@ -87,46 +82,26 @@ uint InitSeed(uint2 pixel);
     bool valid = false;
     if (!emptyPixel)
     {
-        //if (!mat.baseColor.a)
-        //{
-        //    MaterialPayload matPayload = (MaterialPayload) 0;
-        //    matPayload.bounceCount = 31;
-        //    matPayload.coneAngle = alpha0;
-        //    matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
-
-        //    UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
-        //    mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
-        //    mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
-        //    UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-        //    float3 normalColor = mat.normalColor;
-        //    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-        //    worldPos = matPayload.position;
-        //    viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-        //    t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-        //    bias = max(1e-4f, t * 1e-4f);
-        //}
-
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
         Reservoir currentR = BuildReservoir(seed, mat, viewDirection, worldPos);
-
+        
         uint2 prevPix;
         float prevNdcZ;
         ok = ReprojectToPrevPixel(worldPos, prevCameraMats.mCamera, dims, prevPix, prevNdcZ);
 
         if (ok)
         {
-            float prevDepth = 0.f; // whatever prev depth texture is
-            float3 prevNormal = 0.f; // whatever prev depth texture is
 
-            Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, launchIndex, prevDepth, prevNormal);
+            Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, prevPix, prevDepth, prevNormal);
             
-            valid = DepthCompatible(depthValue, prevDepth);
+            //valid = DepthCompatible(depthValue, prevDepth);
+            valid = NormalCompatible(mat.normalColor, prevNormal);
 
             if (valid)
             {
                 float t_prev = Rprev.s.target; // target at previous pixel
-                float t_here = TargetAtPixel(Rprev.s, worldPos, viewDirection, mat); // target at this pixel
+                float t_here = TargetAtPixel(dirLights, pointLights, Rprev.s, worldPos, viewDirection, mat); // target at this pixel
                 RISSample cand = Rprev.s;
                 cand.target = t_here; // IMPORTANT: store target for THIS pixel
 
@@ -151,18 +126,12 @@ uint InitSeed(uint2 pixel);
             currentR.M = M_CAP;
         }
         
-
-        DIReservoirA[launchIndex] = uint4(
-        currentR.s.lightIndex,
-        currentR.s.lightType,
-        currentR.M,
-        PackNormalOct((mat.normalColor + 1.f) * 0.5f));
+        uint4 A;
+        float4 B;
+        PackReservoir(currentR, mat.normalColor, depthValue, A, B);
         
-        DIReservoirB[launchIndex] = float4(
-        currentR.W, // sum of weights
-        depthValue, // chosen sample's target
-        currentR.s.target, // candidate count (stored as float)
-        0.0f);
+        DIReservoirA[launchIndex] = A;      
+        DIReservoirB[launchIndex] = float4(prevNormal, 1.f);
     }
 }
 
@@ -217,132 +186,7 @@ bool DepthCompatible(float currLinearDepth, float prevLinearDepth)
 
 bool NormalCompatible(float3 currN, float3 prevN)
 {
-    return dot(currN, prevN) > 0.9f; // tune
-}
-
-float3 ShadeChosen(RISSample s, out float3 lightDir, out float tmax, float3 worldPos, float3 viewDirection, PBRMaterial mat)
-{
-    float3 diff = 0.0f;
-    float3 spec = 0.0f;
-    float att = 1.f;
-    float3 lightColor;
-    float lightIntensity;
-
-    if (s.lightType == 0u)
-    {
-        DirLight light = dirLights[s.lightIndex];
-        lightDir = normalize(light.mDir.xyz);
-        lightColor = light.mColorAndIntensity.rgb;
-        lightIntensity = light.mColorAndIntensity.a;
-        tmax = 100000;
-    }
-    else
-    {
-        PointLight light = pointLights[s.lightIndex];
-
-        float3 toLight = light.mPosition.xyz - worldPos;
-        float dist = length(toLight);
-
-        // Normalize direction safely.
-        lightDir = toLight / max(dist, 1e-6f);
-
-        att = Attenuation(dist, /*range*/5.f);
-        lightColor = light.mColorAndIntensity.rgb;
-        lightIntensity = light.mColorAndIntensity.a;
-        tmax = dist - 1e-3f;
-    }
-
-    GetBRDF(mat, viewDirection, lightDir,
-            lightColor,
-            lightIntensity * 0.005,
-            att,
-            diff, spec);
-
-    return diff + spec;
-}
-
-
-
-
-float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias)
-{
-    float3 direct = 0.0f;
-
-    if (R.M > 0u && R.W > 0.0f && R.s.target > 1e-8f)
-    {
-        float3 diffuse = 0.f;
-        float3 specular = 0.f;
-
-        // Shadows
-        uint shadowSeed = InitSeed(launchIndex);
-        float3 lightDir;
-        float tmax;
-        float3 c = ShadeChosen(R.s, lightDir, tmax, worldPos, viewDirection, mat);
-
-        // Harsh shadows for now
-        ShadowPayload shadowPayload = ShootShadowRay(lightDir, worldPos + mat.normalColor * bias, SceneBVH, tmax);
-        float visible = (shadowPayload.hit == 0) ? 1.0f : 0.0f;
-
-        // -----------------------------
-        // Reservoir normalization
-        // -----------------------------
-        // Intuition:
-        // - R.W approximates sum(target/pdf) over candidates.
-        // - We selected one sample proportionally to its weight.
-        // - norm turns the chosen sample into an unbiased estimator of the sum.
-        //
-        // IMPORTANT:
-        // Use R.s.target from *the chosen sample*.
-        // If target is tiny, norm can blow up -> fireflies.
-        // Clamp if needed (or clamp c/target).
-        float norm = R.W / (max(1u, R.M) * max(R.s.target, 1e-8f));
-        direct = c * visible * norm;
-    }
-
-    return direct * mat.occlusionColor + mat.emissiveColor;
-}
-
-float Luminance(float3 c)
-{
-    return dot(c, float3(0.2126, 0.7152, 0.0722));
-}
-
-float TargetAtPixel(RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat)
-{
-    float3 L;
-    float tmax;
-    float3 c = ShadeChosen(s, L, tmax, worldPos, viewDir, mat);
-    return Luminance(max(c, 0.0f));
-}
-
-void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng)
-{
-    // Increase how many candidates we represent.
-    // For "normal" per-pixel candidate generation, m=1 each time.
-    // For temporal/spatial merge, m can be >1 (the other reservoir's M).
-    R.M += m;
-
-    // New total weight after merging in the packet.
-    float Wnew = R.W + wTotal;
-
-    // If Wnew is zero, everything is zero contribution so skip.
-    // (This happens if all candidates had target=0, e.g. surface facing away from all lights.)
-    if (Wnew > 0.0f)
-    {
-        // Draw a random number in [0,1).
-        float pick = Rand(rng);
-
-        // With probability wTotal / Wnew, replace chosen sample.
-        // This is weighted reservoir sampling: the chosen sample is distributed
-        // proportionally to candidate weights without storing them all.
-        if (pick < (wTotal / Wnew))
-        {
-            R.s = cand; // accept the new candidate (or packet representative)
-        }
-
-        // Update sum of weights.
-        R.W = Wnew;
-    }
+    return dot(currN, prevN) > 0.7f;
 }
 
 // Build a per-pixel reservoir from K unshadowed candidates.
@@ -379,7 +223,7 @@ Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float
         }
         float3 lightDir;
         float tmax;
-        c = ShadeChosen(cand, lightDir, tmax, worldPos, viewDir, mat);
+        c = ShadeChosen(dirLights, pointLights, cand, lightDir, tmax, worldPos, viewDir, mat);
 
         cand.target = Luminance(max(c, 0.0f));
 
@@ -393,6 +237,8 @@ Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float
         // Update reservoir with this single candidate (m=1).
         ReservoirUpdate(R, cand, w, 1u, seed);
     }
+    
+    
     return R;
 }
 
@@ -444,28 +290,3 @@ float3 UniformSampleHemisphere(const float r1, const float r2)
     return float3(x, r1, z);
 }
 
-uint Hash(uint x)
-{
-    x ^= x >> 17;
-    x *= 0xed5ad4bb;
-    x ^= x >> 11;
-    x *= 0xac4c1b51;
-    x ^= x >> 15;
-    x *= 0x31848bab;
-    x ^= x >> 14;
-    return x;
-}
-
-// Returns a random float in [0,1)
-float Rand(inout uint seed)
-{
-    seed = Hash(seed);
-    // Take lower 24 bits and normalize
-    return (seed & 0x00FFFFFFu) / 16777216.0f; // 2^24
-}
-
-uint InitSeed(uint2 pixel)
-{
-    uint s = pixel.x * 1973u + pixel.y * 9277u;
-    return Hash(s);
-}

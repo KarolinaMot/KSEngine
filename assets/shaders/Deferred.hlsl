@@ -55,9 +55,10 @@ PS_INPUT mainVS(VS_INPUT input)
     output.uv = input.uv;
     output.uv.y *= -1;
 
-    input.tangents = normalize(input.tangents);
-    input.tangents = normalize(input.tangents - dot(input.tangents, input.normals) * input.normals);
-    float3 bitangent = cross(output.normals.xyz, input.tangents);
+    input.tangents = normalize(mul(input.tangents, (float3x3) instanceData[meshIndex + input.iid].modelMatrix.mModelMat)); // or use invTranspose if non-uniform scale issues
+    input.tangents = normalize(input.tangents - dot(input.tangents, output.normals.xyz) * output.normals.xyz);
+    
+    float3 bitangent = normalize(cross(output.normals.xyz, input.tangents));
     output.iid = input.iid;
 
     float3x3 TBN = float3x3(input.tangents, bitangent, output.normals.xyz);
@@ -110,10 +111,7 @@ PBRMaterial GenerateMaterial(PS_INPUT input, uint iid)
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
 
-    mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
-    mat.normalColor = mat.normalColor * 2.0 - 1.0;
-    mat.normalColor = mul(mat.normalColor, input.tangentBasis);
-    mat.normalColor = (mat.normalColor + 1) * 0.5f;
+    mat.normalColor = input.normals;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);

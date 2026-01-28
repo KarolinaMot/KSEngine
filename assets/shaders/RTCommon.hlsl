@@ -164,26 +164,137 @@ Reservoir LoadReservoirAndOther(Texture2D<uint4> ResA, Texture2D<float4> ResB, u
     Reservoir R = LoadReservoir(ResA, ResB, launchIndex);
     depth = bRes.y; // whatever prev depth texture is
     normal = UnpackNormalOct(aRes.w);
-    normal = normalize(normal * 2.0 - 1.0);
-    
+    normal = normalize(normal);
     return R;
 }
 
-PBRMaterial LoadMaterialFromGBuffer(Texture2D<uint4> GBufferA, uint2 loadLocation, out bool emptyPixel)
-{
-    uint4 bufferAValue = GBufferA.Load(uint3(loadLocation, 0));
 
-    PBRMaterial mat = (PBRMaterial) 0;
-    UnpackAlbedoMetal(bufferAValue.x, mat.baseColor.rgb, mat.metallic);
-    mat.normalColor = UnpackNormalOct(bufferAValue.y);
-    mat.emissiveColor = UnpackEmissive(bufferAValue.z);
-    UnpackRoughOcc(bufferAValue.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-    float3 normalColor = mat.normalColor;
-    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-    mat.baseColor.rgb *= mat.baseColor.a;
-    mat.F0 = float3(0.04, 0.04, 0.04);
-    mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
-    mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
-    emptyPixel = (normalColor.x == 0.f && normalColor.y == 0.f &&  normalColor.z == 1.f);
-    return mat;
+float3 ShadeChosen(StructuredBuffer<DirLight> dirLights,
+                    StructuredBuffer<PointLight> pointLights,
+                    RISSample s, out
+                    float3 lightDir, out
+                    float tmax, float3 worldPos, float3 viewDirection, PBRMaterial mat)
+{
+    float3 diff = 0.0f;
+    float3 spec = 0.0f;
+    float att = 1.f;
+    float3 lightColor;
+    float lightIntensity;
+
+    if (s.lightType == 0u)
+    {
+        DirLight light = dirLights[s.lightIndex];
+        lightDir = normalize(light.mDir.xyz);
+        lightColor = light.mColorAndIntensity.rgb;
+        lightIntensity = light.mColorAndIntensity.a;
+        tmax = 100000;
+    }
+    else
+    {
+        PointLight light = pointLights[s.lightIndex];
+
+        float3 toLight = light.mPosition.xyz - worldPos;
+        float dist = length(toLight);
+
+        // Normalize direction safely.
+        lightDir = toLight / max(dist, 1e-6f);
+
+        att = Attenuation(dist, /*range*/5.f);
+        lightColor = light.mColorAndIntensity.rgb;
+        lightIntensity = light.mColorAndIntensity.a;
+        tmax = dist - 1e-3f;
+    }
+
+    GetBRDF(mat, viewDirection, lightDir,
+            lightColor,
+            lightIntensity * 0.005,
+            att,
+            diff, spec);
+
+    return diff + spec;
+}
+
+float Luminance(float3 c)
+{
+    return dot(c, float3(0.2126, 0.7152, 0.0722));
+}
+
+float TargetAtPixel(StructuredBuffer<DirLight> dirLights,
+                    StructuredBuffer<PointLight> pointLights, RISSample s, float3 worldPos, float3 viewDir, PBRMaterial mat)
+{
+    float3 L;
+    float tmax;
+    float3 c = ShadeChosen(dirLights, pointLights, s, L, tmax, worldPos, viewDir, mat);
+    return Luminance(max(c, 0.0f));
+}
+
+uint Hash(uint x)
+{
+    x ^= x >> 17;
+    x *= 0xed5ad4bb;
+    x ^= x >> 11;
+    x *= 0xac4c1b51;
+    x ^= x >> 15;
+    x *= 0x31848bab;
+    x ^= x >> 14;
+    return x;
+}
+
+// Returns a random float in [0,1)
+float Rand(inout uint seed)
+{
+    seed = Hash(seed);
+    // Take lower 24 bits and normalize
+    return (seed & 0x00FFFFFFu) / 16777216.0f; // 2^24
+}
+
+void ReservoirUpdate(inout Reservoir R, RISSample cand, float wTotal, uint m, inout uint rng)
+{
+    // Increase how many candidates we represent.
+    // For "normal" per-pixel candidate generation, m=1 each time.
+    // For temporal/spatial merge, m can be >1 (the other reservoir's M).
+    R.M += m;
+
+    // New total weight after merging in the packet.
+    float Wnew = R.W + wTotal;
+
+    // If Wnew is zero, everything is zero contribution so skip.
+    // (This happens if all candidates had target=0, e.g. surface facing away from all lights.)
+    if (Wnew > 0.0f)
+    {
+        // Draw a random number in [0,1).
+        float pick = Rand(rng);
+
+        // With probability wTotal / Wnew, replace chosen sample.
+        // This is weighted reservoir sampling: the chosen sample is distributed
+        // proportionally to candidate weights without storing them all.
+        if (pick < (wTotal / Wnew))
+        {
+            R.s = cand; // accept the new candidate (or packet representative)
+        }
+
+        // Update sum of weights.
+        R.W = Wnew;
+    }
+}
+
+
+uint InitSeed(uint2 pixel)
+{
+    uint s = pixel.x * 1973u + pixel.y * 9277u;
+    return Hash(s);
+}
+
+void PackReservoir(Reservoir R, float3 normalColor, float depth, out uint4 A, out float4 B)
+{
+    A = uint4(
+        R.s.lightIndex,
+        R.s.lightType,
+        R.M,
+        PackNormalOct(normalColor));
+    
+    B = float4( R.W, // sum of weights
+        depth, // chosen sample's target
+        R.s.target, // candidate count (stored as float)
+        0.0f);
 }
