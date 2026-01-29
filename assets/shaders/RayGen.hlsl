@@ -67,8 +67,8 @@ bool NormalCompatible(float3 currN, float3 prevN);
     float prevDepth = 0.f; // whatever prev depth texture is
     float3 prevNormal = 0.f; // whatever prev depth texture is
 
-    bool emptyPixel;
-    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex, emptyPixel);
+    bool emptyPixel = (depthValue >= 0.9999f);
+    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex);
     
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);

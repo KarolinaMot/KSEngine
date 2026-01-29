@@ -377,7 +377,7 @@ uint PackRoughOcc(float roughness, float occlusion, uint albedoAlpha)
     return (r16) | (o8 << 16) | (albedoAlpha << 24);
 }
 
-PBRMaterial LoadMaterialFromGBuffer(Texture2D<uint4> GBufferA, uint2 loadLocation, out bool emptyPixel)
+PBRMaterial LoadMaterialFromGBuffer(Texture2D<uint4> GBufferA, uint2 loadLocation)
 {
     uint4 bufferAValue = GBufferA.Load(uint3(loadLocation, 0));
 
@@ -391,7 +391,6 @@ PBRMaterial LoadMaterialFromGBuffer(Texture2D<uint4> GBufferA, uint2 loadLocatio
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
     mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;
-    emptyPixel = (normalColor.x == 0.f && normalColor.y == 0.f && normalColor.z == 1.f);
     return mat;
 }
 

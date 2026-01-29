@@ -54,8 +54,8 @@ StructuredBuffer<PointLight> pointLights : register(t3);
     float3 specular = 0.f;
     float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
     
-    bool emptyPixel;
-    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, DispatchThreadID.xy, emptyPixel);
+    bool emptyPixel = (bufferBValue >= 0.9999f);
+    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, DispatchThreadID.xy);
 
     if (!emptyPixel)
     {

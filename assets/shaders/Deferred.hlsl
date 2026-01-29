@@ -111,8 +111,10 @@ PBRMaterial GenerateMaterial(PS_INPUT input, uint iid)
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = occlusionTex.Sample(mainSampler, input.uv).r;
 
-    mat.normalColor = input.normals;
-
+    mat.normalColor = normalTex.Sample(mainSampler, input.uv).rgb;
+    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = mul(mat.normalColor, input.tangentBasis);
+    
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
     mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic) * mat.baseColor.a;

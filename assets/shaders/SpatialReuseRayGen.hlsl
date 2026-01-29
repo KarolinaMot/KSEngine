@@ -66,8 +66,8 @@ void SpatialReuse(
     float bias = max(1e-4f, t * 1e-4f);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
 
-    bool emptyPixel;
-    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex, emptyPixel);
+    bool emptyPixel = (depthValue >= 0.9999f);
+    PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex);
     
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
