@@ -67,6 +67,11 @@ void GetBRDF(
     specular += colorIntensity * nDotL * specularBRDF;
 }
 
+float3 ToneMapReinhard(float3 x)
+{
+    return x / (1.0 + x);
+}
+
 float3 ReconstructWorldPos(uint2 pixelCoord,
                            uint2 screenSize,
                            float4x4 invViewProj,

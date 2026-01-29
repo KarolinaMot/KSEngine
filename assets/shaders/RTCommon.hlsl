@@ -251,7 +251,7 @@ float3 ShadeChosen(StructuredBuffer<DirLight> dirLights,
 
     GetBRDF(mat, viewDirection, lightDir,
             lightColor,
-            lightIntensity * 0.005,
+            lightIntensity,
             att,
             diff, spec);
 

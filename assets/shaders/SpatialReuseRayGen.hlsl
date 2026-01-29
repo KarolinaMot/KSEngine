@@ -95,11 +95,7 @@ void SpatialReuse(
         prevNormal = normalize(prevNormal);
         float prevDepth = prebReservB.y;
         
-        bool valid = DepthCompatible(depthValue, prevDepth) &&
-                 NormalCompatible(mat.normalColor, prevNormal);
-        
-        
-        if (valid && (histW > 0.f))
+        if ((histW > 0.f))
         {
            // EMA factor (bigger alpha = react faster, less stable)
             float alpha = 0.1f; // start 0.05–0.2
@@ -163,6 +159,10 @@ void SpatialReuse(
     giHistory[launchIndex] = float4(newGISum, newSampleCount);
 
     res = outDI.rgb + superSampledGI;
+    
+    res.rgb *= lightInfo.exposure; // e.g. exposure = 1.0 .. 2.0 (or make it a slider)
+    res.rgb = ToneMapReinhard(res.rgb);
+
     //gOutput[launchIndex] = float4(LinearToSRGB(directLighting.rgb), 1.f);
     gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
 
@@ -211,9 +211,6 @@ void SpatialReuse(
         Reservoir Rn = LoadReservoirAndOther(A0, B0, pn, neighDepth, neighN);
         
         if (Rn.M == 0u || Rn.W <= 0.0f || Rn.s.target <= 1e-8f)
-            continue;
-
-        if (!DepthCompatible(currDepth, neighDepth) || !NormalCompatible(mat.normalColor, neighN))
             continue;
 
         // Target ratio correction (THIS is important)

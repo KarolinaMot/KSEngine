@@ -47,7 +47,10 @@ public:
     void QueueDirectionalLight(DirLightInfo info);
     void SetAmbientLight(glm::vec3 color, float intensity);
     void SetCulledDrawCallIndicesCount(uint32_t count) { m_culledIndicesCount = count; }
-
+    void SetExposure(float exposure)
+    { 
+        m_lightInfo.exposure = exposure;
+    }
     void Tick(Device& device);
 
     void GetFinalRTInfo(Device& device, DXDescHeap* heap, uint32_t frameIndex, uint64_t& gpuPtr, uint32_t& width,

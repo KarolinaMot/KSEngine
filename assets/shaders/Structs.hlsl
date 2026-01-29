@@ -77,7 +77,8 @@ struct LightInfo
 {
     uint numDirLight;
     uint numPointLight;
-    uint2 padding1;
+    float exposure;
+    uint padding;
     float4 ambientLightIntensity;
 };
 

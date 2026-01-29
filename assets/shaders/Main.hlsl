@@ -63,7 +63,7 @@ StructuredBuffer<PointLight> pointLights : register(t3);
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
-            GetBRDF(mat, viewDirection, normalize(light.mDir.xyz * float3(1, 1, -1)), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.005f, 1.f, diffuse, specular);
+            GetBRDF(mat, viewDirection, normalize(light.mDir.xyz * float3(1, 1, -1)), light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, 1.f, diffuse, specular);
         }
 
         for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -72,15 +72,19 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 
             float3 lightDirection = light.mPosition.xyz - worldPos.xyz;
             float dist = length(lightDirection);
-            //lightDirection /= dist;
+            lightDirection /= dist;
             float att = Attenuation(dist, 5.f);
 
-            GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a * 0.003f, att, diffuse, specular);
+            GetBRDF(mat, viewDirection, lightDirection, light.mColorAndIntensity.rgb, light.mColorAndIntensity.a, att, diffuse, specular);
         }
 
-        GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a * 0.005f, 1.f, diffuse, specular);
+        GetBRDF(mat, viewDirection, viewDirection, lightInfo.ambientLightIntensity.rgb, lightInfo.ambientLightIntensity.a, 1.f, diffuse, specular);
 
         result.rgb = (diffuse + specular) * mat.occlusionColor + mat.emissiveColor;
+        
+        result.rgb *= lightInfo.exposure; // e.g. exposure = 1.0 .. 2.0 (or make it a slider)
+        result.rgb = ToneMapReinhard(result.rgb);
+        
         result.rgb = LinearToSRGB(result.rgb);
         result.a = 1.f;
         FinalRes[DispatchThreadID.xy] = result;

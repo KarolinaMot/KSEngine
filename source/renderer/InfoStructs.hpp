@@ -143,7 +143,8 @@ struct LightInfo
 {
     uint32_t numDirLights = 0;
     uint32_t numPointLights = 0;
-    uint32_t padding[2];
+    float exposure = 0.f;
+    uint32_t padding;
     glm::vec4 mAmbientAndIntensity = glm::vec4(1.f);
 };
 

@@ -108,7 +108,7 @@ KS::Editor::~Editor() {}
 
 void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float fps, float ms,
                                bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
-                               ComponentTransform& camTransform)
+                               ComponentTransform& camTransform, float& exposure)
 {
     ImGui::DockSpaceOverViewport();
     ChooseScene(scenes, sceneCount, sceneIndex);
@@ -118,7 +118,7 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     TransformWindow(*scenes[sceneIndex].get());
 
     bool m_vSyncOn = device.GetVSync();
-    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced, m_vSyncOn);
+    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced, m_vSyncOn, exposure);
     device.SetVSync(m_vSyncOn);
 
     CameraWindow(info, camTransform);
@@ -281,7 +281,8 @@ void KS::Editor::TransformWindow(Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced, bool& vSync)
+void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced,
+                            bool& vSync, float& exposure)
 {
     bool open = true;
     ImGui::Begin("DT window", &open);
@@ -313,6 +314,9 @@ void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSampl
         glm::clamp(giSample, 0, 64);
         glm::clamp(shadowSample, 0, 16);
     }
+
+    ImGui::DragFloat("Exposure", &exposure, 4, 0);
+
 
     ImGui::End();
 }

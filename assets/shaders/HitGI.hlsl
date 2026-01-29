@@ -95,7 +95,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
         float3 halfAngle = normalize(viewDirection + lightDir);
         float vDotH = clamp(dot(viewDirection, halfAngle), 0.0, 1.0);
         float nDotL = clamp(dot(material.normalColor, lightDir), 0.0, 1.0);
-        result += LambertianDiffuse(material.diffuse, material.F0, float3(1.0, 1.0, 1.0), vDotH) * light.mColorAndIntensity.rgb * light.mColorAndIntensity.a * 0.005f * nDotL;
+        result += LambertianDiffuse(material.diffuse, material.F0, float3(1.0, 1.0, 1.0), vDotH) * light.mColorAndIntensity.rgb * light.mColorAndIntensity.a * nDotL;
     }
     
     for (uint j = 0; j < lightInfo.numPointLight; j++)
@@ -109,7 +109,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
         float3 halfAngle = normalize(viewDirection + lightDirection);
         float vDotH = clamp(dot(viewDirection, halfAngle), 0.0, 1.0);
         float nDotL = clamp(dot(material.normalColor, lightDirection), 0.0, 1.0);
-        result += LambertianDiffuse(material.diffuse, material.F0, float3(1.0, 1.0, 1.0), vDotH) * light.mColorAndIntensity.rgb * light.mColorAndIntensity.a * 0.005f * att * nDotL;
+        result += LambertianDiffuse(material.diffuse, material.F0, float3(1.0, 1.0, 1.0), vDotH) * light.mColorAndIntensity.rgb * light.mColorAndIntensity.a * att * nDotL;
     }
     
     payload.lightIntensityAndDistance = float4(result, t);

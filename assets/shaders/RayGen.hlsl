@@ -72,7 +72,7 @@ bool NormalCompatible(float3 currN, float3 prevN);
     
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
-    bool valid = false;
+    bool valid = true;
     if (!emptyPixel)
     {
         uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
@@ -85,11 +85,7 @@ bool NormalCompatible(float3 currN, float3 prevN);
 
         if (ok)
         {
-
             Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, prevPix, prevDepth, prevNormal);
-            
-            valid = DepthCompatible(depthValue, prevDepth);
-            valid &= NormalCompatible(mat.normalColor, prevNormal);
 
             if (valid)
             {
