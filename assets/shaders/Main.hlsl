@@ -59,7 +59,7 @@ StructuredBuffer<PointLight> pointLights : register(t3);
 
     if (!emptyPixel)
     {
-
+        
         for (uint i = 0; i < lightInfo.numDirLight; i++)
         {
             DirLight light = dirLights[i];
