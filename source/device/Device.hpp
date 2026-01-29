@@ -55,8 +55,8 @@ public:
     void InitializeImGUI();
     void ResizeSwapchain(uint32_t newWidth, uint32_t newHeight);
     void SetVSync(bool value) { m_vSyncOn = value; }
-    unsigned int GetFrameIndex() const { return m_gpu_frame; }
-    unsigned int GetCPUFrameIndex() const { return m_cpu_frame; }
+    unsigned int GetFrameIndex() const { return m_frameIndex; }
+    unsigned int GetPrevFrameIndex() const { return m_prevFrameIndex; }
 
     int GetSwapchainWidth() const { return m_swapchainWidth; }
     int GetSwapchainHeight() const { return m_swapchainHeight; }
@@ -78,8 +78,8 @@ private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
     bool m_window_open {};
-    unsigned int m_gpu_frame = 0;
-    unsigned int m_cpu_frame = 0;
+    unsigned int m_frameIndex = 0;
+    unsigned int m_prevFrameIndex = 0;
     bool m_fullscreen = false;
     int m_swapchainWidth, m_swapchainHeight;
     int m_windowWidth, m_windowHeight;

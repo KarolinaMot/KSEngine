@@ -378,7 +378,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[RT_TEMPORAL_RENDER]->GetShader()->GetShaderInput();
     auto frameIndex = device.GetFrameIndex();
-    auto prevFrameIndex = device.GetCPUFrameIndex();
+    auto prevFrameIndex = device.GetPrevFrameIndex();
 
     auto rtTexture = scene.GetRenderTarget(RT_TEMPORAL_RENDER)->GetTexture(frameIndex, 0).get();
     auto giHistory = scene.GetRenderTarget(SUPER_SAMPLED_GI)->GetTexture(frameIndex, 0).get();

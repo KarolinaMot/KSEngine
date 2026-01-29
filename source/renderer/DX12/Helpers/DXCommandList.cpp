@@ -160,7 +160,7 @@ void DXCommandList::BindHeapResource(const DXResource& resource, const DXHeapHan
 }
 
 void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHandle* handles,
-                                      std::unique_ptr<DXResource>& depthResource, const DXHeapHandle& dsvHandle,
+                                      std::unique_ptr<DXResource>& , const DXHeapHandle& dsvHandle,
                                       unsigned int numRtv)
 {
     if (!m_isOpen)
@@ -187,13 +187,11 @@ void DXCommandList::BindRenderTargets(DXResource** rtResources, const DXHeapHand
         return;
     }
 
-    m_allocator->TrackResource(depthResource->GetResource());
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle = dsvHandle.GetAddressCPU();
     m_command_list->OMSetRenderTargets(static_cast<UINT>(rtvHandles.size()), rtvHandles.data(), FALSE, &depthHandle);
 }
 
-void DXCommandList::BindRenderTargets(const DXResource& resource, const DXHeapHandle& rtvHeapSlot)
+void DXCommandList::BindRenderTargets(const DXResource&, const DXHeapHandle& rtvHeapSlot)
 {
     if (!m_isOpen)
     {
@@ -207,7 +205,6 @@ void DXCommandList::BindRenderTargets(const DXResource& resource, const DXHeapHa
     }
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtHandle = rtvHeapSlot.GetAddressCPU();
     m_command_list->OMSetRenderTargets(1, &rtHandle, FALSE, nullptr);
-    m_allocator->TrackResource(resource.GetResource());
 }
 
 void DXCommandList::BindBuffer(const DXResource& resource, int rootParameter, size_t elementSize, int offsetElement)
@@ -220,7 +217,7 @@ void DXCommandList::BindBuffer(const DXResource& resource, int rootParameter, si
     m_allocator->TrackResource(resource.GetResource());
 }
 
-void DXCommandList::ClearRenderTargets(const DXResource& rtResource, const DXHeapHandle& handle, const float* clearData)
+void DXCommandList::ClearRenderTargets(const DXResource&, const DXHeapHandle& handle, const float* clearData)
 {
     if (!m_isOpen)
     {
@@ -234,10 +231,9 @@ void DXCommandList::ClearRenderTargets(const DXResource& rtResource, const DXHea
     }
 
     m_command_list->ClearRenderTargetView(handle.GetAddressCPU(), clearData, 0, nullptr);
-    m_allocator->TrackResource(rtResource.GetResource());
 }
 
-void DXCommandList::ClearDepthStencils(const DXResource& depthResource, const DXHeapHandle& handle)
+void DXCommandList::ClearDepthStencils(const DXResource&, const DXHeapHandle& handle)
 {
     if (!m_isOpen)
     {
@@ -251,44 +247,16 @@ void DXCommandList::ClearDepthStencils(const DXResource& depthResource, const DX
     }
 
     m_command_list->ClearDepthStencilView(handle.GetAddressCPU(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    m_allocator->TrackResource(depthResource.GetResource());
 }
 
 void DXCommandList::BindVertexData(DXResource& buffer, uint32_t inputSlot, D3D12_VERTEX_BUFFER_VIEW& view)
 {
-    //D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
-    //vertexBufferView.BufferLocation = buffer.GetResource()->GetGPUVirtualAddress() + elementOffset * bufferStride;
-    //vertexBufferView.StrideInBytes = bufferStride;
-    //vertexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
-
     m_command_list->IASetVertexBuffers(inputSlot, 1, &view);
     m_allocator->TrackResource(buffer.GetResource());
 }
 
 void DXCommandList::BindIndexData(DXResource& buffer, D3D12_INDEX_BUFFER_VIEW& view)
 {
-    //D3D12_INDEX_BUFFER_VIEW indexBufferView {};
-    //indexBufferView.BufferLocation = buffer.Get()->GetGPUVirtualAddress() + elementOffset * bufferStride;
-    //indexBufferView.SizeInBytes = elementCount ? elementCount * bufferStride : buffer.GetResourceSize();
-
-    //TransitionResource(buffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-
-    //switch (bufferStride)
-    //{
-    //case sizeof(unsigned char):
-    //    indexBufferView.Format = DXGI_FORMAT_R8_UINT;
-    //    break;
-    //case sizeof(unsigned short):
-    //    indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-    //    break;
-    //case sizeof(unsigned int):
-    //    indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-    //    break;
-    //default:
-    //    indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-    //    break;
-    //}
-
     m_command_list->IASetIndexBuffer(&view);
     m_allocator->TrackResource(buffer.GetResource());
 }
@@ -306,8 +274,6 @@ void DXCommandList::DrawIndexed(int indexCount, int instancesCount, int instance
 void DXCommandList::CopyResource(DXResource& source, DXResource& dest)
 {
     m_command_list->CopyResource(dest.Get(), source.Get());
-    m_allocator->TrackResource(dest.GetResource());
-    m_allocator->TrackResource(source.GetResource());
 }
 
 void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY, uint32_t threadGroupZ)
@@ -327,7 +293,7 @@ void DXCommandList::DispatchShader(uint32_t threadGroupX, uint32_t threadgGroupY
     m_command_list->Dispatch(threadGroupX, threadgGroupY, threadGroupZ);
 }
 
-void DXCommandList::TransitionResource(DXResource& buffer, D3D12_RESOURCE_STATES dstState)
+void DXCommandList::TransitionResource(DXResource& buffer, D3D12_RESOURCE_STATES dstState, bool trackResource)
 {
     if (!m_isOpen)
     {
@@ -340,6 +306,7 @@ void DXCommandList::TransitionResource(DXResource& buffer, D3D12_RESOURCE_STATES
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.GetResource().Get(), buffer.GetState(), dstState);
     m_command_list->ResourceBarrier(1, &barrier);
     buffer.ChangeState(dstState);
+    if (trackResource)
     m_allocator->TrackResource(buffer.GetResource());
 }
 

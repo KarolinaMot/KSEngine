@@ -114,7 +114,6 @@ int main()
 
     auto sanMiguelModel =
     KS::ModelImporter::ImportFromFile("assets/models/SanMiguel.glb", aiProcess_FindInstances).value();
-    //auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);

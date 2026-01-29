@@ -307,8 +307,8 @@ void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSampl
 
     if (raytraced)
     {
-        ImGui::DragInt("Number of GI samples", &giSample, 4);   
-        ImGui::DragInt("Number of shadow samples", &shadowSample, 4);
+        ImGui::DragInt("Number of GI samples", &giSample, 4, 1);   
+        ImGui::DragInt("Number of shadow samples", &shadowSample, 4, 1);
 
         glm::clamp(giSample, 0, 64);
         glm::clamp(shadowSample, 0, 16);

@@ -23,7 +23,7 @@ void KS::ComputeRenderer::Render(Device& device, DXCommandContext* commandContex
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
     auto frameIndex = device.GetFrameIndex();
-    auto prevFrameIndex = device.GetCPUFrameIndex();
+    auto prevFrameIndex = device.GetPrevFrameIndex();
 
     for (int i = 0; i < par.inputs->size(); i++)
     {

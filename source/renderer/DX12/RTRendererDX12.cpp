@@ -22,9 +22,7 @@
 #include <scene/Scene.hpp>
 #include <renderer/TLAS.hpp>
 
-KS::RTRenderer::RTRenderer(const Device& device, std::shared_ptr<Shader>& shader) : SubRenderer(device, shader) {
-
-}
+KS::RTRenderer::RTRenderer(const Device& device, std::shared_ptr<Shader>& shader) : SubRenderer(device, shader) {}
 
 KS::RTRenderer::~RTRenderer() {}
 
@@ -32,11 +30,10 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
 {
     auto commandList = commandContext->m_commandList.get();
     auto frameIndex = device.GetFrameIndex();
-    auto prevFrameIndex = device.GetCPUFrameIndex();
+    auto prevFrameIndex = device.GetPrevFrameIndex();
     auto resourceHeap = reinterpret_cast<DXDescHeap*>(par.scene->GetResourceHeap());
 
-    if (par.rt) 
-        par.rt->GetTexture(frameIndex, 0)->TransitionToRW(resourceHeap, *commandList);
+    if (par.rt) par.rt->GetTexture(frameIndex, 0)->TransitionToRW(resourceHeap, *commandList);
 
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
@@ -69,6 +66,6 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
     commandList->GetCommandList()->SetPipelineState1(pipeline->m_pipeline.Get());
     // Dispatch the rays and write to the raytracing output
     commandList->GetCommandList()->DispatchRays(&desc);
-    
+
     m_frameCount++;
 }

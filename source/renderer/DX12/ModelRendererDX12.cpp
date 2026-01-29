@@ -62,7 +62,7 @@ void KS::ModelRenderer::Render(Device& device, DXCommandContext* commandContext,
     auto texturesRoot = shaderInput->GetInput("textures").rootIndex;
     int shaderFlags = m_shader->GetFlags();
     auto frameIndex = device.GetFrameIndex();
-    auto prevFrameIndex = device.GetCPUFrameIndex();
+    auto prevFrameIndex = device.GetPrevFrameIndex();
 
     par.rt->Bind(*commandList, frameIndex, par.ds.get());
 

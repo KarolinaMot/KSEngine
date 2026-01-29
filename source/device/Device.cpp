@@ -81,7 +81,7 @@ KS::Device::Device(const DeviceInitParams& params)
     m_window_open = true;
     m_clear_color = params.clear_color;
     m_impl->InitializeDevice(params);
-    m_gpu_frame = 0;
+    m_frameIndex = 0;
 }
 
 KS::Device::~Device()
@@ -122,23 +122,30 @@ void KS::Device::NewFrame()
 
     m_window_open = !glfwWindowShouldClose(m_impl->m_window);
     glfwGetWindowSize(m_impl->m_window, &m_windowWidth, &m_windowHeight);
-    m_gpu_frame = m_impl->GetFramebufferIndex();
+    m_frameIndex = m_impl->GetFramebufferIndex();
+    m_impl->m_fence_values[m_frameIndex].Wait();
+    m_prevFrameIndex = (m_frameIndex + 1) % FRAME_BUFFER_COUNT;
+
     if (m_windowWidth != m_swapchainWidth || m_windowHeight != m_swapchainHeight)
     {
-        int waitFrame = (m_gpu_frame + 1) % FRAME_BUFFER_COUNT;
-        m_impl->m_fence_values[m_gpu_frame].Wait();
-        m_impl->m_fence_values[waitFrame].Wait();
+        commandContext.Close();
+
+        m_impl->m_fence_values[m_frameIndex] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
+        m_impl->m_fence_values[m_frameIndex].Wait();
+        m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_frameIndex].GetFutureValue());
         m_impl->m_commandPool->RetireCompleted();
 
         ResizeSwapchain(m_windowWidth, m_windowHeight);
+
+        commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
+        commandList = commandContext.m_commandList;
     }
 
-    m_cpu_frame = (m_gpu_frame + 1) % FRAME_BUFFER_COUNT;
     m_impl->m_commandPool->RetireCompleted();
-    m_impl->m_uploadArena->Recycle(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
+    m_impl->m_uploadArena->Recycle(m_impl->m_fence_values[m_frameIndex].GetFutureValue());
 
-    m_swapchainRT->Bind(*commandList, m_gpu_frame, m_swapchainDS.get());
-    m_swapchainRT->Clear(*commandList, m_gpu_frame);
+    m_swapchainRT->Bind(*commandList, m_frameIndex, m_swapchainDS.get());
+    m_swapchainRT->Clear(*commandList, m_frameIndex);
     m_swapchainDS->Clear(*commandList);
 
     ImGui::GetIO().DisplaySize.x = static_cast<float>(m_windowWidth);
@@ -172,25 +179,23 @@ void KS::Device::EndFrame()
     auto resourceHeap = m_impl->m_descriptor_heaps[Impl::DXHeaps::IMGUI_HEAP].get();
     commandList->BindDescriptorHeaps(resourceHeap, nullptr, nullptr);
 
-    m_swapchainRT->Bind(*commandList, m_gpu_frame, m_swapchainDS.get());
+    m_swapchainRT->Bind(*commandList, m_frameIndex, m_swapchainDS.get());
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList->GetCommandList().Get());
 
-    m_swapchainRT->PrepareToPresent(*commandList, m_gpu_frame);
+    m_swapchainRT->PrepareToPresent(*commandList, m_frameIndex);
     commandContext.Close();
 
-    m_impl->m_fence_values[m_cpu_frame] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
-    m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_cpu_frame].GetFutureValue());
+    m_impl->m_fence_values[m_frameIndex] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
+    m_impl->m_uploadArena->OnSubmit(m_impl->m_fence_values[m_frameIndex].GetFutureValue());
 
     if (FAILED(m_impl->m_swapchain->Present(m_vSyncOn, 0)))
     {
         LOG(Log::Severity::FATAL, "Failed to present");
     }
 
-    m_impl->m_fence_values[m_cpu_frame].Wait();
-
     ImGui::EndFrame();
     ImGui::UpdatePlatformWindows();
-}
+ }
 
 void KS::Device::InitializeSwapchain()
 {
@@ -254,10 +259,9 @@ void KS::Device::ResizeSwapchain(uint32_t newWidth, uint32_t newHeight)
     m_swapchainWidth = newWidth;
     m_swapchainHeight = newHeight;
 
-    //EndFrame();
-    //m_impl->m_fence_values[nextCpuFrame].Wait();
-
     // Release old render targets and depth buffer
+    reinterpret_cast<DXResource*>(m_swapchainRT->GetTexture(0, 0)->GetResource())->GetResource().ReleaseAndGetAddressOf();
+    reinterpret_cast<DXResource*>(m_swapchainRT->GetTexture(1, 0)->GetResource())->GetResource().ReleaseAndGetAddressOf();
     m_swapchainRT.reset();
     m_swapchainDS.reset();
 
@@ -272,7 +276,7 @@ void KS::Device::ResizeSwapchain(uint32_t newWidth, uint32_t newHeight)
     InitializeSwapchain();
     // Note: buffer count, format, and flags should match original creation.
 
-    m_gpu_frame = m_impl->m_swapchain->GetCurrentBackBufferIndex();
+    m_frameIndex = m_impl->m_swapchain->GetCurrentBackBufferIndex();
 }
 
 void KS::Device::Impl::CreateSwapchain(uint32_t newWidth, uint32_t newHeight, DXFactory* factory, HWND HWNDwindow)
@@ -307,7 +311,7 @@ void KS::Device::Impl::CreateSwapchain(uint32_t newWidth, uint32_t newHeight, DX
 
 void KS::Device::CopyToSwapchainRT(DXCommandList& commandList, std::shared_ptr<RenderTarget> rt)
 {
-    m_swapchainRT->CopyTo(commandList, m_cpu_frame, rt, 0, 0);
+    m_swapchainRT->CopyTo(commandList, m_prevFrameIndex, rt, 0, 0);
 }
 
 KS::UploadArena* KS::Device::GetUploadArena() const { return m_impl->m_uploadArena.get(); }
@@ -330,7 +334,7 @@ void KS::Device::Impl::InitializeWindow(const DeviceInitParams& params)
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 
     m_monitor = glfwGetPrimaryMonitor();
 
@@ -348,7 +352,19 @@ void KS::Device::Impl::InitializeWindow(const DeviceInitParams& params)
         LOG(Log::Severity::FATAL, "GLFW window could not be created.");
     }
 
-    glfwMakeContextCurrent(m_window);
+    // Center on primary monitor (use work area, not full video mode)
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+
+    int mx, my, mw, mh;
+    glfwGetMonitorWorkarea(monitor, &mx, &my, &mw, &mh);
+
+    int ww, wh;
+    glfwGetWindowSize(m_window, &ww, &wh);
+
+    int x = mx + (mw - ww) / 2;
+    int y = my + (mh - wh) / 2;
+    glfwSetWindowPos(m_window, x, y);
+
     glfwShowWindow(m_window);
     glfwSetWindowCloseCallback(m_window, window_close_callback);
 }

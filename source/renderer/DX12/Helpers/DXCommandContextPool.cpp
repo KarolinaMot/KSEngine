@@ -33,12 +33,13 @@ void DXCommandContextPool::RetireCompleted()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    for (auto& ctx : m_inFlight)
+    while (!m_inFlight.empty())
     {
-        if (!ctx.m_future.IsComplete()) return;
+        DXCommandContext& front = m_inFlight.front();
+        if (!front.m_future.IsComplete()) break;
 
-        ctx.m_commandAllocator->Reset();
-        m_free.push(std::move(ctx));
+        front.m_commandAllocator->Reset();
+        m_free.push(std::move(front));
         m_inFlight.pop_front();
     }
 }

@@ -541,6 +541,7 @@ void KS::RenderTarget::AddTexture(Device& device, std::shared_ptr<Texture> textu
     texture1->m_impl->mTextureBuffer->Get()->SetName(wString);
     texture2->m_impl->mTextureBuffer->Get()->SetName(wString);
 }
+
 void KS::RenderTarget::Bind(DXCommandList& commandList, uint32_t frameIndex, const DepthStencil* depth) const
 {
     if (m_textureCount <= 0)
@@ -591,7 +592,7 @@ void KS::RenderTarget::CopyTo(DXCommandList& commandList, uint32_t frameIndex, s
     auto& dstTexBuffer = m_textures[frameIndex][dstRTIndex]->m_impl->mTextureBuffer;
     auto& srcTexBuffer = sourceRT->GetTexture(frameIndex, sourceRtIndex)->m_impl->mTextureBuffer;
 
-    commandList.TransitionResource(*dstTexBuffer,  D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList.TransitionResource(*dstTexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, false);
     sourceRT->SetCopyFrom(commandList, frameIndex, sourceRtIndex);
     commandList.CopyResource(*srcTexBuffer.get(), *dstTexBuffer.get());
 }
@@ -599,7 +600,7 @@ void KS::RenderTarget::CopyTo(DXCommandList& commandList, uint32_t frameIndex, s
 void KS::RenderTarget::SetCopyFrom(DXCommandList& commandList, uint32_t frameIndex, int rtIndex)
 {
     auto& texBuffer = m_textures[frameIndex][rtIndex]->m_impl->mTextureBuffer;
-    commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, false);
 }
 
 void KS::RenderTarget::PrepareToPresent(DXCommandList& commandList, uint32_t frameIndex)
@@ -608,7 +609,7 @@ void KS::RenderTarget::PrepareToPresent(DXCommandList& commandList, uint32_t fra
     {
         auto& texBuffer = m_textures[frameIndex][i]->m_impl->mTextureBuffer;
 
-        commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_PRESENT);
+        commandList.TransitionResource(*texBuffer, D3D12_RESOURCE_STATE_PRESENT, false);
     }
 }
 
