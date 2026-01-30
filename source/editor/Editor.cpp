@@ -106,25 +106,11 @@ KS::Editor::Editor(Device& device)
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float fps, float ms,
-                               bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
-                               ComponentTransform& camTransform, float& exposure)
+void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t, float fps, float ms,
+                               bool& recompileShaders, uint32_t numLights, uint32_t numMeshes, bool& raytraced, int& sceneIndex,
+                               ComponentFirstPersonCamera& info, ComponentTransform& camTransform, float& exposure)
 {
     ImGui::DockSpaceOverViewport();
-    ChooseScene(scenes, sceneCount, sceneIndex);
-    int shadowSample = scenes[sceneIndex]->GetShadowSample();
-    int giSamples = scenes[sceneIndex]->GetGISample();
-    SceneHierarchy(*scenes[sceneIndex].get());
-    TransformWindow(*scenes[sceneIndex].get());
-
-    bool m_vSyncOn = device.GetVSync();
-    InfoWindow(fps, ms, shadowSample, giSamples, recompileShaders, raytraced, m_vSyncOn, exposure);
-    device.SetVSync(m_vSyncOn);
-
-    CameraWindow(info, camTransform);
-
-    scenes[sceneIndex]->SetGISample(giSamples);
-    scenes[sceneIndex]->SetShadowSample(shadowSample);
 
     auto frameIndex = device.GetFrameIndex();
     uint64_t gpuPtr;
@@ -132,21 +118,24 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     auto heap = reinterpret_cast<DXDescHeap*>(device.GetImguiHeap());
     scenes[sceneIndex]->GetFinalRTInfo(device, heap, frameIndex, gpuPtr, width, height);
     Viewport(gpuPtr, width, height);
-}
 
-void KS::Editor::ChooseScene(std::unique_ptr<Scene>* scenes, uint32_t sceneCount, int& index)
-{
-    bool open = true;
-    ImGui::Begin("Choose scene", &open);
+    int shadowSample = scenes[sceneIndex]->GetShadowSample();
+    int giSamples = scenes[sceneIndex]->GetGISample();
+    bool m_vSyncOn = device.GetVSync();
+    InfoWindow(numLights, numMeshes, fps, ms, shadowSample, giSamples, recompileShaders, raytraced, m_vSyncOn, exposure);
+    device.SetVSync(m_vSyncOn);
 
-    for (uint32_t i = 0; i < sceneCount; i++)
+    if (m_showEditor)
     {
-        if (ImGui::RadioButton(scenes[i]->GetName().c_str(), &index, scenes[i]->GetIndex()))
-        { /* changed to Path */
-        }
+        SceneHierarchy(*scenes[sceneIndex].get());
+        TransformWindow(*scenes[sceneIndex].get());
+
+        CameraWindow(info, camTransform);
     }
 
-    ImGui::End();
+    scenes[sceneIndex]->SetGISample(giSamples);
+    scenes[sceneIndex]->SetShadowSample(shadowSample);
+
 }
 
 void KS::Editor::SceneHierarchy(Scene& scene)
@@ -281,18 +270,36 @@ void KS::Editor::TransformWindow(Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced,
+void KS::Editor::InfoWindow(uint32_t numLights, uint32_t numMeshes, float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced,
                             bool& vSync, float& exposure)
 {
     bool open = true;
-    ImGui::Begin("DT window", &open);
+
+    ImGui::Begin("Show Editor", &open);
+    ImGui::Checkbox("Show editor windows", &m_showEditor);
+    ImGui::End();
+
+    if (!m_showEditor)
+    {
+        return;
+    }
+
+    ImGui::Begin("Scene info", &open);
+
     ImGui::Text(("FPS: " + std::format("{:.2f}", fps)).c_str());
     ImGui::Text(("Ms: " + std::format("{:.2f}", ms)).c_str());
+    ImGui::Text(("Number of lights: " + std::to_string(numLights)).c_str());
+    ImGui::Text(("Number of meshes: " + std::to_string(numMeshes)).c_str());
+
+    ImGui::Spacing();
 
     if (ImGui::Button("Recompile shaders"))
     {
         recompileShaders = true;
     }
+
+    ImGui::Spacing();
+
 
     bool currentVSync = vSync;
     if (ImGui::Checkbox("VSync", &currentVSync))
@@ -305,6 +312,8 @@ void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSampl
     {
         raytraced = !raytraced;
     }
+
+    ImGui::Spacing();
 
     if (raytraced)
     {
@@ -437,9 +446,12 @@ void KS::Editor::AmbientLightInspector(Scene& scene)
 
 void KS::Editor::Viewport(uint64_t imagePtr, uint32_t, uint32_t)
 {
-    ImGui::Begin("Viewport");
-    // Note that we pass the GPU SRV handle here, *not* the CPU handle. We're passing the internal pointer value, cast to an
-    // ImTextureID
+    bool open = true;
+    int FULL_SCREEN_FLAGS = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+                                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+
+    ImGui::Begin("Viewport", &open, m_showEditor ? 0 : FULL_SCREEN_FLAGS);
     ImVec2 viewportSize = ImGui::GetWindowSize();
     m_viewportSize.x = static_cast<int>(viewportSize.x);
     m_viewportSize.y = static_cast<int>(viewportSize.y);

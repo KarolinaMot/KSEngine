@@ -175,6 +175,8 @@ int main()
         auto it = view.each().begin();
         auto [e, cameraInfo, camTransform] = *it;
         editor->RenderWindows(*device, scenes, KS::ScenesToChoose::COUNT, frametimer.GetFPS(), frametimer.GetMS(), recomp,
+                              activeScene->GetLightInfo().numDirLights + activeScene->GetLightInfo().numPointLights,
+                              activeScene->GetDrawQueueSize(),
                               raytraced,
                               chosenScene,
                               cameraInfo, camTransform, exposure);
