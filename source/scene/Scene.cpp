@@ -324,6 +324,9 @@ void KS::Scene::Tick(Device& device)
     auto& commandList = commandContext.m_commandList;
     auto frameIndex = device.GetFrameIndex();
 
+    if (device.GetWindowResize())
+        SetUpdateSuperSampler();
+
     mUniformBuffers[LIGHT_INFO_BUFFER]->Update(device, m_lightInfo);
 
     if (m_updateDirLights)

@@ -63,6 +63,7 @@ public:
     int GetWindowWidth() const { return m_windowWidth; }
     int GetWindowHeight() const { return m_windowHeight; }
     bool GetVSync() const { return m_vSyncOn; }
+    bool GetWindowResize() const { return m_windowResize; }
     //RenderTarget* GetRenderTarget() { return m_swapchainRT.get(); };
     //DepthStencil* GetDepthStencil() { return m_swapchainDS.get(); };
     void CopyToSwapchainRT(DXCommandList& commandList, std::shared_ptr<RenderTarget> rt);
@@ -87,6 +88,7 @@ private:
     std::shared_ptr<RenderTarget> m_swapchainRT;
     std::shared_ptr<DepthStencil> m_swapchainDS;
     bool m_vSyncOn = true;
+    bool m_windowResize = false;
 };
 
 } // namespace KS

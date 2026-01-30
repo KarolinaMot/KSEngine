@@ -104,7 +104,7 @@ void SpatialReuse(
         SpatialReuse(launchIndex, dims, depthValue, mat.normalColor, worldPos, viewDirection, mat, DIReservoirA, DIReservoirB, currentR, seed);
 
         directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
-
+        
         float4 h = diHistory.Load(loadLocation);
         float3 histDI = h.rgb;
         float histW = h.a;
@@ -116,11 +116,10 @@ void SpatialReuse(
         
         if ((histW > 0.f))
         {
-           // EMA factor (bigger alpha = react faster, less stable)
-            float alpha = 0.1f; // start 0.05–0.2
-
+            float alpha = 1.0f / (histW + 1.0f); // unbiased running average
+            alpha = max(alpha, 1.0f / 64.0f); // don’t get *too* sluggish
             outDI = lerp(histDI, directLighting, alpha);
-            outW = min(histW + 1.0f, 64.0f); // cap to avoid huge weights
+            outW = min(histW + 1.0f, 64.0f);
         }
         else
         {
