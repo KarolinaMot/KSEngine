@@ -85,12 +85,12 @@ KS::Renderer::Renderer(Device& device)
             .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"prev_camera"})
             .Build(device, "RT SIGNATURE");
 
-    m_mipMapShaderInputs = KS::ShaderInputBlueprintBuilder()
-                               .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"mipmap_info"})
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_1"}, KS::ShaderInputMod::READ_WRITE)
+    m_smallSignature = KS::ShaderInputBlueprintBuilder()
+                              .AddUniform(KS::ShaderInputVisibility::COMPUTE, {"mipmap_info", "FXAA_info"})
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_1", "output"}, KS::ShaderInputMod::READ_WRITE)
                                .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_2"}, KS::ShaderInputMod::READ_WRITE)
                                .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_3"}, KS::ShaderInputMod::READ_WRITE)
-                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_0"}, KS::ShaderInputMod::READ_ONLY)
+                               .AddTexture(KS::ShaderInputVisibility::COMPUTE, {"mip_0", "input"}, KS::ShaderInputMod::READ_ONLY)
                                .AddStaticSampler(KS::ShaderInputVisibility::COMPUTE, clampSampler)
                                .Build(device, "MIPMAP SIGNATURE");
 
@@ -169,7 +169,13 @@ KS::Renderer::Renderer(Device& device)
     std::shared_ptr<Shader> mipMapShader = ShaderBuilder()
                                                .SetType(PipelineType::ST_COMPUTE)
                                                .AddShaderPath(ShaderType::COMPUTE_SHADER, "assets/shaders/MipGen.hlsl", L"main")
-                                               .SetGlobalSignature(m_mipMapShaderInputs)
+                                               .SetGlobalSignature(m_smallSignature)
+                                               .Build(device);
+
+    std::shared_ptr<Shader> FXAAShader = ShaderBuilder()
+                                               .SetType(PipelineType::ST_COMPUTE)
+                                               .AddShaderPath(ShaderType::COMPUTE_SHADER, "assets/shaders/FXAA.hlsl", L"CSMain")
+                                               .SetGlobalSignature(m_smallSignature)
                                                .Build(device);
 
     m_subrenderers[MIP_GEN] = std::make_unique<ComputeRenderer>(device, mipMapShader);
@@ -180,6 +186,7 @@ KS::Renderer::Renderer(Device& device)
     m_subrenderers[RT_SPACIAL_RENDER] = std::make_unique<RTRenderer>(device, rtSpacialReuseShader);
     m_subrenderers[CUBEMAP_GEN] = std::make_unique<ComputeRenderer>(device, skyboxShader);
     m_subrenderers[MESH_CULLING] = std::make_unique<ComputeRenderer>(device, cullingShader);
+    m_subrenderers[FXAA_PASS] = std::make_unique<ComputeRenderer>(device, FXAAShader);
 
     m_inputs[DEFERRED_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
     m_inputs[PBR_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(6);
@@ -189,6 +196,7 @@ KS::Renderer::Renderer(Device& device)
     m_inputs[CUBEMAP_GEN] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[CUBEMAP_RENDER] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(2);
     m_inputs[MESH_CULLING] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
+    m_inputs[FXAA_PASS] = std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>>(3);
 
     commandContext.Close();
 }
@@ -237,6 +245,8 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
 
     if (raytraced)
         Raytrace(device, scene);
+
+    Upscale(device, scene, raytraced);
 }
 
 void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>& plane, bool raytraced)
@@ -300,12 +310,6 @@ void KS::Renderer::Main(Device& device, Scene& scene, const std::array<Plane, 6>
 
     m_subrenderers[PBR_RENDER]->Render(device, &commandContext, pbrPar);
 
-    if (!raytraced)
-    {
-        auto boundRT = scene.GetRenderTarget(PBR_RENDER);
-        scene.GetFinalRT()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
-    }
-
     commandContext.Close();
 }
 
@@ -334,20 +338,20 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
 
             m_inputs[MIP_GEN][0] = std::pair<ShaderInput*, ShaderInputBindDesc>(
                 scene.GetUniformBuffer(MIP_GEN_INFO),
-                ShaderInputBindDesc(mipCount, m_mipMapShaderInputs->GetInput("mipmap_info")));
+                ShaderInputBindDesc(mipCount, m_smallSignature->GetInput("mipmap_info")));
 
             if (j + 1 < mipLevel)
                 m_inputs[MIP_GEN][1] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-                texture, ShaderInputBindDesc(j + 1, m_mipMapShaderInputs->GetInput("mip_1")));
+                texture, ShaderInputBindDesc(j + 1, m_smallSignature->GetInput("mip_1")));
             if (j + 2 < mipLevel)
                 m_inputs[MIP_GEN][2] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-                texture, ShaderInputBindDesc(j + 2, m_mipMapShaderInputs->GetInput("mip_2")));
+                texture, ShaderInputBindDesc(j + 2, m_smallSignature->GetInput("mip_2")));
             if (j + 3 < mipLevel)
                 m_inputs[MIP_GEN][3] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-                texture, ShaderInputBindDesc(j + 3, m_mipMapShaderInputs->GetInput("mip_3")));
+                texture, ShaderInputBindDesc(j + 3, m_smallSignature->GetInput("mip_3")));
 
             m_inputs[MIP_GEN][4] = std::pair<ShaderInput*, ShaderInputBindDesc>(
-                texture, ShaderInputBindDesc(m_mipMapShaderInputs->GetInput("mip_0")));
+                texture, ShaderInputBindDesc(m_smallSignature->GetInput("mip_0")));
 
             reinterpret_cast<ComputeRenderer*>(m_subrenderers[MIP_GEN].get())
                 ->SetDispatchSize(static_cast<uint32_t>(1.f / mipDesc.TexelSize.x),
@@ -375,7 +379,6 @@ void KS::Renderer::GenerateMipmaps(Device& device, Scene& scene)
 void KS::Renderer::Raytrace(Device& device, Scene& scene)
 {
     auto commandContext = device.GetCommandContext();
-    auto& commandList = commandContext.m_commandList;
     auto rootSignature = m_subrenderers[RT_TEMPORAL_RENDER]->GetShader()->GetShaderInput();
     auto frameIndex = device.GetFrameIndex();
     auto prevFrameIndex = device.GetPrevFrameIndex();
@@ -478,10 +481,6 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
     defPar.scene = &scene;
     defPar.inputs = &m_inputs[RT_SPACIAL_RENDER];
     m_subrenderers[RT_SPACIAL_RENDER]->Render(device, &commandContext, defPar);
-
-
-    auto boundRT = scene.GetRenderTarget(RT_TEMPORAL_RENDER);
-    scene.GetFinalRT()->CopyTo(*commandList, frameIndex, boundRT, 0, 0);
 
     commandContext.Close();
 }
@@ -614,5 +613,64 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
     scene.SetCulledDrawCallIndicesCount(count);
     if (count < scene.GetDrawQueueSize())
     scene.CreateBatches(device, *commandList);
+    commandContext.Close();
+}
+
+void KS::Renderer::Upscale(Device& device, Scene& scene, bool raytraced)
+{ 
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+
+    auto frameIndex = device.GetFrameIndex();
+
+    auto lastRT = raytraced ? scene.GetRenderTarget(RT_TEMPORAL_RENDER) : scene.GetRenderTarget(PBR_RENDER);
+    auto lastRTTex = lastRT->GetTexture(frameIndex, 0);
+
+    auto lastRTHeight = static_cast<int>(lastRTTex->GetHeight());
+    auto lastRTWidth = static_cast<int>(lastRTTex->GetWidth());
+    auto viewportHeight = device.GetViewportHeight();
+    auto viewportWidth = device.GetViewportWidth();
+    bool fxaa = lastRTHeight != viewportHeight || lastRTWidth != viewportWidth;
+
+    auto finalRTTex = scene.GetFinalRT()->GetTexture(frameIndex, 0);
+    auto finalRTHeight = static_cast<int>(finalRTTex->GetHeight());
+    auto finalRTWidth = static_cast<int>(finalRTTex->GetWidth());
+    auto rootSignature = m_subrenderers[FXAA_PASS]->GetShader()->GetShaderInput();
+
+    if (finalRTHeight != viewportHeight || finalRTWidth != viewportWidth)
+    {
+        finalRTTex->Resize(device, viewportWidth, viewportHeight);
+    }
+
+    if (fxaa)
+    {
+        FXAAInfo fxaaInfo;
+        fxaaInfo.invOutputSize = {1.f / finalRTWidth, 1.f / finalRTHeight};
+        fxaaInfo.outputSize[0] = finalRTWidth;
+        fxaaInfo.outputSize[1] = finalRTHeight;
+        scene.GetUniformBuffer(FXAA_BUFFER)->Update(device, fxaaInfo);
+
+        m_inputs[FXAA_PASS][0] = std::pair<ShaderInput*, ShaderInputDesc>(scene.GetUniformBuffer(FXAA_BUFFER),
+                                                                             rootSignature->GetInput("FXAA_info"));
+        m_inputs[FXAA_PASS][1] = std::pair<ShaderInput*, ShaderInputDesc>(lastRTTex.get(),
+                                                                             rootSignature->GetInput("input"));
+        m_inputs[FXAA_PASS][2] = std::pair<ShaderInput*, ShaderInputDesc>(finalRTTex.get(),
+                                                                             rootSignature->GetInput("output"));
+
+        reinterpret_cast<ComputeRenderer*>(m_subrenderers[FXAA_PASS].get())->SetDispatchSize(finalRTWidth, finalRTHeight, 1);
+
+        RenderParameters defPar{};
+        defPar.clearRt = false;
+        defPar.scene = &scene;
+        defPar.inputs = &m_inputs[FXAA_PASS];
+
+        m_subrenderers[FXAA_PASS]->Render(device, &commandContext, defPar);
+    }
+    else
+    {
+        scene.GetFinalRT()->CopyTo(*commandList, frameIndex, lastRT, 0, 0);
+    
+    }
+
     commandContext.Close();
 }

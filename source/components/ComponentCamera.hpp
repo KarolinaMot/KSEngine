@@ -17,7 +17,7 @@ public:
     float nearPlane = 0.1f;
     float farPlane = 100.0f;
     float aspectRatio = 16.0f / 9.0f;
-    float fieldOfView = glm::radians(90.0f); // for perspective
+    float fieldOfView = glm::radians(75.0f); // for perspective
     float extentSize = 100.0f; // for orthographic
 };
 

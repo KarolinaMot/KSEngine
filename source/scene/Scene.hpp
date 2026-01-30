@@ -70,7 +70,9 @@ public:
     std::pair<std::shared_ptr<Mesh>, ResourceHandle<Mesh>> GetSkydomeMesh() const { return m_skyDomeMesh; };
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,
                                         bool isSrgb = false);
-    void SetUpdateSuperSampler() { m_updateSupersampled = 2; }
+    void SetUpdateSuperSampler() {
+        m_updateSupersampled = 2;
+    }
     void SetUpdateCamera()
     {
         m_cameraUpdated = true;

@@ -441,8 +441,8 @@ void KS::Editor::Viewport(uint64_t imagePtr, uint32_t, uint32_t)
     // Note that we pass the GPU SRV handle here, *not* the CPU handle. We're passing the internal pointer value, cast to an
     // ImTextureID
     ImVec2 viewportSize = ImGui::GetWindowSize();
-    m_viewportSize.x = viewportSize.x;
-    m_viewportSize.y = viewportSize.y;
+    m_viewportSize.x = static_cast<int>(viewportSize.x);
+    m_viewportSize.y = static_cast<int>(viewportSize.y);
     ImGui::Image((ImTextureID)imagePtr, viewportSize);
     ImGui::End();
 }

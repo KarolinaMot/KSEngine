@@ -46,6 +46,8 @@ public:
                       uint32_t mip = 0) override;
     void TransitionToRO(void* resourceHeap, DXCommandList& commandList) const;
     void TransitionToRW(void* resourceHeap, DXCommandList& commandList) const;
+    void Resize(Device& device, uint32_t newWidth, uint32_t newHeight);
+
     inline int GetType() const { return m_flag; }
     inline Formats GetFormat() const { return m_format; }
     GenerateMipsInfo GetMipmapInfo(uint32_t srcMip) const;

@@ -33,7 +33,6 @@ namespace KS
 
 enum SceneObjectTypes
 {
-    // SAN_MIGUEL,
     MESH,
     POINT_LIGHT,
     DIR_LIGHT,
@@ -42,7 +41,6 @@ enum SceneObjectTypes
 
 enum ScenesToChoose
 {
-    //SAN_MIGUEL,
     TEST_SCENE,
     COUNT
 };
@@ -57,6 +55,7 @@ enum Subrenderers
     CUBEMAP_RENDER,
     MIP_GEN,
     MESH_CULLING,
+    FXAA_PASS,
     SUPER_SAMPLED_GI,
     SUPER_SAMPLED_DI,
     NUM_SUBRENDER
@@ -80,6 +79,7 @@ enum UniformBuffers
     MODEL_INDEX_BUFFER,
     MIP_GEN_INFO,
     CAMERA_MAT_BUFFER,
+    FXAA_BUFFER,
     PATH_TRACING_BUFFER,
     CULLING_INFO,
     NUM_UBUFFER
@@ -121,6 +121,12 @@ struct ModelMat
 {
     glm::mat4 mModel = glm::mat4x4(1.f);
     glm::mat4 mTransposed = glm::mat4x4(1.f);
+};
+
+struct FXAAInfo
+{
+    uint32_t outputSize[2];      // width, height of output (PostAA)
+    glm::vec2 invOutputSize;  // 1/width, 1/height
 };
 
 struct DirLightInfo

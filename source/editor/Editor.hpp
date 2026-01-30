@@ -17,7 +17,7 @@ public:
     void RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float fps, float ms,
                        bool& recompileShaders, bool& raytraced, int& sceneIndex, ComponentFirstPersonCamera& info,
                        ComponentTransform& camTransform, float& exposure);
-    glm::vec2 GetViewportSize() const { return m_viewportSize; }
+    glm::ivec2 GetViewportSize() const { return m_viewportSize; }
 
 private:
 
@@ -35,6 +35,6 @@ private:
 
     int m_selectedObject = -1;
     SceneObjectTypes m_type = MESH;
-    glm::vec2 m_viewportSize;
+    glm::ivec2 m_viewportSize = {1, 1};
 };
 }

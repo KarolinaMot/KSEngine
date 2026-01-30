@@ -77,8 +77,8 @@ int main()
 {
 
     KS::DeviceInitParams params {};
-    params.window_width = 1280;
-    params.window_height = 720;
+    params.window_width = 1600;
+    params.window_height = 900;
 #if _DEBUG
     params.debug_context = true;
 #else
@@ -128,7 +128,7 @@ int main()
     glm::vec3 lastCameraRight = glm::vec3(0.f, 0.f, 0.f);
     bool cameraChange = true;
     float exposure = 1.8f;
-
+    glm::ivec2 lastViewportSize{};
     while (device->IsWindowOpen())
     {
         auto dt = frametimer.Tick();
@@ -136,8 +136,9 @@ int main()
         input->ProcessInput();
         device->NewFrame();
 
-        glm::vec2 viewportSize = editor->GetViewportSize();
-        auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count(), viewportSize.x / viewportSize.y);
+        glm::ivec2 viewportSize = editor->GetViewportSize();
+
+        auto camera = FreeCamSystem(input, ecs->GetWorld(), dt.count(), static_cast<float>(viewportSize.x) / viewportSize.y);
        
         if (lastCameraTranslation != camera.GetPosition() || lastCameraRight != camera.GetRight())
         {
@@ -157,10 +158,12 @@ int main()
         cameraChange = false;
 
         Scene* activeScene = scenes[TEST_SCENE].get();
-        switch(chosenScene){
-            case TEST_SCENE:
-                activeScene = scenes[TEST_SCENE].get();
-                break;
+
+        if (viewportSize != lastViewportSize)
+        {
+            activeScene->SetUpdateSuperSampler();
+            lastViewportSize = viewportSize;
+            device->SetViewportSize(lastViewportSize.x, lastViewportSize.y);
         }
 
         activeScene->SetExposure(exposure);

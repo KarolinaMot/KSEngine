@@ -48,11 +48,12 @@ private:
     void GenCubemap(Device& device, Scene& scene);
     void RenderCubemap(Device& device, Scene& scene);
     void Culling(Device& device, Scene& scene);
+    void Upscale(Device& device, Scene& scene, bool raytraced);
 
     std::shared_ptr<ShaderInputBlueprint> m_mainInputs;
     std::shared_ptr<ShaderInputBlueprint> m_rtInputs;
     std::unique_ptr<SubRenderer> m_subrenderers[NUM_SUBRENDER];
     std::vector<std::pair<ShaderInput*, ShaderInputBindDesc>> m_inputs[NUM_SUBRENDER];
-    std::shared_ptr<ShaderInputBlueprint> m_mipMapShaderInputs;
+    std::shared_ptr<ShaderInputBlueprint> m_smallSignature;
 };
 }  // namespace KS

@@ -293,6 +293,37 @@ void KS::Texture::TransitionToRW(void* resourceHeap, DXCommandList& commandList)
     commandList.TransitionResource(*m_impl->mTextureBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
+void KS::Texture::Resize(Device& device, uint32_t newWidth, uint32_t newHeight)
+{
+    m_width = newWidth;
+    m_height = newHeight;
+    auto engineDevice = reinterpret_cast<ID3D12Device5*>(device.GetDevice());
+
+    auto DXGIformat = Conversion::KSFormatsToDXGI(m_format);
+
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = DXGIformat;
+    clearValue.Color[0] = m_clearColor.x;  // Red component
+    clearValue.Color[1] = m_clearColor.y;  // Green component
+    clearValue.Color[2] = m_clearColor.z;  // Blue component
+    clearValue.Color[3] = m_clearColor.w;  // Alpha component
+    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+    if (m_flag & TextureFlags::DEPTH_TEXTURE) flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (m_flag & TextureFlags::RENDER_TARGET) flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (m_flag & TextureFlags::RW_TEXTURE) flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+
+    auto resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(KS::Conversion::KSFormatsToDXGI(m_format), m_width, m_height, 1,
+                                                     static_cast<UINT16>(m_mipLevels), 1, 0, flags);
+
+    CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    m_impl->mTextureBuffer =
+        std::make_unique<DXResource>(engineDevice, heapProperties, resourceDesc, &clearValue, m_name.c_str());
+
+    m_impl->mSRVHeapSlot = DXHeapHandle{};
+    m_impl->mUAVHeapSlots[0] = DXHeapHandle{};
+}
+
 static inline uint32_t FloorLog2(uint32_t v)
 {
     // v >= 1 assumed
@@ -309,6 +340,7 @@ static inline uint32_t FloorLog2(uint32_t v)
 KS::GenerateMipsInfo KS::Texture::GetMipmapInfo(uint32_t srcMip) const
 {
     DWORD mipCount = 0;
+
 
     GenerateMipsInfo generateMipsCB;
     generateMipsCB.IsSRGB = m_format == Formats::R8G8B8A8_UNORM_SRGB;

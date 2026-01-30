@@ -22,6 +22,12 @@ struct PointLight
     float mRadius;
 };
 
+struct FXAAInfo
+{
+    uint2 outputSize; // width, height of output (PostAA)
+    float2 invOutputSize; // 1/width, 1/height
+};
+
 struct PBRMaterial
 {
     float4 baseColor;

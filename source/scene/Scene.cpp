@@ -73,6 +73,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
     
     mUniformBuffers[PATH_TRACING_BUFFER] = std::make_unique<UniformBuffer>(device, "PATH TRACING INFO", m_pathTracingInfo, 1);
 
+    FXAAInfo info{};
+    mUniformBuffers[FXAA_BUFFER] = std::make_unique<UniformBuffer>(device, "FXAA INFO", info, 1);
+
     m_fogInfo.fogColor = glm::vec3(1.f, 1.f, 1.f);
     m_fogInfo.fogDensity = 0.6f;
     m_fogInfo.exposure = 0.15f;
@@ -131,8 +134,10 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
             Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE, glm::vec4(0.0f, 0.0f, 0.0f, 1.f),
             Formats::R32G32B32A32_FLOAT, "superSampledGI " + std::to_string(i));
 
-        finalRT[i] = std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
-                                               Texture::TextureFlags::RENDER_TARGET, glm::vec4(0.f, 0.f, 0.f, 0.f),
+        finalRT[i] =
+            std::make_shared<Texture>(device, device.GetSwapchainWidth(), device.GetSwapchainHeight(),
+                                      Texture::TextureFlags::RENDER_TARGET | Texture::TextureFlags::RW_TEXTURE,
+                                      glm::vec4(0.f, 0.f, 0.f, 0.f),
                                                Formats::R8G8B8A8_UNORM, "finalRT " + std::to_string(i));
 
         m_DIReservoirs[i] = std::make_shared<Texture>(

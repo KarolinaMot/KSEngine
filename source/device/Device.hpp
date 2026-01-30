@@ -55,17 +55,20 @@ public:
     void InitializeImGUI();
     void ResizeSwapchain(uint32_t newWidth, uint32_t newHeight);
     void SetVSync(bool value) { m_vSyncOn = value; }
+    void SetViewportSize(uint32_t newWidth, uint32_t newHeight)
+    {
+        m_viewportHeight = newHeight;
+        m_viewportWidth = newWidth;
+    }
     unsigned int GetFrameIndex() const { return m_frameIndex; }
     unsigned int GetPrevFrameIndex() const { return m_prevFrameIndex; }
 
     int GetSwapchainWidth() const { return m_swapchainWidth; }
     int GetSwapchainHeight() const { return m_swapchainHeight; }
-    int GetWindowWidth() const { return m_windowWidth; }
-    int GetWindowHeight() const { return m_windowHeight; }
+    int GetViewportHeight() const { return m_viewportHeight; }
+    int GetViewportWidth() const { return m_viewportWidth; }
     bool GetVSync() const { return m_vSyncOn; }
     bool GetWindowResize() const { return m_windowResize; }
-    //RenderTarget* GetRenderTarget() { return m_swapchainRT.get(); };
-    //DepthStencil* GetDepthStencil() { return m_swapchainDS.get(); };
     void CopyToSwapchainRT(DXCommandList& commandList, std::shared_ptr<RenderTarget> rt);
     UploadArena* GetUploadArena() const;
 
@@ -82,8 +85,9 @@ private:
     unsigned int m_frameIndex = 0;
     unsigned int m_prevFrameIndex = 0;
     bool m_fullscreen = false;
-    int m_swapchainWidth, m_swapchainHeight;
     int m_windowWidth, m_windowHeight;
+    int m_swapchainWidth, m_swapchainHeight;
+    int m_viewportWidth = 1, m_viewportHeight = 1;
     glm::vec4 m_clear_color;
     std::shared_ptr<RenderTarget> m_swapchainRT;
     std::shared_ptr<DepthStencil> m_swapchainDS;

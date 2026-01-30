@@ -128,7 +128,7 @@ void KS::Device::NewFrame()
 
     if (m_windowWidth != m_swapchainWidth || m_windowHeight != m_swapchainHeight)
     {
-        m_windowResize = true;
+        m_windowResize=true;
         commandContext.Close();
 
         m_impl->m_fence_values[m_frameIndex] = m_impl->m_commandPool->Execute(*m_impl->m_command_queue.get());
@@ -172,9 +172,10 @@ void KS::Device::FlushAndWait()
 
 void KS::Device::EndFrame()
 {
+    m_windowResize = false;
+
     auto commandContext = m_impl->m_commandPool->GetCommandSet(m_impl->m_device);
     auto& commandList = commandContext.m_commandList;
-    m_windowResize = false;
 
     ImGui::Render();
 
