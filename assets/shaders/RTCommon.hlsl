@@ -243,7 +243,7 @@ float3 ShadeChosen(StructuredBuffer<DirLight> dirLights,
         // Normalize direction safely.
         lightDir = toLight / max(dist, 1e-6f);
 
-        att = Attenuation(dist, /*range*/5.f);
+        att = Attenuation(dist, light.mRadius);
         lightColor = light.mColorAndIntensity.rgb;
         lightIntensity = light.mColorAndIntensity.a;
         tmax = dist - 1e-3f;

@@ -266,6 +266,117 @@ bool NormalCompatible(float3 currN, float3 prevN)
     return dot(currN, prevN) > 0.9f; // tune
 }
 
+float2 ConcentricSampleDisk(float2 u)
+{
+    float2 a = 2.0f * u - 1.0f;
+    if (a.x == 0 && a.y == 0)
+        return 0;
+
+    float r, phi;
+    if (abs(a.x) > abs(a.y))
+    {
+        r = a.x;
+        phi = (M_PI / 4.0f) * (a.y / a.x);
+    }
+    else
+    {
+        r = a.y;
+        phi = (M_PI / 2.0f) - (M_PI / 4.0f) * (a.x / a.y);
+    }
+
+    return r * float2(cos(phi), sin(phi));
+}
+
+void MakeOrthonormalBasis(float3 n, out float3 t, out float3 b)
+{
+    float3 up = (abs(n.z) < 0.999f) ? float3(0, 0, 1) : float3(0, 1, 0);
+    t = normalize(cross(up, n));
+    b = cross(n, t);
+}
+
+float3 SampleConeDirection(float3 axis, float cosMax, float2 u)
+{
+    float cosTheta = lerp(cosMax, 1.0f, u.x);
+    float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+    float phi = 2.0f * M_PI * u.y;
+
+    float3 t, b;
+    MakeOrthonormalBasis(axis, t, b);
+
+    return normalize(t * (cos(phi) * sinTheta) + b * (sin(phi) * sinTheta) + axis * cosTheta);
+}
+
+float3 ShadeChosenSoft(StructuredBuffer<DirLight> dirLights,
+                       StructuredBuffer<PointLight> pointLights,
+                       RISSample s,
+                       inout uint seed,
+                       out float3 lightDir,
+                       out float tmax,
+                       float3 worldPos,
+                       float3 viewDirection,
+                       PBRMaterial mat)
+{
+    float3 diff = 0.0f;
+    float3 spec = 0.0f;
+    float att = 1.0f;
+
+    float3 lightColor;
+    float lightIntensity;
+    float2 u = float2(Rand(seed), Rand(seed));
+
+    if (s.lightType == 0u)
+    {
+        DirLight light = dirLights[s.lightIndex];
+
+        // Your code used lightDir = normalize(light.mDir.xyz).
+        // For sun softness: sample around that direction.
+        float3 axis = normalize(light.mDir.xyz);
+        float cosMax = cos(max(light.mAngularRadius, 1e-6f));
+
+        lightDir = SampleConeDirection(axis, cosMax, u);
+
+        lightColor = light.mColorAndIntensity.rgb;
+        lightIntensity = light.mColorAndIntensity.a;
+
+        att = 1.0f;
+        tmax = 1e30f; // "infinite"
+    }
+    else
+    {
+        PointLight light = pointLights[s.lightIndex];
+
+        // Sample a disk on the light, oriented to face the shading point.
+        float3 toC = light.mPosition.xyz - worldPos;
+        float distC = length(toC);
+        float3 z = toC / max(distC, 1e-6f);
+
+        float3 t, b;
+        MakeOrthonormalBasis(z, t, b);
+
+        float2 d = ConcentricSampleDisk(u) * light.mRadius;
+
+        float3 lightSamplePos = light.mPosition.xyz + t * d.x + b * d.y;
+
+        float3 toP = lightSamplePos - worldPos;
+        float distP = length(toP);
+
+        lightDir = toP / max(distP, 1e-6f);
+
+        // IMPORTANT: attenuation must use dist to sampled point (distP), not distC.
+        att = Attenuation(distP, /*range*/5.f);
+
+        lightColor = light.mColorAndIntensity.rgb;
+        lightIntensity = light.mColorAndIntensity.a;
+
+        tmax = distP - 1e-3f;
+    }
+
+    GetBRDF(mat, viewDirection, lightDir,
+            lightColor, lightIntensity, att,
+            diff, spec);
+
+    return diff + spec;
+}
 
 float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 worldPos, float3 viewDirection, float seed, float bias)
 {
@@ -280,14 +391,12 @@ float3 DirectLighting(Reservoir R, PBRMaterial mat, float2 launchIndex, float3 w
         uint shadowSeed = InitSeed(launchIndex);
         float3 lightDir;
         float tmax;
-        float3 c = ShadeChosen(dirLights, pointLights, R.s, lightDir, tmax, worldPos, viewDirection, mat);
-        float visible = 1.f;
-        
-        // Harsh shadows for now
+
+        float3 c = ShadeChosenSoft(dirLights, pointLights, R.s, seed,
+                           lightDir, tmax, worldPos, viewDirection, mat);
 
         ShadowPayload shadowPayload = ShootShadowRay(lightDir, worldPos + mat.normalColor * bias, SceneBVH, tmax);
-            
-        visible = (shadowPayload.hit == 0) ? 1.0f : 0.0f;
+        bool visible = (shadowPayload.hit == 0) ? 1.0f : 0.0f;
 
         // -----------------------------
         // Reservoir normalization

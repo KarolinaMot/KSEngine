@@ -315,7 +315,8 @@ void KS::Editor::InfoWindow(float fps, float ms, int& shadowSample, int& giSampl
         glm::clamp(shadowSample, 0, 16);
     }
 
-    ImGui::DragFloat("Exposure", &exposure, 4, 0);
+    ImGui::DragFloat("Exposure", &exposure, 0.5f, 0.f);
+    exposure = glm::max(0.f, exposure);
 
 
     ImGui::End();
@@ -329,7 +330,10 @@ void KS::Editor::CameraWindow(ComponentFirstPersonCamera& info, ComponentTransfo
     glm::vec3 camPosition = camTransform.GetLocalTranslation();
 
     ImGui::DragFloat3("Camera position", &camPosition[0], 0.1f);
-    ImGui::DragFloat("Camera FoV", &info.fieldOfView, 0.01f);
+    float degfieldOfView = glm::degrees(info.fieldOfView);
+
+    ImGui::DragFloat("Camera FoV (degrees)", &degfieldOfView, 1.f);
+    info.fieldOfView = glm::radians(degfieldOfView);
     ImGui::DragFloat("Camera far plane", &info.farPlane, 0.01f);
     ImGui::DragFloat("Camera near plane", &info.nearPlane, 0.01f);
     camTransform.SetLocalTranslation(camPosition);
@@ -389,9 +393,10 @@ void KS::Editor::PointLightInspector(Scene& scene)
 
     if (ImGui::DragFloat3("Position", &light.mPosition.x, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
-    if (ImGui::DragFloat("QAttenuation", &light.mQuadraticAttenuation, 0.1f)) lightChanged = true;
-    if (ImGui::DragFloat("LAttenuation", &light.mLinearAttenuation, 0.1f)) lightChanged = true;
-    if (ImGui::DragFloat("CAttenuation", &light.mConstantAttenuation, 0.1f)) lightChanged = true;
+    //if (ImGui::DragFloat("QAttenuation", &light.mQuadraticAttenuation, 0.1f)) lightChanged = true;
+    //if (ImGui::DragFloat("LAttenuation", &light.mLinearAttenuation, 0.1f)) lightChanged = true;
+    //if (ImGui::DragFloat("CAttenuation", &light.mConstantAttenuation, 0.1f)) lightChanged = true;
+    if (ImGui::DragFloat("Radius", &light.mRadius, 0.1f)) lightChanged = true;
 
      if (lightChanged)
      scene.UpdatePointLights(m_selectedObject, light);
@@ -413,11 +418,13 @@ void KS::Editor::DirLightInspector(Scene& scene)
     auto light = scene.GetDirLight(m_selectedObject);
 
     bool lightChanged = false;
-
+    float degAngularRadius = glm::degrees(light.mAngularRadius);
     if (ImGui::DragFloat3("Direction", &light.mDir.x, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
-
-     if (lightChanged)
+    if (ImGui::DragFloat("Angular radius (degrees)", &degAngularRadius, 0.25f)) lightChanged = true;
+    light.mAngularRadius = glm::radians(degAngularRadius);
+    
+    if (lightChanged)
      scene.UpdateDirLights(m_selectedObject, light);
 }
 

@@ -166,7 +166,7 @@ Reservoir BuildReservoir(inout uint seed, PBRMaterial mat, float3 viewDir, float
     uint numDL = lightInfo.numDirLight;
     uint numLights = numPL + numDL;
 
-    uint candidatesPerPixel = 4;
+    uint candidatesPerPixel = 2;
     float3 c = 0.0f; // "unshadowed contribution estimate" for candidate
 
     for (int i = 0; i < candidatesPerPixel; i++)

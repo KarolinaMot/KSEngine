@@ -7,7 +7,8 @@ static const float sPi = 3.14159265359;
 
 struct DirLight
 {
-    float4 mDir;
+    float3 mDir;
+    float mAngularRadius;
     float4 mColorAndIntensity;
 };
 
@@ -18,7 +19,7 @@ struct PointLight
     float mLinearAttenuation;
     float mQuadraticAttenuation;
     float mConstantAttenuation;
-    float padding;
+    float mRadius;
 };
 
 struct PBRMaterial

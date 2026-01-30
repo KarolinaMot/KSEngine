@@ -84,7 +84,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
     PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
-
+    
     float3 result = 0.f;
     float3 viewDirection = normalize(WorldRayDirection());
 
@@ -281,9 +281,6 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
     mat.normalColor = mat.normalColor * 2.0 - 1.0;
     mat.normalColor = mul(mat.normalColor, tangentBasis);
-   // mat.normalColor = (mat.normalColor + 1) * 0.5f;
-    
-   // mat.normalColor = normals;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);

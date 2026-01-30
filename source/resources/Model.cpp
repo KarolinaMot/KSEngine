@@ -127,7 +127,8 @@ namespace KS
             color = color / intensity;
             out.mColorAndIntensity = glm::vec4(color, intensity);
             glm::vec3 forward_negZ = glm::normalize(glm::vec3(transform[2]));
-            out.mDir = {forward_negZ.x, forward_negZ.y, forward_negZ.z, 1.f};
+            out.mDir = {forward_negZ.x, forward_negZ.y, forward_negZ.z};
+            out.mAngularRadius = 0.00465f;
             dirLights.push_back(out);
         }
         else if (light->mType == aiLightSource_POINT)

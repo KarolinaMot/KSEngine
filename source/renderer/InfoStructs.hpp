@@ -125,7 +125,8 @@ struct ModelMat
 
 struct DirLightInfo
 {
-    glm::vec4 mDir = { 0.f, 0.0f, 0.0f, 0.f };
+    glm::vec3 mDir = { 0.f, 0.0f, 0.0f };
+    float mAngularRadius = 0.f;
     glm::vec4 mColorAndIntensity = { 0.f, 0.0f, 0.0f, 0.f };
 };
 
@@ -136,7 +137,7 @@ struct PointLightInfo
     float mLinearAttenuation = 0.f;
     float mQuadraticAttenuation = 0.f;
     float mConstantAttenuation = 0.f;
-    float padding;
+    float mRadius = 5.f;
 };
 
 struct LightInfo
