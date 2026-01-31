@@ -402,9 +402,6 @@ void KS::Editor::PointLightInspector(Scene& scene)
 
     if (ImGui::DragFloat3("Position", &light.mPosition.x, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat4("Color and intensity", &light.mColorAndIntensity.x, 0.1f)) lightChanged = true;
-    //if (ImGui::DragFloat("QAttenuation", &light.mQuadraticAttenuation, 0.1f)) lightChanged = true;
-    //if (ImGui::DragFloat("LAttenuation", &light.mLinearAttenuation, 0.1f)) lightChanged = true;
-    //if (ImGui::DragFloat("CAttenuation", &light.mConstantAttenuation, 0.1f)) lightChanged = true;
     if (ImGui::DragFloat("Radius", &light.mRadius, 0.1f)) lightChanged = true;
 
      if (lightChanged)

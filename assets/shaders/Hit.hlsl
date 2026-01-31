@@ -70,13 +70,19 @@ void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
     
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
-    uv.y *= -1;
+    uv.y *=  1 - uv.y;
     float3 tangent = GetTangent(instance, vertId, barycentrics);
-    float3 tangentWS = normalize(mul((float3x3) instanceData[instance].modelMatrix.mModelMat, tangent));
-    tangentWS = normalize(tangentWS - dot(tangentWS, normal) * normal);
-    float3 bitangentWS = normalize(cross(normal, tangentWS));
-    float3x3 TBN = float3x3(tangentWS, bitangentWS, normal);
-    
+    float3 nOS = GetNormal(instance, vertId, barycentrics);
+    float3x3 M = (float3x3) instanceData[instance].modelMatrix.mModelMat;
+
+// if you can guarantee uniform scale, this is okay:
+    float3 nWS = normalize(mul(M, nOS));
+    float3 tOS = GetTangent(instance, vertId, barycentrics);
+    float3 tWS = normalize(mul(M, tOS));
+    tWS = normalize(tWS - dot(tWS, nWS) * nWS);
+    float3 bWS = normalize(cross(nWS, tWS));
+
+    float3x3 TBN = float3x3(tWS, bWS, nWS);
     float t = RayTCurrent();
     float coneRadiusWS = RayTCurrent() * tan(payload.coneAngle);
     float Lu, Lv;

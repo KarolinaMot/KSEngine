@@ -86,8 +86,10 @@ bool NormalCompatible(float3 currN, float3 prevN);
             mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
             mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
             UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-            float3 normalColor = mat.normalColor;
-            mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+            mat.F0 = float3(0.04, 0.04, 0.04);
+            mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+            mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic);
+
             worldPos = matPayload.position;
             viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
             t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
