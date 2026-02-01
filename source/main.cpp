@@ -127,7 +127,7 @@ int main()
     glm::vec3 lastCameraTranslation = glm::vec3(0.f, 0.f, 0.f);
     glm::vec3 lastCameraRight = glm::vec3(0.f, 0.f, 0.f);
     bool cameraChange = true;
-    float exposure = 1.8f;
+    float exposure = 2.f;
     glm::ivec2 lastViewportSize{};
     while (device->IsWindowOpen())
     {

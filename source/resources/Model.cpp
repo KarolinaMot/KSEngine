@@ -125,7 +125,7 @@ namespace KS
             glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
             float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
             color = color / intensity;
-            out.mColorAndIntensity = glm::vec4(color, intensity);
+            out.mColorAndIntensity = glm::vec4(color, std::min(intensity, 5.5f));
             glm::vec3 forward_negZ = glm::normalize(glm::vec3(transform[2]));
             out.mDir = {forward_negZ.x, forward_negZ.y, forward_negZ.z};
             out.mAngularRadius = 0.00465f;
@@ -142,7 +142,7 @@ namespace KS
             glm::vec3 color = {light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b};
             float intensity = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
             color = color / intensity;
-            out.mColorAndIntensity = glm::vec4(color, intensity);
+            out.mColorAndIntensity = glm::vec4(color, std::min(intensity, 100.f));
             pointLights.push_back(out);
         }
     }
