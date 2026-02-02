@@ -105,7 +105,7 @@ int main()
         auto& registry = ecs->GetWorld();
         auto e = registry.create();
 
-        registry.emplace<KS::ComponentTransform>(e, glm::vec3(8.874f, 2.660f, 5.367f));
+        registry.emplace<KS::ComponentTransform>(e, glm::vec3(9.08f, 2.12f, 4.21f), glm::quat(0.569634080f, -0.0765011832f, 0.811048925f, 0.108922906f));
         registry.emplace<KS::ComponentFirstPersonCamera>(e);
     }
 

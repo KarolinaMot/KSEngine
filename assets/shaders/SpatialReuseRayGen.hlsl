@@ -81,24 +81,24 @@ void SpatialReuse(
     
     if (!emptyPixel)
     {
-        if (!mat.baseColor.a)
-        {
-            MaterialPayload matPayload = (MaterialPayload) 0;
-            matPayload.bounceCount = 31;
-            matPayload.coneAngle = alpha0;
-            matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
+        //if (!mat.baseColor.a)
+        //{
+        //    MaterialPayload matPayload = (MaterialPayload) 0;
+        //    matPayload.bounceCount = 31;
+        //    matPayload.coneAngle = alpha0;
+        //    matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
 
-            UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
-            mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
-            mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
-            UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-            float3 normalColor = mat.normalColor;
-            mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-            worldPos = matPayload.position;
-            viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            bias = max(1e-4f, t * 1e-4f);
-        }
+        //    UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
+        //    mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
+        //    mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
+        //    UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+        //    float3 normalColor = mat.normalColor;
+        //    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+        //    worldPos = matPayload.position;
+        //    viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+        //    t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+        //    bias = max(1e-4f, t * 1e-4f);
+        //}
         
         Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
         SpatialReuse(launchIndex, dims, depthValue, mat.normalColor, worldPos, viewDirection, mat, DIReservoirA, DIReservoirB, currentR, seed);
