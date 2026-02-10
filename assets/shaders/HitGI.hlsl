@@ -77,6 +77,11 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     float3 bitangentWS = normalize(cross(normal, tangentWS));
     float3x3 TBN = float3x3(tangentWS, bitangentWS, normal);
     
+    float3 a = normals[instance][0];
+    float3 b = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPositions[instance][0], 1.f));
+    uint c = indices[instance][0];
+
+    
     float t = RayTCurrent();
     float coneRadiusWS = RayTCurrent() * tan(payload.coneAngle);
     float Lu, Lv;
@@ -115,7 +120,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     payload.lightIntensityAndDistance = float4(result, t);
     payload.hitNormal = normal;
     payload.hitPoint = vertexPos;
-    payload.albedo = material.baseColor.rgb;
+    payload.albedo = (normal + 1.f) * 0.5f;
 }
 
 float3 NormalToColor(float3 normal)
@@ -283,8 +288,8 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     mat.normalColor = mul(mat.normalColor, tangentBasis);
 
     mat.F0 = float3(0.04, 0.04, 0.04);
-    mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
-    mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
+    mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic);
 
     // To alpha roughness
     mat.roughness = mat.roughness * mat.roughness;

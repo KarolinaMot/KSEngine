@@ -61,128 +61,131 @@ void SpatialReuse(
 
     float3 viewPos = ReconstructViewPosFromViewZ(uv, depthValue, cameraMats.mInvProjection);
     float3 worldPos = mul(cameraMats.mInvView, float4(viewPos, 1.0f)).xyz;
-    float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    //float3 viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
     float3 t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
     float bias = max(1e-4f, t * 1e-4f);
     float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
 
-    bool emptyPixel = (depthValue >= 0.9999f);
+    //bool emptyPixel = (depthValue >= 0.9999f);
     PBRMaterial mat = LoadMaterialFromGBuffer(GBufferA, launchIndex);
     
     float fovX = 2.0 * atan(1.0 / abs(cameraMats.mProjection._11));
     float alpha0 = 2.0f * atan(tan(0.5f * fovX) / dims.x);
-    bool valid = false;
-    float3 directLighting = 0.f;
-    float3 indirectLighting = 0.f;
-    float3 res = 0.f;
-    uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
-    float3 outDI = directLighting;
-    float outW = 1.0f;
+    //bool valid = false;
+    //float3 directLighting = 0.f;
+    //float3 indirectLighting = 0.f;
+    //float3 res = 0.f;
+    uint seed = InitSeed(launchIndex) /*^ Hash(pathTracingData.frameIndex * 9781u)*/;
+    //float3 outDI = directLighting;
+    //float outW = 1.0f;
     
-    if (!emptyPixel)
-    {
-        //if (!mat.baseColor.a)
-        //{
-        //    MaterialPayload matPayload = (MaterialPayload) 0;
-        //    matPayload.bounceCount = 31;
-        //    matPayload.coneAngle = alpha0;
-        //    matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
+    //if (!emptyPixel)
+    //{
+    //    //if (!mat.baseColor.a)
+    //    //{
+    //    //    MaterialPayload matPayload = (MaterialPayload) 0;
+    //    //    matPayload.bounceCount = 31;
+    //    //    matPayload.coneAngle = alpha0;
+    //    //    matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
 
-        //    UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
-        //    mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
-        //    mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
-        //    UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-        //    float3 normalColor = mat.normalColor;
-        //    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
-        //    worldPos = matPayload.position;
-        //    viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-        //    t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-        //    bias = max(1e-4f, t * 1e-4f);
-        //}
+    //    //    UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
+    //    //    mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
+    //    //    mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
+    //    //    UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+    //    //    float3 normalColor = mat.normalColor;
+    //    //    mat.normalColor = normalize(mat.normalColor * 2.0 - 1.0);
+    //    //    worldPos = matPayload.position;
+    //    //    viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    //    //    t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+    //    //    bias = max(1e-4f, t * 1e-4f);
+    //    //}
         
-        Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
-        SpatialReuse(launchIndex, dims, depthValue, mat.normalColor, worldPos, viewDirection, mat, DIReservoirA, DIReservoirB, currentR, seed);
+    //    Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
+    //    SpatialReuse(launchIndex, dims, depthValue, mat.normalColor, worldPos, viewDirection, mat, DIReservoirA, DIReservoirB, currentR, seed);
 
-        directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
+    //    directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
         
-        float4 h = diHistory.Load(loadLocation);
-        float3 histDI = h.rgb;
-        float histW = h.a;
-        uint4 prebReservA = DIPRevReservoirA.Load(uint3(launchIndex, 0));
-        float4 prebReservB = DIPrevReservoirB.Load(uint3(launchIndex, 0));
-        float3 prevNormal = UnpackNormalOct(prebReservA.w);
-        prevNormal = normalize(prevNormal);
-        float prevDepth = prebReservB.y;
+    //    float4 h = diHistory.Load(loadLocation);
+    //    float3 histDI = h.rgb;
+    //    float histW = h.a;
+    //    uint4 prebReservA = DIPRevReservoirA.Load(uint3(launchIndex, 0));
+    //    float4 prebReservB = DIPrevReservoirB.Load(uint3(launchIndex, 0));
+    //    float3 prevNormal = UnpackNormalOct(prebReservA.w);
+    //    prevNormal = normalize(prevNormal);
+    //    float prevDepth = prebReservB.y;
         
-        if ((histW > 0.f))
-        {
-            float alpha = 1.0f / (histW + 1.0f); // unbiased running average
-            alpha = max(alpha, 1.0f / 64.0f); // don’t get *too* sluggish
-            outDI = lerp(histDI, directLighting, alpha);
-            outW = min(histW + 1.0f, 64.0f);
-        }
-        else
-        {
-           // reset history if invalid
-            outDI = directLighting;
-            outW = 1.0f;
-        }
+    //    if ((histW > 0.f))
+    //    {
+    //        float alpha = 1.0f / (histW + 1.0f); // unbiased running average
+    //        alpha = max(alpha, 1.0f / 64.0f); // don’t get *too* sluggish
+    //        outDI = lerp(histDI, directLighting, alpha);
+    //        outW = min(histW + 1.0f, 64.0f);
+    //    }
+    //    else
+    //    {
+    //       // reset history if invalid
+    //        outDI = directLighting;
+    //        outW = 1.0f;
+    //    }
         
-        diHistory[launchIndex] = float4(outDI, outW);
+    //    diHistory[launchIndex] = float4(outDI, outW);
         
-        // Global illumination
-        float3 Nt, Nb;
-        CreateCoordinateSystem(mat.normalColor, Nt, Nb);
-        uint smaples = pathTracingData.GIsampleNumber;
+    //    // Global illumination
+    float3 Nt, Nb;
+    CreateCoordinateSystem(mat.normalColor, Nt, Nb);
+    //    uint smaples = pathTracingData.GIsampleNumber;
 
-        for (uint n = 0; n < smaples; ++n)
-        {
+    //    for (uint n = 0; n < smaples; ++n)
+    //    {
             // How high above the horizon of the hemisphere the line is
-            float r1 = Rand(seed);
+    float r1 = Rand(seed);
             // The spin around the axis
-            float r2 = Rand(seed);
-            float3 s = CosineSampleHemisphere(r1, r2);
-            float3 sampleWorld = s.x * Nt + s.y * Nb + s.z * mat.normalColor;
+    float r2 = Rand(seed);
+    float3 s = CosineSampleHemisphere(r1, r2);
+    float3 sampleWorld = s.x * Nt + s.y * Nb + s.z * mat.normalColor;
 
-            HitInfo indirectPayload = (HitInfo) 0;
-            indirectPayload.bounceCount = 35;
-            indirectPayload.coneAngle = alpha0;
+    HitInfo indirectPayload = (HitInfo) 0;
+    indirectPayload.bounceCount = 35;
+    indirectPayload.coneAngle = alpha0;
+    RayDesc ray;
+    float4 target = mul(cameraMats.mInvProjection, float4(d.x, -d.y, 1, 1));
+    float3 dirWS = normalize(mul(cameraMats.mInvView, float4(target.xyz, 0)).xyz);
+    indirectPayload = ShootBRDFRay(dirWS, cameraMats.mCameraPos.xyz, SceneBVH, indirectPayload);
 
-            indirectPayload = ShootBRDFRay(normalize(sampleWorld), worldPos + mat.normalColor * bias, SceneBVH, indirectPayload);
+    //        float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
+    //        float3 Li = indirectPayload.lightIntensityAndDistance.rgb;
 
-            float nDotWi = saturate(dot(mat.normalColor, sampleWorld));
-            float3 Li = indirectPayload.lightIntensityAndDistance.rgb;
+    //        // luminance clamp (example)
+    //        float lum = dot(Li, float3(0.2126, 0.7152, 0.0722));
+    //        float maxLum = 10.0; // tune
+    //        Li *= min(1.0, maxLum / max(lum, 1e-6));
 
-            // luminance clamp (example)
-            float lum = dot(Li, float3(0.2126, 0.7152, 0.0722));
-            float maxLum = 10.0; // tune
-            Li *= min(1.0, maxLum / max(lum, 1e-6));
+    //        indirectLighting += Li * mat.baseColor.rgb;
+    //    }
 
-            indirectLighting += Li * mat.baseColor.rgb;
-        }
+    //}
+    //else
+    //{
+    //    outDI = RenderedSkymap.Load(loadLocation);
+    //}
 
-    }
-    else
-    {
-        outDI = RenderedSkymap.Load(loadLocation);
-    }
-
-    float4 historyValue = giHistory.Load(loadLocation).rgba;
-    float3 historySum = historyValue.rgb;
-    float sampleCount = historyValue.a;
-    float3 newGISum = historySum + indirectLighting;
-    float newSampleCount = sampleCount + pathTracingData.GIsampleNumber;
-    float3 superSampledGI = newGISum / newSampleCount;
+    //float4 historyValue = giHistory.Load(loadLocation).rgba;
+    //float3 historySum = historyValue.rgb;
+    //float sampleCount = historyValue.a;
+    //float3 newGISum = historySum + indirectLighting;
+    //float newSampleCount = sampleCount + pathTracingData.GIsampleNumber;
+    //float3 superSampledGI = newGISum / newSampleCount;
     
-    giHistory[launchIndex] = float4(newGISum, newSampleCount);
+    //giHistory[launchIndex] = float4(newGISum, newSampleCount);
 
-    res = outDI.rgb + superSampledGI;
+    //res = outDI.rgb + superSampledGI;
     
-    res.rgb *= lightInfo.exposure; // e.g. exposure = 1.0 .. 2.0 (or make it a slider)
-    res.rgb = ToneMapReinhard(res.rgb);
+    //res.rgb *= lightInfo.exposure; // e.g. exposure = 1.0 .. 2.0 (or make it a slider)
+    //res.rgb = ToneMapReinhard(res.rgb);
 
     //gOutput[launchIndex] = float4(LinearToSRGB(directLighting.rgb), 1.f);
-    gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
+    //gOutput[launchIndex] = float4(LinearToSRGB(DIReservoirB.Load(uint3(launchIndex, 0)).rgb), 1.f);
+    gOutput[launchIndex] = float4(LinearToSRGB(indirectPayload.albedo), 1.f);
 
 }
 

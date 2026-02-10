@@ -70,38 +70,19 @@ void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
     
     float3 normal = GetNormal(instance, vertId, barycentrics);
     float2 uv = GetUV(instance, vertId, barycentrics);
-    uv.y *=  1 - uv.y;
+    uv.y = 1.f - uv.y;
     float3 tangent = GetTangent(instance, vertId, barycentrics);
     float3 nOS = GetNormal(instance, vertId, barycentrics);
     float3x3 M = (float3x3) instanceData[instance].modelMatrix.mModelMat;
 
-// if you can guarantee uniform scale, this is okay:
-    float3 nWS = normalize(mul(M, nOS));
-    float3 tOS = GetTangent(instance, vertId, barycentrics);
-    float3 tWS = normalize(mul(M, tOS));
-    tWS = normalize(tWS - dot(tWS, nWS) * nWS);
-    float3 bWS = normalize(cross(nWS, tWS));
-
-    float3x3 TBN = float3x3(tWS, bWS, nWS);
     float t = RayTCurrent();
     float coneRadiusWS = RayTCurrent() * tan(payload.coneAngle);
     float Lu, Lv;
     ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
     
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
-    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
-
-    
-    if (material.baseColor.a == 0 && payload.bounceCount > 0)
-    {
-        float3 rayO = WorldRayOrigin();
-        float3 rayD = WorldRayDirection(); // <-- this is the ray direction
-        float t = RayTCurrent();
-
-        float3 hitPos = rayO + rayD * t;
-        payload = ShootMaterialRay(rayD, hitPos, SceneBVH, payload);
-        return;
-    }
+    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, 
+    (float3x3)0, Lu, Lv);
     
     payload.bufferA.x = PackAlbedoMetal(material.baseColor.rgb, material.metallic);
     payload.bufferA.y = PackNormalOct(material.normalColor);
@@ -257,22 +238,22 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     
     
     PBRMaterial mat;
-    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor));
+    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, 0));
     mat.baseColor.rgb *= info.colorFactor.rgb;
 
     mat.emissiveColor = abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb);
     mat.emissiveColor *= info.emissiveFactor.rgb;
 
     float3 metallicRoughnessColor = textures[info.metallicRoughnessTexIndex].SampleLevel(mainSampler, uv, lodMR).rgb;
-    mat.roughness = metallicRoughnessColor.g * info.metallicFactor;
-    mat.metallic = metallicRoughnessColor.b * info.roughnessFactor;
-
+    mat.roughness = metallicRoughnessColor.g * info.roughnessFactor;
+    mat.metallic = metallicRoughnessColor.b * info.metallicFactor;
+    
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = textures[info.occlusionTexIndex].SampleLevel(mainSampler, uv, lodOcc).r;
     
-    mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
-    mat.normalColor = mat.normalColor * 2.0 - 1.0;
-    mat.normalColor = mul(mat.normalColor, tangentBasis);
+    //mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
+    //mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = normals;
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);

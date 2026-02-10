@@ -155,7 +155,6 @@ void KS::Shader::MeshRenderShader(const Device& device)
         builder.SetRasterizer(rast);
     }
 
-
     for (const auto& format : m_formats)
     {
         builder.AddRenderTarget(Conversion::KSFormatsToDXGI(format));
@@ -310,29 +309,11 @@ void KS::Shader::RTShader(const Device& device)
         assocLocalRS.pSubobjectToAssociate = &subs.back();  // local RS subobject
         localSgAssoc.push_back(assocLocalRS);
         subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &localSgAssoc.back()});
-
     }
 
     D3D12_STATE_OBJECT_DESC desc = {.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
                                     .NumSubobjects = static_cast<UINT>(subs.size()),
                                     .pSubobjects = subs.data()};
-
-    for (auto name : shaderPayloadExports)
-    {
-        OutputDebugStringW(L"Payload export: ");
-        OutputDebugStringW(name);
-        OutputDebugStringW(L"\n");
-    }
-
-    for (int i = 0; i < m_links.size(); ++i)
-    {
-        for (auto name : m_links[i].shaderNames)
-        {
-            OutputDebugStringW(L"Local RS export: ");
-            OutputDebugStringW(name);
-            OutputDebugStringW(L"\n");
-        }
-    }
 
     ComPtr<ID3D12StateObject> testPipeline;
     HRESULT hr = engineDevice->CreateStateObject(&desc, IID_PPV_ARGS(&testPipeline));
@@ -363,11 +344,11 @@ void KS::Shader::RTShader(const Device& device)
         shaderTable = std::make_unique<DXShaderTable>();
         shaderTable->AddRayGen(L"RayGen");
         shaderTable->AddHitGroup(L"GIHitGroup");
-        shaderTable->AddHitGroup(L"ShadowHitGroup");
-        shaderTable->AddHitGroup(L"MaterialHitGroup");
+        //shaderTable->AddHitGroup(L"ShadowHitGroup");
+        //shaderTable->AddHitGroup(L"MaterialHitGroup");
 
         shaderTable->AddMiss(L"MainMiss");
-        shaderTable->AddMiss(L"ShadowMiss");
+        //shaderTable->AddMiss(L"ShadowMiss");
         shaderTable->Build(engineDevice, rtPipeline->m_stateObjectProps.Get());
     }
 

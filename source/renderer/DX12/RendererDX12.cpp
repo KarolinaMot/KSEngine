@@ -141,16 +141,16 @@ KS::Renderer::Renderer(Device& device)
 
     std::shared_ptr<Shader> rtSpacialReuseShader = ShaderBuilder()
                                            .SetType(PipelineType::ST_RAYTRACER)
-                                           .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowClosestHit")
-                                           .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowAnyHit")
-                                           .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/Hit.hlsl", L"MaterialClosestHit")
+                                           //.AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowClosestHit")
+                                           //.AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/ShadowHit.hlsl", L"ShadowAnyHit")
+                                           //.AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/Hit.hlsl", L"MaterialClosestHit")
                                            .AddShaderPath(ShaderType::HIT_GROUP_SHADER, "assets/shaders/HitGI.hlsl", L"GIClosestHit")
                                            .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/Miss.hlsl", L"MainMiss")
-                                           .AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/ShadowMiss.hlsl", L"ShadowMiss")
+                                           //.AddShaderPath(ShaderType::MISS_SHADER, "assets/shaders/ShadowMiss.hlsl", L"ShadowMiss")
                                            .AddShaderPath(ShaderType::RAY_GEN_SHADER, "assets/shaders/SpatialReuseRayGen.hlsl", L"RayGen")
                                            .AddHitGroup(L"GIHitGroup", L"GIClosestHit", L"")
-                                           .AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit", L"ShadowAnyHit")
-                                           .AddHitGroup(L"MaterialHitGroup", L"MaterialClosestHit", L"")
+                                           //.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit", L"ShadowAnyHit")
+                                           //.AddHitGroup(L"MaterialHitGroup", L"MaterialClosestHit", L"")
                                            .SetGlobalSignature(m_rtInputs)
                                            .Build(device);
 
@@ -527,7 +527,7 @@ void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
                                                                            rootSignature->GetInput("cubemap_tex"));
 
     RenderParameters par{};
-    par.clearRt = true;
+    par.clearRt = false;
     par.clearDs = false;
     par.ds = scene.GetDepthStencil();
     par.rt = scene.GetRenderTarget(PBR_RENDER);
@@ -611,8 +611,9 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
     resourceRB->Get()->Unmap(0, nullptr);
 
     scene.SetCulledDrawCallIndicesCount(count);
-    if (count < scene.GetDrawQueueSize())
-    scene.CreateBatches(device, *commandList);
+    auto drawQueueSize = scene.GetDrawQueueSize();
+    if (count <= drawQueueSize) 
+        scene.CreateBatches(device, *commandList);
     commandContext.Close();
 }
 
