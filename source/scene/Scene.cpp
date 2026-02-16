@@ -220,7 +220,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 auto AABB = meshPtr->GetLocalBounds();
                 AABB = AABB.ApplyTransform(scene_transform);
 
-                draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform, 0, mat, m_drawCallCount);
+                draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform, mat, m_drawCallCount);
                 m_boundingBoxes[m_drawCallCount] = AABB;
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_drawCallCount, m_drawCallCount);
 
@@ -264,17 +264,19 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
 void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
 {
     auto& entry = draw_queue[meshId];
-    auto& modelMatrix = m_instanceData[entry.modelIndex].modelMatrix;
+    auto& modelMatrix = entry.modelMat;
     ModelMat modelMat;
-    modelMat.mModel = modelMatrix.mModel * transfrom;
+    modelMat.mModel = modelMatrix * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
-    modelMatrix = modelMat;
+    m_instanceData[entry.modelIndex].modelMatrix = modelMat;
+    entry.modelMat = modelMat.mModel;
 
     auto mesh = GetMesh(entry.meshHandle);
     auto AABB = mesh->GetLocalBounds();
     m_boundingBoxes[m_drawCallCount] = AABB;
 
     m_BVH->UpdateTransform(entry.tlasHandle, modelMat.mModel);
+    m_updateScene = true;
 }
 
 void KS::Scene::QueuePointLight(glm::vec3 position, glm::vec3 color, float intensity, float att)
@@ -338,6 +340,9 @@ void KS::Scene::Tick(Device& device)
         mStorageBuffers[DIR_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_directionalLights);
     if (m_updatePointLights)
         mStorageBuffers[POINT_LIGHT_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), m_pointLights);
+   
+    mStorageBuffers[INSTANCE_DATA_BUFFER]->Update(device, *commandList, m_impl->m_resourceHeap.get(), &m_instanceData[0],
+                                                  m_drawCallCount);
 
     m_pathTracingInfo.frameIndex++;
 
@@ -584,8 +589,11 @@ const std::shared_ptr<KS::Mesh> KS::Scene::GetMesh(ResourceHandle<Mesh> meshHand
     }
 }
 
-void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
+void KS::Scene::CreateBatches(Device& device)
 {
+    auto commandContext = device.GetCommandContext();
+    auto& commandList = commandContext.m_commandList;
+
     // Sorting
     //   Sort only the valid prefix if m_drawIndices is larger than m_drawIndicesCount
     auto begin = m_drawIndices.begin();
@@ -627,13 +635,14 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
     {
         auto drawCallIndex = m_drawIndices[i];
         auto& drawCall = draw_queue[drawCallIndex];
-        m_instanceData[i].modelMatrix.mModel = drawCall.modelMat;
-        m_instanceData[i].modelMatrix.mTransposed = glm::transpose(drawCall.modelMat);
-        m_instanceData[i].materialIndex = drawCall.materialIndex;
+        m_culledInstanceData[i].modelMatrix.mModel = drawCall.modelMat;
+        m_culledInstanceData[i].modelMatrix.mTransposed = glm::transpose(drawCall.modelMat);
+        m_culledInstanceData[i].materialIndex = drawCall.materialIndex;
         drawCall.modelIndex = i;
     }
 
-    mStorageBuffers[CULLED_INSTANCE_DATA_BUFFER]->Update(device, list, GetResourceHeap()->Get(), m_instanceData.data(),
+    mStorageBuffers[CULLED_INSTANCE_DATA_BUFFER]->Update(device, *commandList, GetResourceHeap()->Get(),
+                                                         m_culledInstanceData.data(),
                                                   m_culledIndicesCount);
 
     auto sameBatch = [&](DrawEntry& a, DrawEntry& b)
@@ -663,6 +672,7 @@ void KS::Scene::CreateBatches(Device& device, DXCommandList& list)
 
         i = j;
     }
+    commandContext.Close();
 }
 
 std::shared_ptr<KS::Texture> KS::Scene::GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,

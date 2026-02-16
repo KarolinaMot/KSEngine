@@ -45,6 +45,7 @@ void KS::RTRenderer::Render(Device& device, DXCommandContext* commandContext, Re
 
         for (const auto& input : *par.inputs)
         {
+            if (input.first)
             input.first->Bind(input.second.prev ? prevFrameIndex : frameIndex, resourceHeap, *commandList, input.second.desc,
                               input.second.bindOffset);
         }

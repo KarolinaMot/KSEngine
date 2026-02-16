@@ -64,6 +64,7 @@ public:
     uint32_t GetDrawQueueSize() const { return m_drawCallCount; }
     LightInfo GetLightInfo() { return m_lightInfo; }
     const DrawEntry& GetDrawEntry(uint32_t index) const { return draw_queue[index]; }
+    ModelMat GetDrawEntryTransform(uint32_t index) const { return m_instanceData[index].modelMatrix; }
     CullingInfo GetCullingInfo() const { return m_cullInfo; }
     void SetSkydome(Device& device, DXCommandList& commandList, ResourceHandle<Texture> skydomeTexture);
     std::pair<std::shared_ptr<Skydome>, ResourceHandle<Texture>> GetSkydome() const { return m_skyDome; };
@@ -89,12 +90,13 @@ public:
     PointLightInfo GetPointLight(int index) const { return m_pointLights[index]; }
     glm::vec4& GetAmbientLight() { return m_lightInfo.mAmbientAndIntensity; }
     uint32_t GetCulledIndicesCount() const { return m_culledIndicesCount; }
-    void CreateBatches(Device& device, DXCommandList& list);
+    void CreateBatches(Device& device);
     const std::vector<BatchRange>& GetBatches() const { return batch_queue; }
     void SetShadowSample(uint32_t value) { m_pathTracingInfo.shadowSampleNumber = value; }
     void SetGISample(uint32_t value) { m_pathTracingInfo.GIsampleNumber = value; }
     Texture* GetDIReservoir(uint32_t index) const { return m_DIReservoirs[index].get(); }
-
+    bool GetUpdatedScene() const { return m_updateScene; }
+    void SetUpdatedScene(bool value) { m_updateScene = value; }
     KS::Texture* GetTextureForMipmapGen(int index) const
     {
         if (auto lock = m_texWithoutMipmaps[index].lock())
@@ -139,6 +141,7 @@ private:
     std::shared_ptr<Texture> m_DIReservoirs[4];
 
     std::vector<InstanceData> m_instanceData = std::vector<InstanceData>(MAX_MESHES);
+    std::vector<InstanceData> m_culledInstanceData = std::vector<InstanceData>(MAX_MESHES);
     std::vector<BoundingBox> m_boundingBoxes = std::vector<BoundingBox>(MAX_MESHES);
     std::vector<uint32_t> m_drawIndices = std::vector<uint32_t>(MAX_MESHES);
     uint32_t m_culledIndicesCount = 0;

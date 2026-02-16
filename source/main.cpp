@@ -115,11 +115,13 @@ int main()
     auto sanMiguelModel =
     KS::ModelImporter::ImportFromFile("assets/models/SanMiguel.glb", aiProcess_FindInstances).value();
     auto cubeModel = KS::ModelImporter::ImportFromFile("assets/models/Cube.glb").value();
+    auto damagedHelmetModel = KS::ModelImporter::ImportFromFile("assets/models/DamagedHelmet.glb").value();
 
     glm::mat4x4 transform = glm::mat4x4(1.f);
     transform = glm::mat4x4(1.f);
-    scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube");
-    scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube2");
+    //scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube");
+    //scenes[TEST_SCENE]->QueueModel(*device, cubeModel, transform, "Cube2");
+    scenes[TEST_SCENE]->QueueModel(*device, damagedHelmetModel, transform, "Damaged helmet");
     //scenes[TEST_SCENE]->QueueModel(*device, sanMiguelModel, transform, "San Miguel");
 
     device->EndFrame();

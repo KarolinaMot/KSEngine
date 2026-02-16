@@ -212,7 +212,6 @@ void KS::Editor::SceneHierarchy(Scene& scene)
             }
             // Optionally focus selected item
             if (is_selected) ImGui::SetItemDefaultFocus();
-            i++;
         }
     }
 

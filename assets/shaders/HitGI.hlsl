@@ -77,9 +77,9 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     float3 bitangentWS = normalize(cross(normal, tangentWS));
     float3x3 TBN = float3x3(tangentWS, bitangentWS, normal);
     
-    float3 a = normals[instance][0];
-    float3 b = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPositions[instance][0], 1.f));
-    uint c = indices[instance][0];
+    //float3 a = normals[instance][0];
+    //float3 b = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPositions[instance][0], 1.f));
+    //uint c = indices[instance][0];
 
     
     float t = RayTCurrent();
@@ -283,9 +283,9 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = textures[info.occlusionTexIndex].SampleLevel(mainSampler, uv, lodOcc).r;
     
-    mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
-    mat.normalColor = mat.normalColor * 2.0 - 1.0;
-    mat.normalColor = mul(mat.normalColor, tangentBasis);
+    //mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
+    //mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    //mat.normalColor = mul(mat.normalColor, tangentBasis);
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);

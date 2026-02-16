@@ -237,6 +237,18 @@ void KS::Renderer::Render(Device& device, Scene& scene, const RenderTickParams& 
         Culling(device, scene);
         scene.SetUpdateCamera();
     }
+
+    if (scene.GetUpdatedScene() || params.cameraUpdated)
+    {
+        auto drawQueueSize = scene.GetDrawQueueSize();
+        auto culledCount = scene.GetCulledIndicesCount();
+        if (culledCount <= drawQueueSize)
+        {
+            scene.CreateBatches(device);
+            scene.SetUpdatedScene(false);
+        }
+    }
+
     Main(device, scene, params.frustum, raytraced);
 
     RenderCubemap(device, scene);
@@ -488,7 +500,7 @@ void KS::Renderer::Raytrace(Device& device, Scene& scene)
 void KS::Renderer::GenCubemap(Device& device, Scene& scene)
 {
     auto skydome = scene.GetSkydome();
-    if (skydome.first->GetIsReady()) return;
+    if (!skydome.first || skydome.first->GetIsReady()) return;
 
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
@@ -516,7 +528,7 @@ void KS::Renderer::GenCubemap(Device& device, Scene& scene)
 void KS::Renderer::RenderCubemap(Device& device, Scene& scene)
 {
     auto skydome = scene.GetSkydome();
-    if (!skydome.first->GetIsReady()) return;
+    if (!skydome.first || !skydome.first->GetIsReady()) return;
 
     auto commandContext = device.GetCommandContext();
     auto rootSignature = m_subrenderers[CUBEMAP_GEN]->GetShader()->GetShaderInput();
@@ -611,9 +623,6 @@ void KS::Renderer::Culling(Device& device, Scene& scene)
     resourceRB->Get()->Unmap(0, nullptr);
 
     scene.SetCulledDrawCallIndicesCount(count);
-    auto drawQueueSize = scene.GetDrawQueueSize();
-    if (count <= drawQueueSize) 
-        scene.CreateBatches(device, *commandList);
     commandContext.Close();
 }
 
