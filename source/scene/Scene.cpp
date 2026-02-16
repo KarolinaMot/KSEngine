@@ -97,9 +97,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices, true,
                                         StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
 
-    SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
-    GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube.glb"));
-    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube");
+    //SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
+    //GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube.glb"));
+    //m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube");
 
     std::shared_ptr<Texture> deferredRendererTex[2][2];
     std::shared_ptr<Texture> deferredRendererDepthTex;
@@ -225,6 +225,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_drawCallCount, m_drawCallCount);
 
                 m_instanceData[m_drawCallCount].materialIndex = mat;
+                m_instanceData[m_drawCallCount].meshIndex = meshPtr->GetMeshIndex();
                 ModelMat modelMat;
                 modelMat.mModel = scene_transform;
                 modelMat.mTransposed = glm::transpose(modelMat.mModel);
@@ -268,7 +269,7 @@ void KS::Scene::ApplyModelTransform(uint32_t meshId, const glm::mat4& transfrom)
     ModelMat modelMat;
     modelMat.mModel = modelMatrix * transfrom;
     modelMat.mTransposed = glm::transpose(modelMat.mModel);
-    m_instanceData[entry.modelIndex].modelMatrix = modelMat;
+    m_instanceData[entry.drawQueueIndex].modelMatrix = modelMat;
     entry.modelMat = modelMat.mModel;
 
     auto mesh = GetMesh(entry.meshHandle);
@@ -636,10 +637,12 @@ void KS::Scene::CreateBatches(Device& device)
     {
         auto drawCallIndex = m_drawIndices[i];
         auto& drawCall = draw_queue[drawCallIndex];
+        auto mesh = GetMesh(drawCall.meshHandle);
         m_culledInstanceData[i].modelMatrix.mModel = drawCall.modelMat;
         m_culledInstanceData[i].modelMatrix.mTransposed = glm::transpose(drawCall.modelMat);
         m_culledInstanceData[i].materialIndex = drawCall.materialIndex;
-        drawCall.modelIndex = i;
+        m_culledInstanceData[i].meshIndex = mesh->GetMeshIndex();
+        drawCall.drawQueueIndex = i;
     }
 
     mStorageBuffers[CULLED_INSTANCE_DATA_BUFFER]->Update(device, *commandList, GetResourceHeap()->Get(),

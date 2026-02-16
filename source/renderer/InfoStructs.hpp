@@ -200,7 +200,7 @@ struct DrawEntry
     glm::mat4x4 modelMat{};
     uint32_t tlasHandle{};
     uint32_t materialIndex{};
-    int modelIndex{};
+    int drawQueueIndex{};
 };
 
 struct BatchRange
@@ -215,7 +215,8 @@ struct InstanceData
 {
     ModelMat modelMatrix;
     uint32_t materialIndex;
-    uint32_t padding[3];
+    uint32_t meshIndex;
+    uint32_t padding[2];
 };
 
 struct CameraMats

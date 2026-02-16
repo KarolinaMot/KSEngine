@@ -62,16 +62,17 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
 {
     uint vertId = 3 * PrimitiveIndex();
     uint instance = InstanceID();
-
+    uint meshIndex = instanceData[instance].modelIndex;
+    
     float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
-    float4 vertexPos = float4(GetPosition(instance, vertId, barycentrics), 1.f);
+    float4 vertexPos = float4(GetPosition(meshIndex, vertId, barycentrics), 1.f);
     vertexPos = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPos.rgb, 1.f));
     
-    float3 normal = GetNormal(instance, vertId, barycentrics);
-    float2 uv = GetUV(instance, vertId, barycentrics);
+    float3 normal = GetNormal(meshIndex, vertId, barycentrics);
+    float2 uv = GetUV(meshIndex, vertId, barycentrics);
     uv.y *= -1;
-    float3 tangent = GetTangent(instance, vertId, barycentrics);
+    float3 tangent = GetTangent(meshIndex, vertId, barycentrics);
     float3 tangentWS = normalize(mul((float3x3) instanceData[instance].modelMatrix.mModelMat, tangent));
     tangentWS = normalize(tangentWS - dot(tangentWS, normal) * normal);
     float3 bitangentWS = normalize(cross(normal, tangentWS));
