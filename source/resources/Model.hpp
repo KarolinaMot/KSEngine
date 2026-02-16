@@ -35,6 +35,7 @@ public:
     std::vector<uint32_t> materialIndices;
     std::vector<PointLightInfo> pointLights;
     std::vector<DirLightInfo> dirLights;
+    uint32_t materialCacheOffset = 0;
     static Material ProcessMaterial(const std::vector<std::string>& image_paths, const aiMaterial* material);
     static void ProcessNodesRecursive(std::vector<Model::Node>& out, std::vector<DirLightInfo>& dirLights,
                                       std::vector<uint32_t>& meshInstances, std::vector<PointLightInfo>& pointLights,

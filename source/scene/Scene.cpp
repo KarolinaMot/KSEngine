@@ -220,7 +220,7 @@ uint32_t KS::Scene::QueueModel(Device& device, ResourceHandle<Model> model, cons
                 auto AABB = meshPtr->GetLocalBounds();
                 AABB = AABB.ApplyTransform(scene_transform);
 
-                draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform, mat, m_drawCallCount);
+                draw_queue[m_drawCallCount] = KS::DrawEntry(meshHandle, scene_transform,0, mat, m_drawCallCount);
                 m_boundingBoxes[m_drawCallCount] = AABB;
                 mUniformBuffers[MODEL_INDEX_BUFFER]->Update(device, m_drawCallCount, m_drawCallCount);
 
@@ -514,7 +514,7 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
 
         std::vector<uint32_t> materialIndices;
         materialIndices.reserve(scene->mNumMaterials);
-
+        uint32_t materialStart = m_materialCounter;
         // Process Materials
         {
             for (size_t i = 0; i < scene->mNumMaterials; i++)
@@ -564,7 +564,8 @@ const KS::Model* KS::Scene::GetModel(Device& device, DXCommandList& commandList,
                         .meshes = std::move(mesh_paths),
                         .materialIndices = std::move(materialIndices),
                         .pointLights = std::move(pointLights),
-                        .dirLights = std::move(dirLights)};
+                        .dirLights = std::move(dirLights),
+                        .materialCacheOffset = materialStart};
 
         auto [obj, success] = model_cache.emplace(model, std::move(new_model));
 
