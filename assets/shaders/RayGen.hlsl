@@ -75,79 +75,73 @@ bool NormalCompatible(float3 currN, float3 prevN);
     bool valid = true;
     if (!emptyPixel)
     {
-        //if (!mat.baseColor.a)
-        //{
-            //MaterialPayload matPayload = (MaterialPayload) 0;
-            //matPayload.bounceCount = 2;
-            //matPayload.coneAngle = alpha0;
-        float4 target = mul(cameraMats.mInvProjection, float4(d.x, -d.y, 1, 1));
-        float3 dirWS = normalize(mul(cameraMats.mInvView, float4(target.xyz, 0)).xyz);
-            HitInfo indirectPayload = (HitInfo) 0;
-        indirectPayload = ShootBRDFRay(dirWS, cameraMats.mCameraPos.xyz, SceneBVH, indirectPayload);
+        if (!mat.baseColor.a)
+        {
+            MaterialPayload matPayload = (MaterialPayload) 0;
+            matPayload.bounceCount = 31;
+            matPayload.coneAngle = alpha0;
+            matPayload = ShootMaterialRay(-viewDirection, worldPos, SceneBVH, matPayload);
 
-            
-            //matPayload = ShootMaterialRay(dirWS, cameraMats.mCameraPos.xyz, SceneBVH, matPayload);
+            UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
+            mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
+            mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
+            UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+            mat.F0 = float3(0.04, 0.04, 0.04);
+            mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
+            mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic);
 
-            //UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
-            //mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
-            //mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
-            //UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-            //mat.F0 = float3(0.04, 0.04, 0.04);
-            //mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
-            //mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic);
-
-            //worldPos = matPayload.position;
-            //viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            //t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            //bias = max(1e-4f, t * 1e-4f);
-        //}
+            worldPos = matPayload.position;
+            viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+            t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+            bias = max(1e-4f, t * 1e-4f);
+        }
         
-        //uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
+        uint seed = InitSeed(launchIndex) ^ Hash(pathTracingData.frameIndex * 9781u);
 
-        //Reservoir currentR = BuildReservoir(seed, mat, viewDirection, worldPos);
+        Reservoir currentR = BuildReservoir(seed, mat, viewDirection, worldPos);
         
-        //uint2 prevPix;
-        //float prevNdcZ;
-        //ok = ReprojectToPrevPixel(worldPos, prevCameraMats.mCamera, dims, prevPix, prevNdcZ);
+        uint2 prevPix;
+        float prevNdcZ;
+        ok = ReprojectToPrevPixel(worldPos, prevCameraMats.mCamera, dims, prevPix, prevNdcZ);
 
-        //if (ok)
-        //{
-        //    Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, prevPix, prevDepth, prevNormal);
+        if (ok)
+        {
+            Reservoir Rprev = LoadReservoirAndOther(DIPRevReservoirA, DIPrevReservoirB, prevPix, prevDepth, prevNormal);
 
-        //    if (valid)
-        //    {
-        //        float t_prev = Rprev.s.target; // target at previous pixel
-        //        float t_here = TargetAtPixel(dirLights, pointLights, Rprev.s, worldPos, viewDirection, mat); // target at this pixel
-        //        RISSample cand = Rprev.s;
-        //        cand.target = t_here; // IMPORTANT: store target for THIS pixel
+            if (valid)
+            {
+                float t_prev = Rprev.s.target; // target at previous pixel
+                float t_here = TargetAtPixel(dirLights, pointLights, Rprev.s, worldPos, viewDirection, mat); // target at this pixel
+                RISSample cand = Rprev.s;
+                cand.target = t_here; // IMPORTANT: store target for THIS pixel
 
-        //        if (t_prev > 1e-4f && t_here > 1e-4f)   // use bigger epsilon than 1e-8
-        //        {
-        //            float ratio = t_here / t_prev;
+                if (t_prev > 1e-4f && t_here > 1e-4f)   // use bigger epsilon than 1e-8
+                {
+                    float ratio = t_here / t_prev;
 
-        //            // Clamp ratio to prevent extreme rescaling from tiny target changes
-        //            ratio = clamp(ratio, 0.25f, 4.0f); // start conservative, loosen later
+                    // Clamp ratio to prevent extreme rescaling from tiny target changes
+                    ratio = clamp(ratio, 0.25f, 4.0f); // start conservative, loosen later
 
-        //            float wTotal_here = Rprev.W * ratio;
-        //            ReservoirUpdate(currentR, cand, wTotal_here, Rprev.M, seed);
-        //        }
-        //    }
-        //}
+                    float wTotal_here = Rprev.W * ratio;
+                    ReservoirUpdate(currentR, cand, wTotal_here, Rprev.M, seed);
+                }
+            }
+        }
         
-        //const uint M_CAP = 32;
-        //if (currentR.M > M_CAP)
-        //{
-        //    float scale = (float) M_CAP / (float) currentR.M;
-        //    currentR.W *= scale;
-        //    currentR.M = M_CAP;
-        //}
+        const uint M_CAP = 32;
+        if (currentR.M > M_CAP)
+        {
+            float scale = (float) M_CAP / (float) currentR.M;
+            currentR.W *= scale;
+            currentR.M = M_CAP;
+        }
         
-        //uint4 A;
-        //float4 B;
-        //PackReservoir(currentR, mat.normalColor, depthValue, A, B);
+        uint4 A;
+        float4 B;
+        PackReservoir(currentR, mat.normalColor, depthValue, A, B);
         
-        //DIReservoirA[launchIndex] = mat.baseColor;      
-        DIReservoirB[launchIndex] = float4(indirectPayload.albedo, 1.f);
+        DIReservoirA[launchIndex] = A;
+        DIReservoirB[launchIndex] = B;
     }
 }
 

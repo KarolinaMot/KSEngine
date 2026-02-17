@@ -344,11 +344,11 @@ void KS::Shader::RTShader(const Device& device)
         shaderTable = std::make_unique<DXShaderTable>();
         shaderTable->AddRayGen(L"RayGen");
         shaderTable->AddHitGroup(L"GIHitGroup");
-        //shaderTable->AddHitGroup(L"ShadowHitGroup");
-        //shaderTable->AddHitGroup(L"MaterialHitGroup");
+        shaderTable->AddHitGroup(L"ShadowHitGroup");
+        shaderTable->AddHitGroup(L"MaterialHitGroup");
 
         shaderTable->AddMiss(L"MainMiss");
-        //shaderTable->AddMiss(L"ShadowMiss");
+        shaderTable->AddMiss(L"ShadowMiss");
         shaderTable->Build(engineDevice, rtPipeline->m_stateObjectProps.Get());
     }
 

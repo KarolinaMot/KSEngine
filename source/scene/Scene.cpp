@@ -97,9 +97,9 @@ KS::Scene::Scene(Device& device, std::string name, ScenesToChoose id)
         std::make_unique<StorageBuffer>(device, m_impl->m_resourceHeap.get(), *commandList, "DRAW INDICES", m_drawIndices, true,
                                         StorageBuffer::COUNTER_RESOURCE | StorageBuffer::READBACK_RESOURCE);
 
-    //SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
-    //GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube.glb"));
-    //m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube");
+    SetSkydome(device, *commandList, ResourceHandle<Texture>("assets/textures/cubemap.hdr"));
+    GetModel(device, *commandList, ResourceHandle<Model>("assets/models/Cube.glb"));
+    m_skyDomeMesh.second = ResourceHandle<Mesh>("assets\\models\\Cube");
 
     std::shared_ptr<Texture> deferredRendererTex[2][2];
     std::shared_ptr<Texture> deferredRendererDepthTex;

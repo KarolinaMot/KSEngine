@@ -54,10 +54,10 @@ float ComputeTexLOD(Texture2D tex, float Lu, float Lv);
 
 void Compute_dPdu_dPdv(Vtx v0, Vtx v1, Vtx v2,
                        out float3 dPdu, out float3 dPdv);
-void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu, out float Lv);
+void ComputeUVFootprint(uint instance, uint meshIndex, uint baseIndex, float coneR, out float Lu, out float Lv);
 
 
-[shader("closesthit")] 
+[shader("closesthit")]
 void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
 {
     uint vertId = 3 * PrimitiveIndex();
@@ -70,20 +70,35 @@ void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
     vertexPos = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPos.rgb, 1.f));
     
     float3 normal = GetNormal(meshIndex, vertId, barycentrics);
+    float3 normalWS = normalize(normal);
+    
     float2 uv = GetUV(meshIndex, vertId, barycentrics);
-    uv.y = 1.f - uv.y;
+    uv.y *= -1;
     float3 tangent = GetTangent(meshIndex, vertId, barycentrics);
-    float3 nOS = GetNormal(meshIndex, vertId, barycentrics);
-    float3x3 M = (float3x3) instanceData[instance].modelMatrix.mModelMat;
-
+    float3 tangentWS = normalize(mul((float3x3) instanceData[instance].modelMatrix.mModelMat, tangent));
+  
+    tangentWS = normalize(tangentWS - dot(tangentWS, normalWS) * normalWS);
+    float3 bitangentWS = normalize(cross(normalWS, tangentWS));
+    float3x3 TBN = float3x3(tangentWS, bitangentWS, normalWS);
+    
     float t = RayTCurrent();
     float coneRadiusWS = RayTCurrent() * tan(payload.coneAngle);
     float Lu, Lv;
-    ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
+    ComputeUVFootprint(instance, meshIndex, vertId, coneRadiusWS, Lu, Lv);
     
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
-    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, 
-    (float3x3)0, Lu, Lv);
+    PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
+
+    if (material.baseColor.a == 0 && payload.bounceCount > 0)
+    {
+        float3 rayO = WorldRayOrigin();
+        float3 rayD = WorldRayDirection(); // <-- this is the ray direction
+        float t = RayTCurrent();
+
+        float3 hitPos = rayO + rayD * t;
+        payload = ShootMaterialRay(rayD, hitPos, SceneBVH, payload);
+        return;
+    }
     
     payload.bufferA.x = PackAlbedoMetal(material.baseColor.rgb, material.metallic);
     payload.bufferA.y = PackNormalOct(material.normalColor);
@@ -136,7 +151,7 @@ float3 GetTangent(int instance, int vertId, float3 barycentrics)
 float3 GetNormalInVector(int instance, int index)
 {
     float3 normal = normals[instance][index].xyz;
-    normal = normalize(mul(normal, (float3x3)instanceData[instance].modelMatrix.mInvTransposeMat));
+    normal = normalize(mul(normal, (float3x3) instanceData[instance].modelMatrix.mInvTransposeMat));
     return normal;
 }
 
@@ -188,20 +203,20 @@ void Compute_dPdu_dPdv(Vtx v0, Vtx v1, Vtx v2,
     dPdv = (-dp1 * duv2.x + dp2 * duv1.x) * invDet; // = ∂P/∂v
 }
 
-void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu, out float Lv)
+void ComputeUVFootprint(uint instance, uint meshIndex, uint baseIndex, float coneR, out float Lu, out float Lv)
 {
 // Fetch triangle indices from your index buffer
-    int i0 = GetIndex(baseIndex, instance, 0);
-    int i1 = GetIndex(baseIndex, instance, 1);
-    int i2 = GetIndex(baseIndex, instance, 2);
+    int i0 = GetIndex(baseIndex, meshIndex, 0);
+    int i1 = GetIndex(baseIndex, meshIndex, 1);
+    int i2 = GetIndex(baseIndex, meshIndex, 2);
 
     // Vertex data (object space)
-    float3 P0o = GetPositionInVector(instance, i0);
-    float3 P1o = GetPositionInVector(instance, i1);
-    float3 P2o = GetPositionInVector(instance, i2);
-    float2 uv0 = GetUVInVector(instance, i0);
-    float2 uv1 = GetUVInVector(instance, i1);
-    float2 uv2 = GetUVInVector(instance, i2);
+    float3 P0o = GetPositionInVector(meshIndex, i0);
+    float3 P1o = GetPositionInVector(meshIndex, i1);
+    float3 P2o = GetPositionInVector(meshIndex, i2);
+    float2 uv0 = GetUVInVector(meshIndex, i0);
+    float2 uv1 = GetUVInVector(meshIndex, i1);
+    float2 uv2 = GetUVInVector(meshIndex, i2);
 
     // Transform positions to WORLD space to match coneR (world)
     float4x4 M = instanceData[instance].modelMatrix.mModelMat;
@@ -239,22 +254,22 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     
     
     PBRMaterial mat;
-    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, 0));
+    mat.baseColor = abs(textures[info.colorTexIndex].SampleLevel(mainSampler, uv, lodColor));
     mat.baseColor.rgb *= info.colorFactor.rgb;
 
     mat.emissiveColor = abs(textures[info.emissiveTexIndex].SampleLevel(mainSampler, uv, lodEmit).rgb);
     mat.emissiveColor *= info.emissiveFactor.rgb;
 
     float3 metallicRoughnessColor = textures[info.metallicRoughnessTexIndex].SampleLevel(mainSampler, uv, lodMR).rgb;
-    mat.roughness = metallicRoughnessColor.g * info.roughnessFactor;
-    mat.metallic = metallicRoughnessColor.b * info.metallicFactor;
-    
+    mat.roughness = metallicRoughnessColor.g * info.metallicFactor;
+    mat.metallic = metallicRoughnessColor.b * info.roughnessFactor;
+
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = textures[info.occlusionTexIndex].SampleLevel(mainSampler, uv, lodOcc).r;
     
-    //mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
-    //mat.normalColor = mat.normalColor * 2.0 - 1.0;
-    mat.normalColor = normals;
+    mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
+    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = mul(mat.normalColor, tangentBasis);
 
     mat.F0 = float3(0.04, 0.04, 0.04);
     mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);

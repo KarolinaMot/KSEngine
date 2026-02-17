@@ -85,7 +85,7 @@ StructuredBuffer<PointLight> pointLights : register(t3);
         result.rgb *= lightInfo.exposure; // e.g. exposure = 1.0 .. 2.0 (or make it a slider)
         result.rgb = ToneMapReinhard(result.rgb);
         
-        result.rgb = LinearToSRGB(mat.baseColor.rgb);
+        result.rgb = LinearToSRGB(result.rgb);
         result.a = 1.f;
         FinalRes[DispatchThreadID.xy] = result;
     }

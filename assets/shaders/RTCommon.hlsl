@@ -22,7 +22,7 @@ struct ShadowPayload
 
 struct MaterialPayload
 {
-    float4 bufferA;
+    uint4 bufferA;
     float coneAngle;
     uint bounceCount;
     float3 position;

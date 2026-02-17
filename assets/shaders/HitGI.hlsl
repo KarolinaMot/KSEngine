@@ -54,7 +54,7 @@ float ComputeTexLOD(Texture2D tex, float Lu, float Lv);
 
 void Compute_dPdu_dPdv(Vtx v0, Vtx v1, Vtx v2,
                        out float3 dPdu, out float3 dPdv);
-void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu, out float Lv);
+void ComputeUVFootprint(uint instance, uint meshIndex, uint baseIndex, float coneR, out float Lu, out float Lv);
 
 
 [shader("closesthit")]
@@ -63,7 +63,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     uint vertId = 3 * PrimitiveIndex();
     uint instance = InstanceID();
     uint meshIndex = instanceData[instance].modelIndex;
-    
+
     float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
     float4 vertexPos = float4(GetPosition(meshIndex, vertId, barycentrics), 1.f);
@@ -78,15 +78,10 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     float3 bitangentWS = normalize(cross(normal, tangentWS));
     float3x3 TBN = float3x3(tangentWS, bitangentWS, normal);
     
-    //float3 a = normals[instance][0];
-    //float3 b = mul(instanceData[instance].modelMatrix.mModelMat, float4(vertexPositions[instance][0], 1.f));
-    //uint c = indices[instance][0];
-
-    
     float t = RayTCurrent();
     float coneRadiusWS = RayTCurrent() * tan(payload.coneAngle);
     float Lu, Lv;
-    ComputeUVFootprint(instance, vertId, coneRadiusWS, Lu, Lv);
+    ComputeUVFootprint(instance,meshIndex, vertId, coneRadiusWS, Lu, Lv);
     
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
     PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
@@ -121,7 +116,7 @@ void GIClosestHit(inout HitInfo payload, Attributes attrib)
     payload.lightIntensityAndDistance = float4(result, t);
     payload.hitNormal = normal;
     payload.hitPoint = vertexPos;
-    payload.albedo = (normal + 1.f) * 0.5f;
+    payload.albedo = material.baseColor.rgb;
 }
 
 float3 NormalToColor(float3 normal)
@@ -220,20 +215,20 @@ void Compute_dPdu_dPdv(Vtx v0, Vtx v1, Vtx v2,
     dPdv = (-dp1 * duv2.x + dp2 * duv1.x) * invDet; // = ∂P/∂v
 }
 
-void ComputeUVFootprint(uint instance, uint baseIndex, float coneR, out float Lu, out float Lv)
+void ComputeUVFootprint(uint instance, uint meshIndex, uint baseIndex, float coneR, out float Lu, out float Lv)
 {
-// Fetch triangle indices from your index buffer
-    int i0 = GetIndex(baseIndex, instance, 0);
-    int i1 = GetIndex(baseIndex, instance, 1);
-    int i2 = GetIndex(baseIndex, instance, 2);
+    // Fetch triangle indices from your index buffer
+    int i0 = GetIndex(baseIndex, meshIndex, 0);
+    int i1 = GetIndex(baseIndex, meshIndex, 1);
+    int i2 = GetIndex(baseIndex, meshIndex, 2);
 
     // Vertex data (object space)
-    float3 P0o = GetPositionInVector(instance, i0);
-    float3 P1o = GetPositionInVector(instance, i1);
-    float3 P2o = GetPositionInVector(instance, i2);
-    float2 uv0 = GetUVInVector(instance, i0);
-    float2 uv1 = GetUVInVector(instance, i1);
-    float2 uv2 = GetUVInVector(instance, i2);
+    float3 P0o = GetPositionInVector(meshIndex, i0);
+    float3 P1o = GetPositionInVector(meshIndex, i1);
+    float3 P2o = GetPositionInVector(meshIndex, i2);
+    float2 uv0 = GetUVInVector(meshIndex, i0);
+    float2 uv1 = GetUVInVector(meshIndex, i1);
+    float2 uv2 = GetUVInVector(meshIndex, i2);
 
     // Transform positions to WORLD space to match coneR (world)
     float4x4 M = instanceData[instance].modelMatrix.mModelMat;
@@ -284,13 +279,13 @@ PBRMaterial GenerateMaterial(MaterialInfo info, float2 uv, float3 normals, float
     // Occlusion if it is not in matallic roughness texture
     mat.occlusionColor = textures[info.occlusionTexIndex].SampleLevel(mainSampler, uv, lodOcc).r;
     
-    //mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
-    //mat.normalColor = mat.normalColor * 2.0 - 1.0;
-    //mat.normalColor = mul(mat.normalColor, tangentBasis);
+    mat.normalColor = textures[info.normalTexIndex].SampleLevel(mainSampler, uv, lodNorm).rgb;
+    mat.normalColor = mat.normalColor * 2.0 - 1.0;
+    mat.normalColor = mul(mat.normalColor, tangentBasis);
 
     mat.F0 = float3(0.04, 0.04, 0.04);
-    mat.F0 = lerp(mat.F0, mat.baseColor.rgb, mat.metallic);
-    mat.diffuse = lerp(mat.baseColor.rgb, float3(0.0, 0.0, 0.0), mat.metallic);
+    mat.F0 = lerp(mat.F0, mat.baseColor, mat.metallic);
+    mat.diffuse = lerp(mat.baseColor, float3(0.0, 0.0, 0.0), mat.metallic);
 
     // To alpha roughness
     mat.roughness = mat.roughness * mat.roughness;
