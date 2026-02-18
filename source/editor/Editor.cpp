@@ -106,9 +106,9 @@ KS::Editor::Editor(Device& device)
 
 KS::Editor::~Editor() {}
 
-void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t, float fps, float ms,
-                               bool& recompileShaders, uint32_t numLights, uint32_t numMeshes, bool& raytraced, int& sceneIndex,
-                               ComponentFirstPersonCamera& info, ComponentTransform& camTransform, float& exposure)
+void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, float fps, float ms,
+                               bool& recompileShaders,  bool& raytraced, int& sceneIndex,
+                               ComponentFirstPersonCamera& info, ComponentTransform& camTransform)
 {
     ImGui::DockSpaceOverViewport();
 
@@ -119,10 +119,20 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
     scenes[sceneIndex]->GetFinalRTInfo(device, heap, frameIndex, gpuPtr, width, height);
     Viewport(gpuPtr, width, height);
 
-    int shadowSample = scenes[sceneIndex]->GetShadowSample();
-    int giSamples = scenes[sceneIndex]->GetGISample();
+    auto scene = scenes[sceneIndex].get();
+    int giSamples = scene->GetGISample();
     bool m_vSyncOn = device.GetVSync();
-    InfoWindow(numLights, numMeshes, fps, ms, shadowSample, giSamples, recompileShaders, raytraced, m_vSyncOn, exposure);
+    auto lightInfo = scene->GetLightInfo();
+    auto exposure = lightInfo.exposure;
+    auto giBounceStrength = lightInfo.GIBounceStrength;
+    auto numMeshes = scene->GetDrawQueueSize();
+
+    InfoWindow(lightInfo.numDirLights + lightInfo.numPointLights, numMeshes, fps, ms, giSamples, recompileShaders, raytraced,
+               m_vSyncOn, exposure, giBounceStrength);
+    scenes[sceneIndex]->SetExposure(exposure);
+    scenes[sceneIndex]->SetGIBounceStrength(giBounceStrength);
+    scenes[sceneIndex]->SetGISample(giSamples);
+
     device.SetVSync(m_vSyncOn);
 
     if (m_showEditor)
@@ -132,9 +142,6 @@ void KS::Editor::RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, u
 
         CameraWindow(info, camTransform);
     }
-
-    scenes[sceneIndex]->SetGISample(giSamples);
-    scenes[sceneIndex]->SetShadowSample(shadowSample);
 
 }
 
@@ -269,8 +276,8 @@ void KS::Editor::TransformWindow(Scene& scene)
     ImGui::End();
 }
 
-void KS::Editor::InfoWindow(uint32_t numLights, uint32_t numMeshes, float fps, float ms, int& shadowSample, int& giSample, bool& recompileShaders, bool& raytraced,
-                            bool& vSync, float& exposure)
+void KS::Editor::InfoWindow(uint32_t numLights, uint32_t numMeshes, float fps, float ms,  int& giSample, bool& recompileShaders, bool& raytraced,
+                            bool& vSync, float& exposure, float& giBounceStrength)
 {
     bool open = true;
 
@@ -317,10 +324,9 @@ void KS::Editor::InfoWindow(uint32_t numLights, uint32_t numMeshes, float fps, f
     if (raytraced)
     {
         ImGui::DragInt("Number of GI samples", &giSample, 4, 1);   
-        ImGui::DragInt("Number of shadow samples", &shadowSample, 4, 1);
-
+        ImGui::DragFloat("GI Strength", &giBounceStrength, 0.5f, 0.01f);   
+        
         glm::clamp(giSample, 0, 64);
-        glm::clamp(shadowSample, 0, 16);
     }
 
     ImGui::DragFloat("Exposure", &exposure, 0.5f, 0.f);

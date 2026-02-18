@@ -128,7 +128,6 @@ int main()
     glm::vec3 lastCameraTranslation = glm::vec3(0.f, 0.f, 0.f);
     glm::vec3 lastCameraRight = glm::vec3(0.f, 0.f, 0.f);
     bool cameraChange = true;
-    float exposure = 2.f;
     glm::ivec2 lastViewportSize{};
     while (device->IsWindowOpen())
     {
@@ -167,7 +166,6 @@ int main()
             device->SetViewportSize(lastViewportSize.x, lastViewportSize.y);
         }
 
-        activeScene->SetExposure(exposure);
         activeScene->Tick(*device);
         renderer.Render(*device, *activeScene, renderParams, raytraced, recomp);
         recomp = false;
@@ -175,12 +173,10 @@ int main()
         auto view = ecs->GetWorld().view<KS::ComponentFirstPersonCamera, KS::ComponentTransform>();
         auto it = view.each().begin();
         auto [e, cameraInfo, camTransform] = *it;
-        editor->RenderWindows(*device, scenes, KS::ScenesToChoose::COUNT, frametimer.GetFPS(), frametimer.GetMS(), recomp,
-                              activeScene->GetLightInfo().numDirLights + activeScene->GetLightInfo().numPointLights,
-                              activeScene->GetDrawQueueSize(),
+        editor->RenderWindows(*device, scenes, frametimer.GetFPS(), frametimer.GetMS(), recomp,
                               raytraced,
                               chosenScene,
-                              cameraInfo, camTransform, exposure);
+                              cameraInfo, camTransform);
         device->EndFrame();
 
     }

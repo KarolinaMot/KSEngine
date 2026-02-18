@@ -14,18 +14,17 @@ public:
     Editor(Device& device);
     ~Editor();
 
-    void RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, uint32_t sceneCount, float fps, float ms,
-                       bool& recompileShaders, uint32_t numLights, uint32_t numMeshes, bool& raytraced, int& sceneIndex,
-                       ComponentFirstPersonCamera& info,
-                       ComponentTransform& camTransform, float& exposure);
+    void RenderWindows(Device& device, std::unique_ptr<Scene>* scenes, float fps, float ms,
+                               bool& recompileShaders,  bool& raytraced, int& sceneIndex,
+                               ComponentFirstPersonCamera& info, ComponentTransform& camTransform);
     glm::ivec2 GetViewportSize() const { return m_viewportSize; }
 
 private:
 
     void SceneHierarchy(Scene& scene);
     void TransformWindow(Scene& scene);
-    void InfoWindow(uint32_t numLights, uint32_t numMeshes, float fps, float ms, int& shadowSample, int& giSample,
-                    bool& recompileShaders, bool& raytraced, bool& vSync, float& exposure);
+    void InfoWindow(uint32_t numLights, uint32_t numMeshes, float fps, float ms, int& giSample, bool& recompileShaders,
+                    bool& raytraced, bool& vSync, float& exposure, float& giBounceStrength);
     void CameraWindow(ComponentFirstPersonCamera& info, ComponentTransform& camTransform);
     void MeshInspector(Scene& scene);
     void PointLightInspector(Scene& scene);
