@@ -5,8 +5,8 @@
 
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
-RWTexture2D<float4> giHistoryCurrent : register(u1);
-RWTexture2D<float4> diHistoryCurrent : register(u2);
+RWTexture2D<float4> giHistory : register(u1);
+RWTexture2D<float4> diHistory : register(u2);
 Texture2D<uint4> GBufferA : register(t6);
 Texture2D<float> GBufferB : register(t7);
 Texture2D<float4> RenderedSkymap : register(t8);
@@ -79,28 +79,31 @@ void SpatialReuse(
     float3 outDI = directLighting;
     float outW = 1.0f;
 
-    if (!emptyPixel)
+    if (!emptyPixel && !mat.baseColor.a)
     {
-        if (!mat.baseColor.a)
-        {
-            MaterialPayload matPayload = (MaterialPayload) 0;
-            matPayload.bounceCount = 31;
-            matPayload.coneAngle = alpha0;
-            float4 target = mul(cameraMats.mInvProjection, float4(d.x, -d.y, 1, 1));
-            float3 dirWS = normalize(mul(cameraMats.mInvView, float4(target.xyz, 0)).xyz);
+        MaterialPayload matPayload = (MaterialPayload) 0;
+        matPayload.bounceCount = 31;
+        matPayload.coneAngle = alpha0;
+        float4 target = mul(cameraMats.mInvProjection, float4(d.x, -d.y, 1, 1));
+        float3 dirWS = normalize(mul(cameraMats.mInvView, float4(target.xyz, 0)).xyz);
 
-            matPayload = ShootMaterialRay(dirWS, cameraMats.mCameraPos.xyz, SceneBVH, matPayload);
+        matPayload = ShootMaterialRay(dirWS, cameraMats.mCameraPos.xyz, SceneBVH, matPayload);
 
-            UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
-            mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
-            mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
-            UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
-            worldPos = matPayload.position;
-            viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
-            bias = max(1e-4f, t * 1e-4f);
-        }
+        UnpackAlbedoMetal(matPayload.bufferA.x, mat.baseColor.rgb, mat.metallic);
+        mat.normalColor = UnpackNormalOct(matPayload.bufferA.y);
+        mat.emissiveColor = UnpackEmissive(matPayload.bufferA.z);
+        UnpackRoughOcc(matPayload.bufferA.w, mat.roughness, mat.occlusionColor, mat.baseColor.a);
+        worldPos = matPayload.position;
+        viewDirection = normalize(cameraMats.mCameraPos.xyz - worldPos.xyz);
+        t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
+        bias = max(1e-4f, t * 1e-4f);
+            
+        emptyPixel = matPayload.bufferA.a == 0;
         
+    }
+    
+    if(!emptyPixel)
+    {        
         Reservoir currentR = LoadReservoir(DIReservoirA, DIReservoirB, launchIndex);
         SpatialReuse(launchIndex, dims, depthValue, mat.normalColor, worldPos, viewDirection, mat, DIReservoirA, DIReservoirB, currentR, seed);
 

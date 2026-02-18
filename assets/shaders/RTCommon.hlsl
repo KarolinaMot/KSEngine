@@ -103,7 +103,7 @@ MaterialPayload ShootMaterialRay(float3 direction, float3 position, RaytracingAc
             0xFF,
             2,
             3,
-            0,
+            2,
             materialRay,
             materialPayload);
     

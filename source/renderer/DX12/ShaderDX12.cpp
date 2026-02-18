@@ -241,9 +241,7 @@ void KS::Shader::RTShader(const Device& device)
         out.subobject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
         out.subobject.pDesc = &out.libDesc;
 
-        auto& lib = libraries.back(); 
-
-        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &lib.libDesc});
+        subs.push_back({D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &out.libDesc});
 
         if (m_shaders[i].type != ShaderType::HIT_GROUP_SHADER) shaderPayloadExports.push_back(m_shaders[i].name.c_str());
     }
@@ -343,12 +341,14 @@ void KS::Shader::RTShader(const Device& device)
         auto& shaderTable = rtPipeline->m_shaderTable[i];
         shaderTable = std::make_unique<DXShaderTable>();
         shaderTable->AddRayGen(L"RayGen");
+
         shaderTable->AddHitGroup(L"GIHitGroup");
         shaderTable->AddHitGroup(L"ShadowHitGroup");
         shaderTable->AddHitGroup(L"MaterialHitGroup");
 
         shaderTable->AddMiss(L"MainMiss");
         shaderTable->AddMiss(L"ShadowMiss");
+        shaderTable->AddMiss(L"MaterialMiss");
         shaderTable->Build(engineDevice, rtPipeline->m_stateObjectProps.Get());
     }
 
