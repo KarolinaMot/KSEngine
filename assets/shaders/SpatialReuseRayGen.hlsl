@@ -6,7 +6,9 @@
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
 RWTexture2D<float4> giHistory : register(u1);
+Texture2D<float4> giHistoryPrev : register(t13);
 RWTexture2D<float4> diHistory : register(u2);
+Texture2D<float4> diHistoryPrev : register(t14);
 Texture2D<uint4> GBufferA : register(t6);
 Texture2D<float> GBufferB : register(t7);
 Texture2D<float4> RenderedSkymap : register(t8);
@@ -109,7 +111,7 @@ void SpatialReuse(
 
         directLighting = DirectLighting(currentR, mat, launchIndex, worldPos, viewDirection, seed, bias);
         
-        float4 h = diHistory.Load(loadLocation);
+        float4 h = diHistoryPrev.Load(loadLocation);
         float3 histDI = h.rgb;
         float histW = h.a;
         uint4 prebReservA = DIPRevReservoirA.Load(uint3(launchIndex, 0));
@@ -171,7 +173,7 @@ void SpatialReuse(
         outDI = RenderedSkymap.Load(loadLocation);
     }
 
-    float4 historyValue = giHistory.Load(loadLocation).rgba;
+    float4 historyValue = giHistoryPrev.Load(loadLocation).rgba;
     float3 historySum = historyValue.rgb;
     float sampleCount = historyValue.a;
     float3 newGISum = historySum + indirectLighting;
@@ -185,7 +187,7 @@ void SpatialReuse(
     res.rgb *= lightInfo.exposure; // e.g. exposure = 1.0 .. 2.0 (or make it a slider)
     res.rgb = ToneMapReinhard(res.rgb);
 
-    gOutput[launchIndex] = float4(LinearToSRGB(res.rgb), 1.f);
+    gOutput[launchIndex] = float4(LinearToSRGB(res), 1.f);
 
 }
 

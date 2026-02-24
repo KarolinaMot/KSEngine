@@ -331,6 +331,7 @@ void KS::Scene::Tick(Device& device)
     auto commandContext = device.GetCommandContext();
     auto& commandList = commandContext.m_commandList;
     auto frameIndex = device.GetFrameIndex();
+    auto prevFrameIndex = (device.GetFrameIndex() + 1 ) % FRAME_BUFFER_COUNT;
 
     if (device.GetWindowResize())
         SetUpdateSuperSampler();
@@ -351,11 +352,15 @@ void KS::Scene::Tick(Device& device)
     {
         m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, frameIndex, m_deferredRendererDepthStencil.get());
         m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, frameIndex);
+        m_renderTargets[SUPER_SAMPLED_GI]->Bind(*commandList, prevFrameIndex, m_deferredRendererDepthStencil.get());
+        m_renderTargets[SUPER_SAMPLED_GI]->Clear(*commandList, prevFrameIndex);
         m_renderTargets[SUPER_SAMPLED_DI]->Bind(*commandList, frameIndex, m_deferredRendererDepthStencil.get());
         m_renderTargets[SUPER_SAMPLED_DI]->Clear(*commandList, frameIndex);
+        m_renderTargets[SUPER_SAMPLED_DI]->Bind(*commandList, prevFrameIndex, m_deferredRendererDepthStencil.get());
+        m_renderTargets[SUPER_SAMPLED_DI]->Clear(*commandList, prevFrameIndex);
 
         m_pathTracingInfo.frameIndex = 0;
-        m_updateSupersampled--;
+        m_updateSupersampled = false;
     }
 
     mUniformBuffers[PATH_TRACING_BUFFER]->Update(device, m_pathTracingInfo);

@@ -70,7 +70,7 @@ public:
     std::shared_ptr<Texture> GetTexture(Device& device, DXCommandList* commandList, ResourceHandle<Texture> imgPath,
                                         bool isSrgb = false);
     void SetUpdateSuperSampler() {
-        m_updateSupersampled = 2;
+        m_updateSupersampled = true;
     }
     void SetUpdateCamera()
     {
@@ -153,7 +153,7 @@ private:
     std::vector<std::weak_ptr<KS::Texture>> m_texWithoutMipmaps;
     bool m_updateDirLights = false, m_updatePointLights = false;
     bool m_updateScene = false;
-    uint32_t m_updateSupersampled = 2;
+    bool m_updateSupersampled = true;
     bool m_cameraUpdated=false;
 };
 }  // namespace KS
