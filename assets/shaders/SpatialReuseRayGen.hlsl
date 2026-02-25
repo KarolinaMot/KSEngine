@@ -100,7 +100,7 @@ void SpatialReuse(
         t = length(cameraMats.mCameraPos.xyz - worldPos.xyz);
         bias = max(1e-4f, t * 1e-4f);
             
-        emptyPixel = matPayload.bufferA.a == 0;
+        emptyPixel = matPayload.bufferA.a <= 0.5f;
         
     }
     

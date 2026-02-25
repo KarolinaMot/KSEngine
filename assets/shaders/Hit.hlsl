@@ -89,7 +89,7 @@ void MaterialClosestHit(inout MaterialPayload payload, Attributes attrib)
     MaterialInfo matInfo = materialInfo[instanceData[instance].materialIndex];
     PBRMaterial material = GenerateMaterial(matInfo, uv, normal, TBN, Lu, Lv);
 
-    if (material.baseColor.a == 0 && payload.bounceCount > 0)
+    if (material.baseColor.a <= 0.5f && payload.bounceCount > 0)
     {
         float3 rayO = WorldRayOrigin();
         float3 rayD = WorldRayDirection(); // <-- this is the ray direction
