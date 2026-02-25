@@ -53,7 +53,7 @@ class Device;
 class ShaderInputBlueprint
 {
 public:
-    ShaderInputBlueprint(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature, bool global, std::string name);
+    ShaderInputBlueprint(std::unordered_map<std::string, ShaderInputDesc> inputs, void* signature, bool global, std::string name);
     ~ShaderInputBlueprint();
     void* GetSignature() const;
     ShaderInputDesc GetInput(std::string key) const;

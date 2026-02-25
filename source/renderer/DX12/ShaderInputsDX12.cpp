@@ -11,12 +11,10 @@ public:
 };
 
 
-KS::ShaderInputBlueprint::ShaderInputBlueprint(std::unordered_map<std::string, ShaderInputDesc>&& inputs, void* signature,
-                               bool global, std::string)
+KS::ShaderInputBlueprint::ShaderInputBlueprint(std::unordered_map<std::string, ShaderInputDesc> inputs, void* signature,
+                                               bool global, std::string)
+    : m_impl(std::make_unique<Impl>()), m_descriptors(std::move(inputs)), m_isGlobal(global)
 {
-    m_impl = std::make_unique<Impl>();
-    m_descriptors = std::move(inputs);
-    m_isGlobal = global;
     auto* rs = static_cast<ID3D12RootSignature*>(signature);
     m_impl->m_signature = rs;
 }
